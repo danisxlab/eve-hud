@@ -1,0 +1,412 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* The basics: font, colours (:root variables), page background, and small shared pieces (labels, bars, tabs, segmented buttons, security chips, empty states, the toast). */
+
+/* ==========================================================================
+   Capsuleer HUD — EVE Photon-inspired second-screen interface
+   Palette: Gallente teal (primary), Caldari blue (data), faded industrial amber,
+   neutral grays, warning red. Black void behind translucent slate panels.
+   ========================================================================== */
+
+/* Saira Semi Condensed (SIL Open Font License, public/fonts/OFL.txt), served by the HUD itself:
+   no request to Google Fonts. Until the files are there, the fallbacks in --font are used. */
+@font-face {
+  font-family: 'Saira Semi Condensed';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/saira-semi-condensed-latin-300-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Saira Semi Condensed';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/saira-semi-condensed-latin-400-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Saira Semi Condensed';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/saira-semi-condensed-latin-500-normal.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Saira Semi Condensed';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/saira-semi-condensed-latin-600-normal.woff2') format('woff2');
+}
+
+:root {
+  --void: #000000;
+  --panel-rgb: 8, 12, 14;
+  --panel-alpha: 0.72;
+  --panel-blur: 0px; /* off by default: see Background blur in the README */
+
+  --gal: #4fb08f;
+  --gal-hi: #8fe6c4;
+  --gal-dim: #24493f;
+  --gal-rgb: 79, 176, 143;
+
+  --cal: #4fa3d6;
+  --cal-hi: #7cc6ee;
+  --cal-sq: #5b9bc4;
+  --cal-rgb: 79, 163, 214;
+
+  --amber: #d98a32;
+  --amber-hi: #f0a952;
+  --amber-dim: #6e4a22;
+  --amber-rgb: 217, 138, 50;
+
+  --red: #d24a3c;
+  --up: #5fd38a;
+  --down: #d24a3c;
+
+  --ink: #d4d9db;
+  --ink-2: #8e979b;
+  --ink-3: #535b5f;
+  --ink-4: #2b3134;
+
+  --line: rgba(var(--gal-rgb), 0.18);
+  --line-2: rgba(var(--gal-rgb), 0.42);
+  --hair: rgba(255, 255, 255, 0.06);
+
+  --font: 'Saira Semi Condensed', 'Saira Condensed', 'Arial Narrow', 'Helvetica Neue', sans-serif;
+  --topbar-h: 34px;
+  --gap: 8px;
+  --head-h: 38px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--void);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.35;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+body.scanlines::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 3px);
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 1px solid var(--gal-hi);
+  outline-offset: 2px;
+}
+
+.dim {
+  color: var(--ink-2);
+}
+
+.faint {
+  color: var(--ink-3);
+}
+
+.amber {
+  color: var(--amber-hi);
+}
+
+.cal {
+  color: var(--cal-hi);
+}
+
+.gal {
+  color: var(--gal-hi);
+}
+
+.up {
+  color: var(--up);
+}
+
+.down {
+  color: var(--down);
+}
+
+#backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+#plexus {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+} /* static, drawn once per window size (plexus.js) */
+
+#plexus[hidden] {
+  display: none;
+}
+
+.scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scroll::-webkit-scrollbar-thumb {
+  background: rgba(var(--gal-rgb), 0.35);
+}
+
+body:not(.locked) .rz {
+  display: block;
+}
+
+/* ---------------------------------------------------------------- shared atoms */
+
+.label {
+  font-size: 10.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.label.amber {
+  color: var(--amber);
+}
+
+.big {
+  font-size: 26px;
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+}
+
+.sec-chip {
+  display: inline-flex;
+  align-items: stretch;
+  font-size: 12px;
+  line-height: 18px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+.sec-chip .n {
+  padding: 0 6px;
+  background: rgba(30, 52, 96, 0.75);
+  color: var(--ink);
+}
+
+.sec-chip .s {
+  padding: 0 5px;
+  color: #05090b;
+  font-weight: 600;
+}
+
+.bar {
+  height: 3px;
+  background: var(--ink-4);
+  position: relative;
+  overflow: hidden;
+}
+
+.bar > i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--cal);
+}
+
+.bar.gal > i {
+  background: var(--gal);
+}
+
+.bar.amber > i {
+  background: var(--amber);
+}
+
+.spark {
+  display: block;
+  overflow: visible;
+}
+
+.tri-up,
+.tri-down {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  vertical-align: middle;
+}
+
+.tri-up {
+  border-bottom: 5px solid var(--up);
+}
+
+.tri-down {
+  border-top: 5px solid var(--down);
+}
+
+.empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  gap: 2px;
+  color: var(--ink-2);
+}
+
+.empty p {
+  margin: 0;
+  max-width: 28ch;
+}
+
+.empty .empty-mark {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line-2);
+  transform: rotate(45deg);
+  margin-bottom: 12px;
+  position: relative;
+}
+
+.empty .empty-mark::after {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  background: var(--line-2);
+}
+
+.feed-error {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 8px;
+  font-size: 11px;
+  color: var(--amber);
+  background: rgba(0, 0, 0, 0.6);
+  padding: 3px 6px;
+  border-left: 2px solid var(--amber);
+  z-index: 4;
+}
+
+.img-missing {
+  visibility: hidden;
+}
+
+.tabs {
+  display: flex;
+  gap: 2px;
+}
+
+.tab {
+  border: 0;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ink-2);
+  padding: 3px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  position: relative;
+}
+
+.tab:hover {
+  color: var(--ink);
+  background: rgba(var(--gal-rgb), 0.08);
+}
+
+.tab.on {
+  color: var(--ink);
+  background: rgba(var(--gal-rgb), 0.16);
+}
+
+.tab.on::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: var(--gal-hi);
+  box-shadow: 0 0 6px var(--gal);
+}
+
+.tab .badge {
+  margin-left: 6px;
+  font-size: 10px;
+  color: #04100c;
+  background: var(--gal-hi);
+  padding: 0 4px;
+}
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 40;
+  padding: 7px 14px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid var(--line-2);
+  color: var(--ink);
+  font-size: 12.5px;
+  opacity: 0;
+  transition: opacity 200ms;
+  pointer-events: none;
+}
+
+#toast.show {
+  opacity: 1;
+}
+
+.seg {
+  display: flex;
+  gap: 2px;
+  flex-wrap: wrap;
+}
+
+.seg button {
+  border: 0;
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--ink-2);
+  font-size: 11.5px;
+  padding: 2px 9px;
+  cursor: pointer;
+}
+
+.seg button:hover {
+  color: var(--ink);
+  background: rgba(var(--gal-rgb), 0.08);
+}
+
+.seg button.on {
+  color: var(--ink);
+  background: rgba(var(--gal-rgb), 0.18);
+  box-shadow: inset 0 -1px 0 var(--gal-hi);
+}

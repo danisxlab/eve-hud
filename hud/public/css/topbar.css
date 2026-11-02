@@ -1,0 +1,734 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* The top bar: character, clone, alerts, mail, notifications, Tranquility, EVE time, the CLUSTER light, ATTACK, and the hover boxes. */
+
+/* ---------------------------------------------------------------- top bar */
+
+#topbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--topbar-h);
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 17px 0 14px; /* a little more on the right: the last button's edge lines up better */
+  z-index: 20;
+  border-bottom: 1px solid var(--line);
+  background: rgba(var(--panel-rgb), 0.85);
+  backdrop-filter: blur(8px);
+  font-size: 12px;
+}
+
+#topbar .brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  letter-spacing: 0.04em;
+}
+
+#topbar .brand svg {
+  width: 16px;
+  height: 16px;
+}
+
+#topbar .who {
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#topbar .who b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+#topbar .spacer {
+  flex: 1;
+}
+
+#topbar .stat {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+#topbar .stat b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+#topbar .clock b {
+  font-size: 14px;
+  letter-spacing: 0.04em;
+}
+
+/* The font's capitals sit about 1.5 px above the middle of their line box, so text looked higher
+   than the icons, lights and dividers next to it (measured from screenshots). Nudge the text down. */
+#topbar .brand > span:not(.g),
+#topbar .who,
+#topbar .clone .lbl,
+#topbar .clone .st,
+#topbar .stat > span:not(.led),
+#topbar .stat > b {
+  position: relative;
+  top: 1px;
+}
+
+.led {
+  width: 6px;
+  height: 6px;
+  display: inline-block;
+  background: var(--ink-3);
+  align-self: center;
+}
+
+.led.on {
+  background: var(--gal-hi);
+  box-shadow: 0 0 6px var(--gal);
+}
+
+.led.warn {
+  background: var(--amber);
+  box-shadow: 0 0 6px var(--amber);
+}
+
+.led.off {
+  background: var(--red);
+}
+
+.icon-btn {
+  width: 26px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  padding: 0; /* no default button padding: it pushed the icon right */
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+  position: relative;
+}
+
+.icon-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.icon-btn:hover {
+  color: var(--gal-hi);
+  border-color: var(--line-2);
+  background: rgba(var(--gal-rgb), 0.08);
+}
+
+.icon-btn:hover::after,
+.icon-btn.active::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  bottom: -3px;
+  height: 1px;
+  background: var(--gal-hi);
+  box-shadow: 0 0 6px var(--gal);
+}
+
+.icon-btn.active {
+  color: var(--gal-hi);
+  border-color: var(--line-2);
+}
+
+.icon-btn:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* top bar: medical clone */
+#topbar .clone {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 0 1 auto;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+#topbar .clone .lbl {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+#topbar .clone .sec-chip {
+  font-size: 11px;
+  line-height: 16px;
+}
+
+#topbar .clone .sec-chip > span {
+  line-height: 15px;
+  padding-top: 1px;
+} /* the text a pixel lower, like the rest of the bar; the chip stays the same size */
+
+#topbar .clone .st {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+#topbar .who {
+  flex: 0 0 auto;
+}
+
+#topbar .brand {
+  flex: none;
+  white-space: nowrap;
+}
+
+/* top bar dividers: 1px line with a faint shade beside it */
+#topbar .tb-div {
+  width: 1px;
+  height: 16px;
+  flex: none;
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow:
+    1px 0 0 rgba(0, 0, 0, 0.75),
+    -1px 0 2px rgba(0, 0, 0, 0.35);
+}
+
+/* unread mail: hidden until there is unread mail; fades in fast, blinks once, fades out fast */
+#topbar .tb-mail {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex: none;
+  max-width: 0;
+  opacity: 0;
+  overflow: visible;
+  pointer-events: none;
+  transition:
+    opacity 160ms ease-out,
+    max-width 0s linear 160ms,
+    margin 0s linear 160ms;
+  margin-right: -18px;
+}
+
+#topbar .tb-mail.on {
+  max-width: 80px;
+  opacity: 1;
+  pointer-events: auto;
+  margin-right: 0;
+  transition: opacity 140ms ease-out;
+}
+
+#topbar .mail-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 18px;
+  color: var(--ink);
+  cursor: default;
+}
+
+#topbar .mail-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+#topbar .mail-count {
+  position: absolute;
+  top: -3px;
+  right: -10px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: 7px;
+  box-sizing: border-box;
+  font-size: 9.5px;
+  line-height: 14px;
+  font-weight: 600;
+  text-align: center;
+  color: #03140e;
+  background: var(--gal-hi);
+  box-shadow: 0 0 6px rgba(var(--gal-rgb), 0.85);
+}
+
+#topbar .mail-icon.blink {
+  animation: mail-blink 520ms linear 140ms both;
+}
+
+#topbar .hud-conn {
+  align-items: center;
+  gap: 7px;
+}
+
+/* notifications: always visible; chevron badge (pointing left at the icon) only when unread */
+#topbar .tb-notif {
+  display: flex;
+  align-items: center;
+  flex: none;
+}
+
+#topbar .tb-notif[hidden] {
+  display: none;
+}
+
+#topbar .tb-notif.dim {
+  opacity: 0.4;
+}
+
+#topbar .notif-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 18px;
+  color: var(--ink);
+  cursor: default;
+}
+
+#topbar .notif-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+#topbar .notif-count {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 1px;
+  height: 13px;
+  min-width: 15px;
+  padding: 0 3px 0 6px;
+  box-sizing: border-box;
+  font-size: 9.5px;
+  line-height: 13px;
+  font-weight: 600;
+  color: #03140e;
+  text-align: center;
+  background: var(--gal-hi);
+  clip-path: polygon(5px 0, 100% 0, 100% 100%, 5px 100%, 0 50%);
+  filter: drop-shadow(0 0 4px rgba(var(--gal-rgb), 0.8));
+  display: none;
+}
+
+#topbar .notif-icon.has .notif-count {
+  display: block;
+}
+
+#topbar .tb-notif:has(.notif-icon.has) {
+  margin-right: 14px;
+} /* room for the badge */
+
+#topbar .notif-icon.blink {
+  animation: mail-blink 520ms linear both;
+}
+
+/* ---- mail + notifications (v2): icons always visible, badges only when unread ---- */
+#topbar .mail-icon:not(.has) .mail-count {
+  display: none;
+}
+
+#topbar .mail-icon .mail-count,
+#topbar .notif-icon .notif-count {
+  animation: badge-in 140ms ease-out;
+}
+
+#topbar .notif-icon .notif-count {
+  animation-name: badge-in-v;
+}
+
+/* the chevron covers the right ~45% of the notification icon */
+#topbar .notif-count {
+  left: 11px;
+  margin-left: 0;
+  filter: drop-shadow(-1px 0 0 rgba(0, 0, 0, 0.95)) drop-shadow(0 0 4px rgba(var(--gal-rgb), 0.75));
+}
+
+#topbar .tb-notif:has(.notif-icon.has) {
+  margin-right: 8px;
+}
+
+/* hover box */
+.tb-pop {
+  position: fixed;
+  z-index: 60;
+  box-sizing: border-box;
+  padding: 5px 10px;
+  background: rgba(8, 12, 14, 0.95);
+  border: 1px solid var(--line-2);
+  backdrop-filter: blur(10px);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 18px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.tb-pop[hidden] {
+  display: none;
+}
+
+.tb-pop::before,
+.tb-pop::after {
+  content: '';
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border: 0 solid var(--gal-hi);
+  pointer-events: none;
+}
+
+.tb-pop::before {
+  left: -1px;
+  top: -1px;
+  border-left-width: 1px;
+  border-top-width: 1px;
+}
+
+.tb-pop::after {
+  right: -1px;
+  bottom: -1px;
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+}
+
+.tb-pop.hint {
+  white-space: nowrap;
+}
+
+.tb-pop.hint.opening {
+  animation: hint-in 120ms ease-out;
+}
+
+/* list box opens like a HUD panel: drops down at the icon, then slides open to the right */
+.tb-pop.list.opening {
+  animation: pop-open 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.tb-pop .pop-row {
+  display: grid;
+  grid-template-columns: 6px minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+}
+
+.tb-pop .pop-row i {
+  width: 5px;
+  height: 5px;
+  margin-top: 0.6em;
+  border-radius: 50%;
+  background: var(--gal-hi);
+  box-shadow: 0 0 4px var(--gal);
+}
+
+/* the grey detail follows the title on the same line and wraps when it doesn't fit */
+.tb-pop .pop-row .txt {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.tb-pop .pop-row .ago {
+  margin-left: 8px;
+}
+
+.tb-pop .pop-row .ago,
+.tb-pop .pop-more {
+  color: var(--ink-3);
+  font-size: 11px;
+}
+
+.tb-pop .pop-more {
+  padding-left: 15px;
+}
+
+.tb-pop.opening .pop-row,
+.tb-pop.opening .pop-more {
+  animation: row-in 200ms ease-out both;
+}
+
+#topbar .tb-alerts {
+  display: flex;
+  align-items: center;
+  flex: none;
+  margin-right: 18px;
+}
+
+#topbar .tb-alerts[hidden] {
+  display: none;
+}
+
+/* the triangle (alerts + notifications): blue; brighter with a glow when there's something new;
+   amber when an alert needs attention */
+#topbar .alert-icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 18px;
+  color: var(--cal-hi);
+  opacity: 0.7;
+  cursor: default;
+}
+
+#topbar .alert-icon.has {
+  opacity: 1;
+  filter: drop-shadow(0 0 4px rgba(var(--cal-rgb), 0.5));
+}
+
+#topbar .alert-icon.warn {
+  color: var(--amber-hi);
+  filter: drop-shadow(0 0 4px rgba(var(--amber-rgb), 0.55));
+}
+
+#topbar .alert-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+#topbar .alert-count {
+  position: absolute;
+  left: 13px;
+  top: -3px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--amber);
+  color: #120a02;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 15px;
+  text-align: center;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.9);
+  animation: badge-in 140ms ease-out;
+}
+
+#topbar .alert-count {
+  background: var(--cal);
+  display: none;
+}
+
+#topbar .alert-icon.has .alert-count {
+  display: block;
+}
+
+#topbar .alert-icon.warn .alert-count {
+  background: var(--amber);
+}
+
+#topbar .alert-icon.blink {
+  animation: mail-blink 520ms linear both;
+}
+
+.tb-pop .pop-row.alert i {
+  background: var(--amber-hi);
+  box-shadow: 0 0 4px var(--amber);
+}
+
+.tb-pop .pop-row.alert.soft i {
+  background: var(--cal-hi);
+  box-shadow: 0 0 4px var(--cal);
+}
+
+/* Icons in the top bar and in the square buttons: the glyph span is a block, so the SVG sits in the
+   middle instead of on the text baseline (which left it a few pixels too high). */
+#topbar .g,
+.icon-btn .g {
+  display: block;
+  line-height: 0;
+}
+
+#topbar .g > svg,
+.icon-btn .g > svg {
+  display: block;
+}
+
+/* the STATUS box: opens to the left from the light, at the right edge of the screen */
+.tb-pop.from-right {
+  max-width: min(520px, calc(100vw - 24px));
+}
+
+.tb-pop.list.from-right.opening {
+  animation-name: pop-open-left;
+}
+
+.tb-pop .pop-row.warn i {
+  background: var(--amber-hi);
+  box-shadow: 0 0 4px var(--amber);
+}
+
+.tb-pop .pop-row.bad i {
+  background: #ff6a5a;
+  box-shadow: 0 0 4px #d24a3c;
+}
+
+.tb-pop .pop-row.idle i {
+  background: var(--ink-3);
+  box-shadow: none;
+}
+
+/* hover boxes from util.js hoverPop (module lights, list rows): the top bar's box, above everything */
+.tb-pop.hover-pop {
+  z-index: 70;
+  pointer-events: none;
+}
+
+.tb-pop.hover-pop .pop-row + .pop-row {
+  margin-top: 2px;
+}
+
+/* ---- combat (EVE game log): ATTACK in the top bar, a red flash of the whole HUD when it starts ---- */
+#topbar .tb-attack {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  margin-right: 18px;
+  color: #ff7a6c;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  font-weight: 500;
+  text-shadow: 0 0 6px rgba(210, 74, 60, 0.55);
+}
+
+#topbar .tb-attack[hidden] {
+  display: none;
+}
+
+#topbar .tb-attack svg {
+  width: 16px;
+  height: 16px;
+  filter: drop-shadow(0 0 3px rgba(210, 74, 60, 0.7));
+}
+
+#topbar .tb-attack > span {
+  position: relative;
+  top: 1px;
+}
+
+#topbar .tb-attack.starting {
+  animation: attack-in 420ms linear both;
+}
+
+#topbar .tb-attack.ending {
+  animation: attack-out 560ms ease-out both;
+}
+
+@keyframes mail-blink {
+  0% {
+    opacity: 1;
+  }
+  25% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 1;
+    filter: brightness(1.6);
+  }
+  100% {
+    opacity: 1;
+    filter: none;
+  }
+}
+
+@keyframes badge-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@keyframes badge-in-v {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scale(0.6);
+  }
+}
+
+@keyframes hint-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+}
+
+@keyframes pop-open {
+  0% {
+    clip-path: inset(0 calc(100% - 26px) 100% 0);
+    opacity: 0.6;
+  }
+  35% {
+    clip-path: inset(0 calc(100% - 26px) 0 0);
+    opacity: 1;
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+}
+
+@keyframes pop-open-left {
+  0% {
+    clip-path: inset(0 0 100% calc(100% - 26px));
+    opacity: 0.6;
+  }
+  35% {
+    clip-path: inset(0 0 0 calc(100% - 26px));
+    opacity: 1;
+  }
+  100% {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes attack-in {
+  0% {
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+    filter: brightness(1.8);
+  }
+  40% {
+    opacity: 0.2;
+  }
+  65% {
+    opacity: 1;
+    filter: brightness(1.4);
+  }
+  100% {
+    opacity: 1;
+    filter: none;
+  }
+}
+
+@keyframes attack-out {
+  0% {
+    opacity: 1;
+  }
+  18% {
+    opacity: 0.1;
+  }
+  38% {
+    opacity: 1;
+    filter: brightness(1.6);
+  }
+  100% {
+    opacity: 0;
+    filter: none;
+  }
+}

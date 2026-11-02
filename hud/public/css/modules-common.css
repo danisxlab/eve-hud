@@ -1,0 +1,521 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* What every module window shares: frame, corner ticks, header, resize handles, the boot and update-blink animations. */
+
+/* ---------------------------------------------------------------- module chrome */
+
+.mod {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  background: rgba(var(--panel-rgb), var(--panel-alpha));
+  /* --panel-backdrop: 'none' when Background blur is 0, so the panels don't redo a backdrop filter
+     every time the animated background behind them changes (app.js) */
+  backdrop-filter: var(--panel-backdrop, blur(var(--panel-blur)) saturate(115%));
+  -webkit-backdrop-filter: var(--panel-backdrop, blur(var(--panel-blur)) saturate(115%));
+  /* each panel on its own graphics layer: the moving background behind it (plexus, starfield) then
+     doesn't make the panel's content be painted again every frame (measured: about 13% less CPU in
+     the renderer with blur off) */
+  will-change: transform;
+  border: 1px solid var(--line);
+  transition:
+    left 180ms var(--ease-out),
+    top 180ms var(--ease-out),
+    width 180ms var(--ease-out),
+    height 180ms var(--ease-out),
+    border-color 200ms;
+  min-width: 0;
+  min-height: 0;
+}
+
+.mod.dragging {
+  transition: none;
+  z-index: 10;
+  opacity: 0.82;
+  border-color: var(--line-2);
+}
+
+.mod.resizing {
+  transition: none;
+  z-index: 10;
+}
+
+.mod:hover {
+  border-color: rgba(var(--gal-rgb), 0.28);
+}
+
+/* corner ticks, as on Photon windows */
+.mod .tick {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border: 0 solid var(--gal);
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+.mod .tick.tl {
+  left: -1px;
+  top: -1px;
+  border-left-width: 1px;
+  border-top-width: 1px;
+}
+
+.mod .tick.tr {
+  right: -1px;
+  top: -1px;
+  border-right-width: 1px;
+  border-top-width: 1px;
+}
+
+.mod .tick.bl {
+  left: -1px;
+  bottom: -1px;
+  border-left-width: 1px;
+  border-bottom-width: 1px;
+}
+
+.mod .tick.br {
+  right: -1px;
+  bottom: -1px;
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+}
+
+.mod-head {
+  flex: none;
+  height: var(--head-h);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px 0 14px;
+  cursor: default;
+  position: relative;
+}
+
+body:not(.locked) .mod-head {
+  cursor: grab;
+}
+
+body:not(.locked) .mod.dragging .mod-head {
+  cursor: grabbing;
+}
+
+.mod-head::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 12px;
+  bottom: 0;
+  height: 1px;
+  background: var(--hair);
+}
+
+.mod-head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mod-head h2 .count {
+  color: var(--ink-2);
+  font-weight: 300;
+  margin-left: 6px;
+}
+
+.mod-head h2 .count small {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+.mod-head .sub {
+  color: var(--ink-3);
+  font-size: 11px;
+  white-space: nowrap;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mod-head .sub .led {
+  width: 5px;
+  height: 5px;
+}
+
+.mod-body {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  height: 100%;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--gal-rgb), 0.35) transparent;
+}
+
+/* resize handles */
+.rz {
+  position: absolute;
+  z-index: 3;
+  display: none;
+}
+
+.rz-e {
+  right: -4px;
+  top: 12px;
+  bottom: 12px;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+.rz-s {
+  bottom: -4px;
+  left: 12px;
+  right: 12px;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.rz-se {
+  right: -2px;
+  bottom: -2px;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+}
+
+.rz-se::before {
+  content: '';
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 8px;
+  height: 8px;
+  background: linear-gradient(
+    135deg,
+    transparent 0 45%,
+    var(--line-2) 45% 52%,
+    transparent 52% 70%,
+    var(--line-2) 70% 77%,
+    transparent 77%
+  );
+  opacity: 0;
+  transition: opacity 150ms;
+}
+
+.mod:hover .rz-se::before {
+  opacity: 1;
+}
+
+.rz-w {
+  left: -4px;
+  top: 12px;
+  bottom: 12px;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+.rz-sw {
+  left: -2px;
+  bottom: -2px;
+  width: 16px;
+  height: 16px;
+  cursor: nesw-resize;
+}
+
+.rz-sw::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  bottom: 4px;
+  width: 8px;
+  height: 8px;
+  background: linear-gradient(
+    225deg,
+    transparent 0 45%,
+    var(--line-2) 45% 52%,
+    transparent 52% 70%,
+    var(--line-2) 70% 77%,
+    transparent 77%
+  );
+  opacity: 0;
+  transition: opacity 150ms;
+}
+
+.mod:hover .rz-sw::before {
+  opacity: 1;
+}
+
+.ghost {
+  position: absolute;
+  z-index: 9;
+  pointer-events: none;
+  border: 1px dashed var(--gal-hi);
+  background: rgba(var(--gal-rgb), 0.06);
+  transition:
+    left 90ms,
+    top 90ms,
+    width 90ms,
+    height 90ms;
+}
+
+.ghost.bad {
+  border-color: var(--red);
+  background: rgba(210, 74, 60, 0.08);
+}
+
+.ghost.swap {
+  border-color: var(--cal-hi);
+  background: rgba(var(--cal-rgb), 0.08);
+}
+
+.ghost.swap span {
+  color: var(--cal-hi);
+}
+
+.ghost span {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  font-size: 11px;
+  color: var(--gal-hi);
+}
+
+.ghost.bad span {
+  color: var(--red);
+}
+
+/* boot: frame blinks twice, then content fades in fast */
+.mod .flash {
+  position: absolute;
+  inset: -1px;
+  border: 1px solid var(--gal-hi);
+  box-shadow:
+    0 0 14px rgba(var(--gal-rgb), 0.5),
+    inset 0 0 18px rgba(var(--gal-rgb), 0.15);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.mod.boot {
+  animation: boot-panel 760ms linear both;
+}
+
+.mod.boot .flash {
+  animation: boot-flash 760ms linear both;
+}
+
+.mod.boot .mod-head,
+.mod.boot .mod-body {
+  animation: boot-content 760ms linear both;
+}
+
+.mod.boot .tick {
+  animation: boot-tick 760ms linear both;
+}
+
+@keyframes boot-tick {
+  0% {
+    opacity: 0;
+  }
+  7% {
+    opacity: 1;
+  }
+  15% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  33% {
+    opacity: 0;
+  }
+  50%,
+  100% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes boot-flash {
+  0% {
+    opacity: 0;
+  }
+  7% {
+    opacity: 1;
+  }
+  15% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  33% {
+    opacity: 0;
+  }
+  52% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes boot-panel {
+  0%,
+  33.9% {
+    background-color: transparent;
+    border-color: transparent;
+    backdrop-filter: none;
+  }
+  34% {
+    background-color: rgba(var(--panel-rgb), 0);
+    border-color: transparent;
+  }
+  58%,
+  100% {
+    background-color: rgba(var(--panel-rgb), var(--panel-alpha));
+  }
+}
+
+@keyframes boot-content {
+  0%,
+  36% {
+    opacity: 0;
+  }
+  58%,
+  100% {
+    opacity: 1;
+  }
+}
+
+/* update blink: frame flashes twice (same rhythm as the boot), content stays visible */
+.mod.pulse .flash {
+  animation: pulse-flash 780ms linear both;
+}
+
+.mod.pulse .tick {
+  animation: pulse-tick 780ms linear both;
+}
+
+.scope-needed .btn {
+  margin: 10px 0 4px;
+}
+
+.scope-needed .btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.scope-needed code {
+  color: var(--gal-hi);
+  font-size: 11.5px;
+  overflow-wrap: anywhere;
+}
+
+.scope-needed a {
+  color: var(--gal-hi);
+}
+
+/* module headers: the light (own state, or ESI trouble) before the short status text */
+.mod-head .sub .sub-text {
+  display: contents;
+}
+
+/* Character, when the module is short (one row of the grid): portrait | name, corp, numbers |
+   ship, where you are and the wallet. The wallet graph and the last entries need the height. */
+.mod[data-id='character'] .mod-body {
+  container-type: size;
+}
+
+/* Resizing a module: its content dims while you drag, and on release comes back with a quick
+   double blink and fade as it settles into the new size (grid.js reflowBlink) */
+.mod.resizing .mod-body {
+  opacity: 0.5;
+  overflow: hidden;
+  transition: opacity 120ms ease-out;
+}
+
+.mod-body.reflow {
+  animation: reflow 520ms linear both;
+}
+
+@keyframes pulse-flash {
+  0% {
+    opacity: 0;
+  }
+  9% {
+    opacity: 0.9;
+  }
+  20% {
+    opacity: 0;
+  }
+  32% {
+    opacity: 0.9;
+  }
+  44% {
+    opacity: 0;
+  }
+  60% {
+    opacity: 0.18;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes pulse-tick {
+  0% {
+    opacity: 0.85;
+  }
+  9% {
+    opacity: 1;
+    filter: brightness(1.8);
+  }
+  20% {
+    opacity: 0.3;
+  }
+  32% {
+    opacity: 1;
+    filter: brightness(1.8);
+  }
+  44% {
+    opacity: 0.3;
+  }
+  70%,
+  100% {
+    opacity: 0.85;
+    filter: none;
+  }
+}
+
+@keyframes reflow {
+  0% {
+    opacity: 0.5;
+  }
+  10% {
+    opacity: 1;
+  }
+  20% {
+    opacity: 0.15;
+  }
+  32% {
+    opacity: 1;
+    filter: brightness(1.35);
+  }
+  44% {
+    opacity: 0.3;
+    filter: none;
+  }
+  100% {
+    opacity: 1;
+  }
+}

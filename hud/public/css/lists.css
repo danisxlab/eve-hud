@@ -1,0 +1,371 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* List modules: Activity & income, Mining ledger, Ships & assets, Standings, Kills & losses. */
+
+/* ==========================================================================
+   List modules: Activity & income, Mining ledger, Ships & assets, Standings, Kills & losses
+   ========================================================================== */
+
+.lm {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.lm-head {
+  flex: none;
+  padding: 8px 12px 6px;
+  border-bottom: 1px solid var(--hair);
+}
+
+.lm-body {
+  flex: 1;
+  min-height: 0;
+  padding: 4px 0 10px;
+}
+
+.lm-sec {
+  padding: 10px 14px 3px;
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.lm-sec .faint {
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: 11px;
+}
+
+.lm-note {
+  margin: 6px 14px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+
+.lm-total {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  padding: 8px 14px 4px;
+}
+
+.lm-total > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lm-total b {
+  font-size: 17px;
+  font-weight: 500;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lm-total .faint {
+  font-size: 11px;
+}
+
+.lm-net {
+  font-variant-numeric: tabular-nums;
+}
+
+.lm-net.up {
+  color: var(--up);
+}
+
+.lm-net.down {
+  color: var(--down);
+}
+
+.lm-bars {
+  display: block;
+  width: calc(100% - 28px);
+  height: 34px;
+  margin: 6px 14px 2px;
+}
+
+.lm-bars rect.up {
+  fill: rgba(var(--gal-rgb), 0.75);
+}
+
+.lm-bars rect.down {
+  fill: rgba(210, 74, 60, 0.6);
+}
+
+.lm-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 9px;
+  padding: 5px 14px;
+  color: inherit;
+  text-decoration: none;
+  align-items: center;
+}
+
+.lm-row.has-lead {
+  grid-template-columns: auto minmax(0, 1fr);
+}
+
+a.lm-row:hover {
+  background: rgba(var(--gal-rgb), 0.06);
+}
+
+/* Kills & Losses: Copy killmail link, at the right of the second line while you hover the row */
+.km-item {
+  position: relative;
+}
+
+.km-copy {
+  position: absolute;
+  right: 14px;
+  bottom: 4px;
+  z-index: 1;
+  font: inherit;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  line-height: 16px;
+  padding: 0 7px;
+  color: var(--ink-2);
+  background: rgb(var(--panel-rgb));
+  border: 1px solid var(--line);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 120ms,
+    color 120ms,
+    border-color 120ms;
+}
+
+.km-item:hover .km-copy,
+.km-copy:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.km-copy:hover {
+  color: var(--gal-hi);
+  border-color: var(--line-2);
+}
+
+.lm-lead {
+  display: flex;
+  align-items: center;
+}
+
+.lm-main {
+  min-width: 0;
+}
+
+.lm-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.lm-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.lm-val {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  font-size: 12.5px;
+  color: var(--ink);
+}
+
+.lm-val.red {
+  color: #ff7a6c;
+}
+
+.lm-val.cal {
+  color: var(--cal-hi);
+}
+
+.lm-val.amber {
+  color: var(--amber-hi);
+}
+
+.lm-sub {
+  font-size: 11px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.lm-sub .sec-chip {
+  font-size: 10px;
+  line-height: 14px;
+}
+
+.lm-bar {
+  display: block;
+  position: relative;
+  height: 2px;
+  background: var(--ink-4);
+  margin-top: 4px;
+}
+
+.lm-bar > i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--gal-hi);
+}
+
+.lm-bar.cal > i {
+  background: var(--cal-hi);
+}
+
+.lm-bar.amber > i {
+  background: var(--amber-hi);
+}
+
+.lm-bar.red > i {
+  background: var(--red);
+}
+
+.lm-icon {
+  width: 26px;
+  height: 26px;
+  display: block;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--hair);
+}
+
+.lm-icon.img-missing {
+  visibility: hidden;
+}
+
+.lm-tag {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #04100c;
+  background: var(--gal-hi);
+  padding: 0 5px;
+  line-height: 15px;
+  display: inline-block;
+}
+
+.km-tag {
+  position: relative;
+  display: block;
+}
+
+.km-tag::after {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 2px;
+  bottom: 2px;
+  width: 2px;
+}
+
+.km-tag.kill::after {
+  background: var(--gal-hi);
+  box-shadow: 0 0 4px var(--gal);
+}
+
+.km-tag.loss::after {
+  background: var(--red);
+  box-shadow: 0 0 4px var(--red);
+}
+
+/* standings: a bar from the middle, blue to the right for positive, red to the left for negative */
+.st-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 10px;
+  padding: 5px 14px;
+  align-items: baseline;
+}
+
+.st-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+
+.st-val {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+.st-val.pos {
+  color: var(--cal-hi);
+}
+
+.st-val.neg {
+  color: #ff7a6c;
+}
+
+.st-bar {
+  grid-column: 1 / -1;
+  position: relative;
+  height: 3px;
+  background: var(--ink-4);
+}
+
+.st-bar::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 1px;
+  background: var(--ink-3);
+}
+
+.st-bar > i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.st-bar > i.pos {
+  background: var(--cal-hi);
+}
+
+.st-bar > i.neg {
+  background: var(--red);
+}
+
+/* Activity & income: net per day (or hour) as a line, green / red per day, hover window */
+.lm-chart {
+  margin: 8px 14px 4px;
+}
+
+.lm-chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10.5px;
+  margin-bottom: 4px;
+}
+
+.lm-row {
+  contain-intrinsic-size: auto 40px;
+}
+
+.bar > i,
+.gbar > i,
+.lm-bar > i,
+.st-bar > i {
+  overflow: visible;
+}

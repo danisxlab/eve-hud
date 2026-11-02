@@ -1,0 +1,39 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Animations: Limited / Off (Settings → Appearance). Last, so it wins over everything above. */
+
+/* Animations setting (Settings → Appearance): body.reduce-motion stops every CSS animation and transition */
+body.reduce-motion *,
+body.reduce-motion *::before,
+body.reduce-motion *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Settings → Animations → Limited: every CSS animation moves in steps (about 10 per keyframe
+   stretch) instead of every screen frame, so the window is redrawn far less often. The canvases
+   (star map, starfield) slow down the same way through the shared clock in util.js. */
+body.limited-motion *,
+body.limited-motion *::before,
+body.limited-motion *::after {
+  animation-timing-function: steps(10, jump-none) !important;
+}
+
+body.limited-motion .char .wallet .chart .w-pulse,
+body.reduce-motion .char .wallet .chart .w-pulse {
+  display: none;
+} /* only with Animations: Full */
+
+.sk-row.paused .sk-sweep,
+body.reduce-motion .sk-sweep,
+body.limited-motion .sk-sweep,
+body:not(.sk-light) .sk-sweep,
+.sk-row.paused .sk-edge::after,
+body.reduce-motion .sk-edge::after,
+body.limited-motion .sk-edge::after,
+body:not(.sk-light) .sk-edge::after {
+  display: none;
+} /* body.sk-light: Settings → "Light running along the training bar" */
+
+body.reduce-motion #red-alert {
+  display: none;
+}

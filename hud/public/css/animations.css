@@ -1,0 +1,47 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Data-change animations (js/fx.js; Animations: Full only). */
+
+/* ---------------------------------------------------------------- data-change animations (js/fx.js; Animations: Full only) */
+
+/* the bright head on the moving edge of a bar while it eases to its new length */
+.fx-head {
+  position: absolute;
+  right: -1px;
+  top: -2px;
+  bottom: -2px;
+  width: 3px;
+  pointer-events: none;
+  opacity: 0;
+  background: #fff;
+  box-shadow:
+    0 0 6px 1px rgba(255, 255, 255, 0.75),
+    0 0 14px 2px rgba(var(--cal-rgb), 0.6);
+}
+
+.fx-head.left {
+  right: auto;
+  left: -1px;
+}
+
+/* Activity & Income: the net line pulses twice when it changes */
+.nl-svg.fx-pulse2 {
+  animation: nl-pulse2 1.3s ease-in-out;
+}
+
+@keyframes nl-pulse2 {
+  0%,
+  100% {
+    filter: none;
+  }
+  18% {
+    filter: brightness(1.8) drop-shadow(0 0 5px rgba(var(--gal-rgb), 0.9));
+  }
+  38% {
+    filter: none;
+  }
+  58% {
+    filter: brightness(1.8) drop-shadow(0 0 5px rgba(var(--gal-rgb), 0.9));
+  }
+}
+
+/* Training Queue: a light runs along the progress fill to its edge, the edge glows, then it fades */

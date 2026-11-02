@@ -1,0 +1,80 @@
+{
+  "clientId": "PASTE_YOUR_CLIENT_ID_HERE",
+  "clientSecret": "PASTE_YOUR_CLIENT_SECRET_HERE",
+
+  "port": 4747,
+  "callbackUrl": "http://localhost:4747/callback",
+
+  "scopes": [
+    "esi-location.read_location.v1",
+    "esi-location.read_ship_type.v1",
+    "esi-location.read_online.v1",
+    "esi-skills.read_skills.v1",
+    "esi-skills.read_skillqueue.v1",
+    "esi-wallet.read_character_wallet.v1",
+    "esi-clones.read_implants.v1",
+    "esi-industry.read_character_jobs.v1",
+    "esi-markets.read_character_orders.v1",
+    "esi-universe.read_structures.v1",
+    "esi-characters.read_freelance_jobs.v1",
+    "esi.activity.char:read",
+    "esi-characters.read_fw_stats.v1",
+    "esi-clones.read_clones.v1",
+    "esi-mail.read_mail.v1",
+    "esi-characters.read_notifications.v1",
+    "esi-characters.read_loyalty.v1",
+    "esi-industry.read_character_mining.v1",
+    "esi-assets.read_assets.v1",
+    "esi-characters.read_standings.v1",
+    "esi-killmails.read_killmails.v1",
+    "esi-ui.write_waypoint.v1"
+  ],
+
+  "compatibilityDate": "2026-08-18",
+  "userAgent": "eve-hud/0.1 (personal second-screen dashboard)",
+
+  "_refreshHelp": "Seconds. Only feeds that something on screen shows are polled (a hidden module's feed pauses). A feed refreshes as soon as ESI's cache for it expires, but never sooner than min or later than max. Raise min to poll less often. Going below ESI's own cache time has no effect. Set \"enabled\": false to switch a feed off.",
+  "refresh": {
+    "status": { "min": 30, "max": 120 },
+    "esihealth": { "min": 60, "max": 300 },
+    "presence": { "min": 5, "max": 60 },
+    "skills": { "min": 60, "max": 900 },
+    "wallet": { "min": 60, "max": 900 },
+    "industry": { "min": 120, "max": 900 },
+    "objectives": { "min": 120, "max": 900 },
+    "orders": { "min": 300, "max": 1800 },
+    "character": { "min": 120, "max": 3600 },
+    "hazards": { "min": 300, "max": 1800 },
+    "warfare": { "min": 600, "max": 3600 },
+    "traffic": { "min": 600, "max": 3600 },
+    "sovereignty": { "min": 1800, "max": 3600 },
+    "clones": { "min": 300, "max": 3600 },
+    "mail": { "min": 60, "max": 600 },
+    "notifications": { "min": 120, "max": 1800 },
+    "activity": { "min": 300, "max": 1800 },
+    "mining": { "min": 600, "max": 3600 },
+    "assets": { "min": 1800, "max": 3600 },
+    "standings": { "min": 1800, "max": 3600 },
+    "kills": { "min": 600, "max": 3600 }
+  },
+
+  "_hazardsHelp": "Star map hazard overlay. pvpKillThreshold: minimum ship + pod kills in the last hour before a system gets an orange diamond.",
+  "hazards": { "pvpKillThreshold": 3 },
+
+  "_notificationsHelp": "ignoreTypes: notification types to hide completely, e.g. [\"NPCStandingsLost\"]. The exact type names are in data/debug/notifications.json.",
+  "notifications": { "ignoreTypes": [] },
+
+  "_rateLimitHelp": "reserve: fraction of each ESI rate-limit group's tokens to always keep unused (0.25 = 25%). maxWaitSeconds: longest a request may wait for tokens before the feed retries later instead.",
+  "rateLimit": { "reserve": 0.25, "maxWaitSeconds": 15 },
+
+  "_windowHelp": "mode: \"normal\" = a resizable window that remembers its size, position and monitor; \"fullscreen\" = borderless, fills one monitor. F11 and the tray menu switch between them (and update this value). display: the monitor at start-up: \"last\" (where it was last time), \"portrait\" (the first portrait monitor) or \"primary\".",
+  "window": { "mode": "normal", "display": "last" },
+
+  "eveLogDir": "",
+  "chatPollMs": 1000,
+  "chatChannels": [
+    { "id": "local", "label": "Local", "filePrefix": "Local" },
+    { "id": "corp", "label": "Corp", "filePrefix": "Corp" },
+    { "id": "militia", "label": "Militia", "filePrefix": "Militia", "fw": true }
+  ]
+}

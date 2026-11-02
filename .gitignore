@@ -1,0 +1,14 @@
+# installed packages and build output
+node_modules/
+dist/
+
+# your own settings and EVE login: never in the repository
+config.json
+data/
+*.log
+
+# test and tool leftovers
+.test-home/
+traces/
+dev-md5.txt
+.DS_Store

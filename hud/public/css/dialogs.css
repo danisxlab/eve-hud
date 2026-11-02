@@ -1,0 +1,598 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Windows over the HUD: the login card and setup form, confirmations, About, errors, the EVE logs window, the red combat flash. */
+
+/* ---------------------------------------------------------------- login gate */
+
+.gate {
+  position: fixed;
+  inset: var(--topbar-h) 0 0 0;
+  z-index: 25;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.gate .card {
+  width: min(460px, calc(100vw - 32px));
+  padding: 26px 28px;
+  background: rgba(var(--panel-rgb), 0.9);
+  border: 1px solid var(--line-2);
+  position: relative;
+  backdrop-filter: blur(10px);
+}
+
+.gate .tick {
+  position: absolute;
+  left: -1px;
+  top: -1px;
+  width: 9px;
+  height: 9px;
+  border-left: 1px solid var(--gal-hi);
+  border-top: 1px solid var(--gal-hi);
+}
+
+.gate h1 {
+  margin: 0 0 6px;
+  font-weight: 400;
+  font-size: 24px;
+}
+
+.gate p {
+  color: var(--ink-2);
+  margin: 6px 0;
+}
+
+.gate code {
+  color: var(--gal-hi);
+  font-size: 12px;
+}
+
+.gate .cta {
+  display: inline-block;
+  font: inherit;
+  cursor: pointer;
+  margin-top: 16px;
+  padding: 9px 20px;
+  color: #fff;
+  text-decoration: none;
+  border: 1px solid var(--gal);
+  background: rgba(var(--gal-rgb), 0.22);
+  position: relative;
+}
+
+.gate .cta::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: -4px;
+  height: 1px;
+  background: var(--gal-hi);
+  box-shadow: 0 0 8px var(--gal);
+}
+
+.gate .cta:hover {
+  background: rgba(var(--gal-rgb), 0.38);
+}
+
+/* ==========================================================================
+   Login card: first-time setup form, centred buttons; Settings → Reset EVE HUD
+   ========================================================================== */
+
+.gate .cta-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.gate .cta-row .cta {
+  margin: 0;
+}
+
+.gate a {
+  color: var(--gal-hi);
+}
+
+.gate button.cta:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.gate .card:has(.setup) {
+  width: min(540px, calc(100vw - 32px));
+}
+
+.gate .setup-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) auto;
+  gap: 4px 10px;
+  align-items: center;
+  margin: 6px 0;
+}
+
+.gate .setup-row code {
+  overflow-wrap: anywhere;
+}
+
+.gate .setup-row details {
+  grid-column: 2 / -1;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+.gate .setup-row summary {
+  cursor: pointer;
+  color: var(--ink-3);
+}
+
+.gate .scope-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-top: 4px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.gate .copy {
+  font: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  padding: 1px 8px;
+}
+
+.gate .copy:hover {
+  color: var(--gal-hi);
+  border-color: var(--line-2);
+}
+
+.gate .setup {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.gate .setup label {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.gate .setup label span {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.gate .setup input {
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--line);
+  padding: 6px 9px;
+  outline: none;
+  min-width: 0;
+}
+
+.gate .setup input:focus {
+  border-color: var(--gal-hi);
+  box-shadow: 0 0 0 1px rgba(var(--gal-rgb), 0.35);
+}
+
+.gate .form-error {
+  color: #ff7a6c;
+  margin: 0;
+  font-size: 12px;
+}
+
+.gate .fine {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  margin-top: 16px;
+}
+
+.reset-box {
+  margin-top: 10px;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(3px);
+  animation: modal-fade 140ms ease-out both;
+}
+
+.modal {
+  position: relative;
+  width: min(420px, calc(100vw - 32px));
+  padding: 22px 24px 18px;
+  background: rgba(var(--panel-rgb), 0.96);
+  border: 1px solid rgba(210, 74, 60, 0.55);
+  box-shadow: 0 0 30px rgba(210, 74, 60, 0.18);
+  animation: modal-in 160ms ease-out both;
+}
+
+.modal .tick {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 0 solid #ff7a6c;
+  pointer-events: none;
+}
+
+.modal .tick.tl {
+  left: -1px;
+  top: -1px;
+  border-left-width: 1px;
+  border-top-width: 1px;
+}
+
+.modal .tick.tr {
+  right: -1px;
+  top: -1px;
+  border-right-width: 1px;
+  border-top-width: 1px;
+}
+
+.modal .tick.bl {
+  left: -1px;
+  bottom: -1px;
+  border-left-width: 1px;
+  border-bottom-width: 1px;
+}
+
+.modal .tick.br {
+  right: -1px;
+  bottom: -1px;
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+}
+
+.modal h2 {
+  margin: 0 0 10px;
+  font-size: 20px;
+  font-weight: 400;
+}
+
+.modal p {
+  margin: 6px 0;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.modal .btn,
+.scope-needed .btn {
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  padding: 6px 14px;
+  color: var(--ink);
+  border: 1px solid var(--line-2);
+  background: rgba(var(--gal-rgb), 0.08);
+}
+
+.modal .btn:hover,
+.scope-needed .btn:hover {
+  background: rgba(var(--gal-rgb), 0.18);
+  color: #fff;
+}
+
+.modal .btn:focus-visible,
+.scope-needed .btn:focus-visible {
+  outline: 1px solid var(--gal-hi);
+  outline-offset: 2px;
+}
+
+.modal .btn.warn {
+  border-color: rgba(210, 74, 60, 0.75);
+  background: rgba(210, 74, 60, 0.16);
+  color: #ffb3aa;
+}
+
+.modal .btn.warn:hover {
+  background: rgba(210, 74, 60, 0.3);
+  color: #fff;
+}
+
+.modal .btn.primary {
+  border-color: var(--gal-hi);
+  background: rgba(var(--gal-rgb), 0.2);
+  color: #fff;
+}
+
+.modal .btn.primary:hover {
+  background: rgba(var(--gal-rgb), 0.32);
+}
+
+.gate code.cb {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0;
+}
+
+.gate input.port {
+  font: inherit;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--gal-hi);
+  width: 6ch;
+  text-align: center;
+  padding: 1px 3px;
+  margin: 0 1px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--line-2);
+  outline: none;
+}
+
+.gate input.port:focus {
+  border-color: var(--gal-hi);
+  box-shadow: 0 0 0 1px rgba(var(--gal-rgb), 0.35);
+}
+
+.gate .port-state {
+  margin-left: 8px;
+  font-size: 11px;
+  font-family: var(--font);
+}
+
+.gate .port-state.ok {
+  color: var(--gal-hi);
+}
+
+.gate .port-state.bad {
+  color: #ff7a6c;
+}
+
+.gate .fine.tight {
+  margin: 0 0 8px;
+  font-size: 11px;
+}
+
+.gate .fine.center {
+  text-align: center;
+}
+
+/* About (the (i) button): the same window as the confirmations, in the HUD's blue */
+.modal.info {
+  border-color: var(--line-2);
+  box-shadow: 0 0 30px rgba(var(--gal-rgb), 0.16);
+}
+
+.modal.info .tick {
+  border-color: var(--gal-hi);
+}
+
+/* "EVE HUD stopped working": red, above everything */
+.modal-overlay.error-overlay {
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.modal.error {
+  border-color: rgba(230, 80, 64, 0.9);
+  box-shadow: 0 0 40px rgba(210, 74, 60, 0.35);
+  background: rgba(28, 8, 6, 0.96);
+}
+
+.modal.error h2 {
+  color: #ff8a7c;
+}
+
+.modal.error p {
+  color: #e3c3bf;
+}
+
+.modal.error a {
+  color: #ffb3aa;
+}
+
+.modal.about {
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+}
+
+.modal.about .modal-scroll {
+  overflow-y: auto;
+  min-height: 0;
+  margin-right: -12px;
+  padding-right: 12px;
+}
+
+.modal.about h3 {
+  margin: 16px 0 4px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.modal.about p.legal {
+  font-size: 12px;
+}
+
+.modal.about a {
+  color: var(--gal-hi);
+}
+
+.modal.about details {
+  margin: 6px 0;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.modal.about summary {
+  cursor: pointer;
+}
+
+.modal.about pre.license {
+  max-height: 220px;
+  overflow: auto;
+  white-space: pre-wrap;
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  font:
+    11px/1.45 ui-monospace,
+    Menlo,
+    Consolas,
+    monospace;
+  color: var(--ink-2);
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--line);
+}
+
+#red-alert {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  pointer-events: none;
+  opacity: 0;
+  background: #ff2a14;
+  mix-blend-mode: color;
+}
+
+#red-alert.on {
+  animation: red-alert 1200ms linear both;
+}
+
+/* blink, quick fade to red, hold 0.5 s, fade back */
+@keyframes red-alert {
+  0% {
+    opacity: 0;
+  }
+  4% {
+    opacity: 0.9;
+  }
+  10% {
+    opacity: 0.1;
+  }
+  25% {
+    opacity: 1;
+  }
+  67% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---- "EVE's log files can't be read": over everything, until a folder works or Exit ---- */
+.modal-overlay.logs-overlay {
+  z-index: 250;
+}
+
+.modal.logs-modal {
+  width: min(560px, calc(100vw - 32px));
+}
+
+.logs-modal .logs-where {
+  font-size: 12px;
+  color: #ffb3aa;
+  word-break: break-all;
+}
+
+.logs-modal code {
+  font-family: inherit;
+  color: #fff;
+}
+
+.logs-modal .path-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 6px;
+}
+
+.logs-modal .path-row span {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.logs-modal .path-row input {
+  min-width: 0;
+  height: 30px;
+  padding: 0 9px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid rgba(210, 74, 60, 0.45);
+  outline: none;
+}
+
+.logs-modal .path-row input:focus {
+  border-color: #ff8a7c;
+  box-shadow: 0 0 0 1px rgba(210, 74, 60, 0.35);
+}
+
+.logs-modal .path-row .btn {
+  height: 30px;
+}
+
+.logs-modal .logs-defaults {
+  margin: 4px 0 0 72px;
+}
+
+.logs-modal .logs-defaults p {
+  margin: 2px 0;
+  font-size: 12px;
+  color: #c9a9a5;
+}
+
+.logs-modal .logs-defaults b {
+  display: inline-block;
+  width: 62px;
+  font-weight: 500;
+  color: #e3c3bf;
+}
+
+.logs-modal .logs-defaults .faint,
+.logs-modal .faint {
+  color: #a07f7b;
+}
+
+.logs-modal .logs-defaults p.faint {
+  margin-top: 6px;
+}
+
+.logs-modal .form-error {
+  color: #ff8a7c;
+  font-size: 12px;
+  margin: 10px 0 0;
+}
+
+@keyframes modal-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+}
