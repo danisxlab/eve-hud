@@ -1,0 +1,475 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* The settings drawer: rows, sliders, storage and EVE logs, account, permissions, rate limits. */
+
+/* ---------------------------------------------------------------- drawer (settings) */
+
+#overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+#drawer {
+  position: fixed;
+  right: 0;
+  top: var(--topbar-h);
+  bottom: 0;
+  width: min(360px, 100vw);
+  z-index: 31;
+  background: rgba(10, 15, 17, 0.94);
+  border-left: 1px solid var(--line-2);
+  backdrop-filter: blur(12px);
+  padding: 16px 18px 24px;
+  overflow-y: auto;
+}
+
+/* slides in only when it opens (class set and removed by toggleDrawer): as a permanent animation,
+   switching Animations from Off back on restarted it, so the open drawer slid in again */
+#drawer.opening {
+  animation: drawer 220ms var(--ease-out);
+}
+
+@keyframes drawer {
+  from {
+    transform: translateX(30px);
+    opacity: 0;
+  }
+}
+
+#drawer h3 {
+  margin: 18px 0 8px;
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--ink);
+}
+
+#drawer h3:first-child {
+  margin-top: 0;
+}
+
+#drawer .row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 0;
+  color: var(--ink-2);
+}
+
+#drawer .row output {
+  color: var(--ink);
+  min-width: 40px;
+  text-align: right;
+}
+
+#drawer .row.anim-row {
+  grid-template-columns: max-content max-content 1fr;
+  column-gap: 12px;
+} /* the dropdown right after its label */
+
+#drawer input[type='range'] {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: var(--gal);
+}
+
+#drawer .check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  cursor: pointer;
+  color: var(--ink-2);
+}
+
+#drawer .check input {
+  accent-color: var(--gal);
+}
+
+#drawer .btn {
+  border: 1px solid var(--line-2);
+  background: rgba(var(--gal-rgb), 0.06);
+  color: var(--ink);
+  padding: 6px 14px;
+  cursor: pointer;
+  margin: 6px 8px 0 0;
+  position: relative;
+}
+
+#drawer .btn:hover {
+  background: rgba(var(--gal-rgb), 0.18);
+  color: #fff;
+}
+
+#drawer .btn.warn {
+  border-color: rgba(210, 74, 60, 0.75);
+  background: rgba(210, 74, 60, 0.16);
+  color: #ffb3aa;
+}
+
+#drawer .btn.warn:hover {
+  background: rgba(210, 74, 60, 0.28);
+  color: #fff;
+}
+
+#drawer .btn.muted {
+  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--ink-2);
+}
+
+#drawer .btn.muted:hover {
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ink);
+}
+
+#drawer .note {
+  font-size: 12px;
+  color: var(--ink-3);
+  margin: 6px 0;
+}
+
+#drawer select {
+  background: #0d1416;
+  color: var(--ink);
+  border: 1px solid var(--line-2);
+  padding: 3px 6px;
+  font: inherit;
+}
+
+#drawer .reset-box .note.warn {
+  color: var(--amber-hi);
+}
+
+/* ==========================================================================
+   Settings → Account rows, permissions, confirmation window, "Grant access"
+   ========================================================================== */
+
+#drawer .btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 2px;
+}
+
+#drawer .btn-row .btn {
+  margin: 0;
+  text-decoration: none;
+  display: inline-block;
+}
+
+#drawer .perm .btn {
+  margin: 4px 0;
+}
+
+#drawer details.note summary {
+  cursor: pointer;
+}
+
+#drawer .scope-list,
+.scope-needed .scope-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 4px 0;
+}
+
+#drawer .scope-list code {
+  font-size: 11px;
+  color: var(--gal-hi);
+}
+
+.link-btn {
+  font: inherit;
+  font-size: inherit;
+  color: var(--gal-hi);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.link-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Settings → Storage: folder fields in the style of the setup form */
+#drawer .path-field {
+  margin: 8px 0 10px;
+}
+
+#drawer .path-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+#drawer .path-row span {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+#drawer .path-row input {
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--line);
+  padding: 5px 8px;
+  outline: none;
+  min-width: 0;
+}
+
+#drawer .path-row input:focus {
+  border-color: var(--gal-hi);
+  box-shadow: 0 0 0 1px rgba(var(--gal-rgb), 0.35);
+}
+
+#drawer .path-row input:disabled {
+  color: var(--ink-3);
+}
+
+#drawer .path-row .browse {
+  font: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  padding: 5px 9px;
+  align-self: stretch;
+}
+
+#drawer .path-row .browse:hover {
+  color: var(--gal-hi);
+  border-color: var(--line-2);
+}
+
+#drawer .path-row .browse:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+#drawer .path-hint {
+  margin: 3px 0 0 72px;
+  font-size: 11px;
+}
+
+#drawer .storage .form-error {
+  color: #ff7a6c;
+  font-size: 12px;
+  margin: 4px 0;
+}
+
+#drawer .path-hint.warn {
+  color: var(--amber-hi);
+}
+
+#drawer .chatlogs {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid var(--hair);
+}
+
+#drawer .btn:disabled {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* Market orders: the price history line grows with the module's width (the height stays). In a
+   narrow module (up to ~480 px) it keeps its old 54 px, so the location text keeps its room; from
+   there it grows with the extra width, to ~175 px at 740 px and at most 320 px. */
+.mo-list {
+  container-type: inline-size;
+}
+
+.ord .exp .spark {
+  width: clamp(54px, calc(45cqw - 160px), 320px);
+  height: 14px;
+}
+
+.nl {
+  position: relative;
+  height: 54px;
+}
+
+.nl-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.nl-zero {
+  stroke: rgba(255, 255, 255, 0.14);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.nl-piece {
+  fill: none;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  transition: stroke-width 120ms;
+}
+
+.nl-piece.up {
+  stroke: var(--gal-hi);
+  filter: drop-shadow(0 0 2px rgba(var(--gal-rgb), 0.6));
+}
+
+.nl-piece.down {
+  stroke: #ff6a5a;
+  filter: drop-shadow(0 0 2px rgba(210, 74, 60, 0.6));
+}
+
+.nl-piece.flat {
+  stroke: var(--ink-3);
+}
+
+.nl-piece.on {
+  stroke-width: 3;
+}
+
+.nl-hit {
+  position: absolute;
+  inset: 0;
+}
+
+.nl-hit i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  cursor: default;
+}
+
+.nl-hit i:hover {
+  background: rgba(var(--gal-rgb), 0.06);
+}
+
+.nl-tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  z-index: 5;
+  pointer-events: none;
+  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 4px 9px;
+  font-size: 11.5px;
+  line-height: 16px;
+  /* the same frame as the top bar's hover boxes (.tb-pop): dark, thin border, corner ticks */
+  background: rgba(8, 12, 14, 0.95);
+  border: 1px solid var(--line-2);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.nl-tip::before,
+.nl-tip::after {
+  content: '';
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border: 0 solid var(--gal-hi);
+  pointer-events: none;
+}
+
+.nl-tip::before {
+  left: -1px;
+  top: -1px;
+  border-left-width: 1px;
+  border-top-width: 1px;
+}
+
+.nl-tip::after {
+  right: -1px;
+  bottom: -1px;
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+}
+
+.nl-tip[hidden] {
+  display: none;
+}
+
+.nl-tip b {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.nl-tip .up {
+  color: var(--gal-hi);
+}
+
+.nl-tip .down {
+  color: #ff7a6c;
+}
+
+.nl-tip.opening {
+  animation: nl-in 120ms ease-out;
+} /* like the top bar's hover boxes (hint-in), without touching its transform */
+
+@keyframes nl-in {
+  from {
+    opacity: 0;
+    translate: 0 -3px;
+  }
+}
+
+@container (max-height: 330px) {
+  .char {
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 6px 18px;
+    padding: 10px 14px;
+    align-items: start;
+  }
+  .char .portrait {
+    width: 110px;
+    height: 110px;
+  }
+  .char .portrait img {
+    inset: 12px;
+    width: 86px;
+    height: 86px;
+  }
+  .char .ident .meta {
+    margin-top: 6px;
+  }
+  .char .ship {
+    grid-row: 1;
+  }
+  .char .ship img {
+    width: 48px;
+    height: 48px;
+  }
+  /* the wallet under the ship, without its graph, last entries and 30-day change */
+  .char .wallet {
+    grid-column: 3;
+    grid-row: 2;
+    align-self: end;
+    padding-top: 0;
+    border-top: 0;
+  }
+  .char .wallet .row {
+    justify-content: flex-end;
+  }
+  .char .wallet .row > div:last-child,
+  .char .wallet .chart,
+  .char .journal {
+    display: none;
+  }
+}
+
+.ord {
+  contain-intrinsic-size: auto 52px;
+}

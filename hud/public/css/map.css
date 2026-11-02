@@ -1,0 +1,739 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Star map module: map overlays, legends, hazards, search, the route box. */
+
+/* ---------------------------------------------------------------- map */
+
+.map {
+  position: absolute;
+  inset: 0;
+}
+
+.map canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.map canvas.grabbing {
+  cursor: grabbing;
+}
+
+.map .hud {
+  position: absolute;
+  pointer-events: none;
+  font-size: 12px;
+}
+
+.map .hud.tl {
+  left: 14px;
+  top: 10px;
+}
+
+.map .hud.tl .sysname {
+  font-size: 22px;
+  font-weight: 400;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.map .hud.tl .sysname .sv {
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.map .hud.tl .rg {
+  color: var(--ink-2);
+}
+
+.map .hud.tl .coords {
+  color: var(--ink-3);
+  margin-top: 6px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.map .hud.bl {
+  left: 14px;
+  bottom: 10px;
+  color: var(--ink-3);
+  font-size: 11px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.map .hud.bl .bl-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+/* star map search (bottom left, under the zoom level); the result list opens upwards */
+.map-search {
+  position: relative;
+  width: 230px;
+  pointer-events: auto;
+}
+
+.map-search-icon {
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  margin-top: -6px;
+  border: 1.5px solid var(--ink-2);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.map-search-icon::after {
+  content: '';
+  position: absolute;
+  width: 5px;
+  height: 1.5px;
+  background: var(--ink-2);
+  right: -5px;
+  bottom: -3px;
+  transform: rotate(45deg);
+}
+
+.map-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 4px 26px 4px 25px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(6px);
+  outline: none;
+}
+
+.map-search-input::placeholder {
+  color: var(--ink-3);
+}
+
+.map-search-input:focus {
+  border-color: var(--line-2);
+  background: rgba(0, 0, 0, 0.72);
+}
+
+.map-search-input:focus + .map-search-list,
+.map-search:focus-within .map-search-icon {
+  border-color: var(--gal-hi);
+}
+
+.map-search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  display: none;
+} /* replaced by .map-search-clear */
+
+.map-search-clear {
+  position: absolute;
+  right: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--ink-2);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.map-search-clear[hidden] {
+  display: none;
+}
+
+.map-search-clear:hover {
+  color: var(--gal-hi);
+}
+
+.map-search-list {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 4px);
+  width: 300px;
+  padding: 3px 0;
+  background: rgba(8, 12, 14, 0.95);
+  border: 1px solid var(--line-2);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+
+.map-search-list[hidden] {
+  display: none;
+}
+
+/* about 8 rows visible; more results scroll, with a thin scrollbar */
+.map-search-list {
+  max-height: 214px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--gal-rgb), 0.45) transparent;
+}
+
+.map-search-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.map-search-list::-webkit-scrollbar-thumb {
+  background: rgba(var(--gal-rgb), 0.45);
+}
+
+.map-search-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ms-row {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 9px;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.ms-row.on {
+  background: rgba(var(--gal-rgb), 0.16);
+}
+
+.ms-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ms-sub {
+  color: var(--ink-3);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.ms-sec {
+  font-style: normal;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #05090b;
+  text-align: center;
+  line-height: 15px;
+}
+
+.ms-reg {
+  width: 9px;
+  height: 9px;
+  transform: rotate(45deg);
+  justify-self: center;
+}
+
+.ms-empty {
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.map .scale {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.map .scale[hidden] {
+  display: none;
+}
+
+.map .scale i {
+  display: block;
+  height: 5px;
+  border: 1px solid var(--ink-3);
+  border-top: 0;
+}
+
+.map .hud.tr {
+  right: 10px;
+  top: 10px;
+  pointer-events: auto;
+  display: flex;
+  gap: 4px;
+}
+
+.map .tip {
+  position: absolute;
+  pointer-events: none;
+  padding: 4px 8px;
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.78);
+  border: 1px solid var(--line);
+  white-space: nowrap;
+  transform: translate(12px, -50%);
+  display: none;
+}
+
+.map .tip .rg {
+  color: var(--ink-3);
+  margin-left: 6px;
+}
+
+.map .status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--ink-2);
+  text-align: center;
+  pointer-events: none;
+}
+
+.map .legend {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  font-size: 10px;
+  color: var(--ink-3);
+}
+
+.map .legend i {
+  width: 12px;
+  height: 4px;
+  display: block;
+}
+
+/* bottom right: hazard legend (when on), then the colour-mode switch and its legend */
+.map .hud.br {
+  right: 10px;
+  bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.map .hud.br .hz-legend {
+  position: static;
+}
+
+.map .hud.br > * {
+  pointer-events: auto;
+}
+
+.map .legend-box {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+}
+
+.mode-switch {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+}
+
+.mode-switch button {
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  color: var(--ink-3);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.mode-switch button + button {
+  border-left: 1px solid var(--line);
+}
+
+.mode-switch button:hover {
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.mode-switch button.on {
+  color: var(--gal-hi);
+  background: rgba(var(--gal-rgb), 0.16);
+  box-shadow: inset 0 -2px 0 var(--gal);
+}
+
+.map .legend.faction {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 2px 14px;
+  padding: 6px 9px 5px;
+  background: rgba(0, 0, 0, 0.55);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(6px);
+}
+
+.fac-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.fac-row i {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  transform: rotate(45deg);
+}
+
+.fac-row b {
+  margin-left: auto;
+  padding-left: 8px;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+
+.fac-note {
+  grid-column: 1 / -1;
+  margin-top: 3px;
+  font-size: 10px;
+  color: var(--ink-3);
+}
+
+.map .legend .rg-dot {
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+  transform: rotate(45deg);
+}
+
+.map .tip .tip-sov {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+
+.map .tip .tip-sov i {
+  width: 7px;
+  height: 7px;
+  transform: rotate(45deg);
+  flex: none;
+}
+
+/* hazard overlay */
+.map .hz-legend {
+  width: 236px;
+  padding: 8px 10px 6px;
+  background: rgba(0, 0, 0, 0.62);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(6px);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.map .hz-legend[hidden] {
+  display: none;
+}
+
+.map .hz-legend .label {
+  margin-bottom: 4px;
+}
+
+.hz-row {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 2px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.hz-row:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.hz-row b {
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.hz-row.off {
+  opacity: 0.38;
+}
+
+.hz-row.off .hz-dia {
+  border-style: dashed;
+}
+
+.hz-dia {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid;
+  transform: rotate(45deg);
+  margin: 0 3px;
+  flex: none;
+}
+
+.hz-foot {
+  margin-top: 5px;
+  font-size: 10.5px;
+  color: var(--ink-3);
+}
+
+.map .tip .tip-hz {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  font-size: 11.5px;
+  white-space: normal;
+  max-width: 340px;
+}
+
+.map .tip .tip-hz b {
+  font-weight: 500;
+}
+
+.hz-warn {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--amber-hi);
+  max-width: 46ch;
+}
+
+.hz-warn.here {
+  color: #ff6a5c;
+}
+
+.hz-warn.ok {
+  color: var(--gal-hi);
+  opacity: 0.8;
+}
+
+/* last-hour activity under the current system */
+.map .hud.tl .traffic {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.map .hud.tl .traffic .label {
+  margin-bottom: 1px;
+}
+
+.map .hud.tl .traffic .label {
+  font-size: 9.5px;
+}
+
+.map .hud.tl .traffic .ok {
+  color: var(--gal-hi);
+}
+
+.map .hud.tl .traffic .warn {
+  color: var(--amber-hi);
+}
+
+.map .hud.tl .traffic .bad {
+  color: #ff6a5c;
+}
+
+.map .tip .tip-tr {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+/* ==========================================================================
+   Star map route (bottom left, above the search box)
+   ========================================================================== */
+
+.map-route {
+  pointer-events: auto;
+  width: 290px;
+  max-width: calc(100% - 4px);
+  padding: 8px 10px 9px;
+  background: rgba(0, 0, 0, 0.62);
+  border: 1px solid var(--line);
+  backdrop-filter: blur(6px);
+  color: var(--ink);
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.map-route[hidden] {
+  display: none;
+}
+
+.map-route .mr-head {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.map-route .mr-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.map-route .mr-cancel {
+  margin-left: auto;
+  font: inherit;
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--line);
+  padding: 3px 10px;
+}
+
+.map-route .mr-cancel:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.map-route .mr-head b {
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.map-route .mr-sv {
+  font-weight: 600;
+}
+
+.map-route .mr-info.warn {
+  color: var(--amber-hi);
+}
+
+.map-route .mr-squares {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin-top: 4px;
+  align-items: center;
+}
+
+.map-route .mr-squares i {
+  width: 7px;
+  height: 7px;
+  display: block;
+}
+
+.map-route .mr-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.map-route .mr-set {
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--gal-hi);
+  background: rgba(var(--gal-rgb), 0.1);
+  border: 1px solid var(--line-2);
+  padding: 3px 10px;
+  cursor: pointer;
+}
+
+.map-route .mr-set:hover:not(:disabled) {
+  background: rgba(var(--gal-rgb), 0.2);
+}
+
+.map-route .mr-set:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.map-route .mr-set.done {
+  color: #04100c;
+  background: var(--gal-hi);
+  border-color: var(--gal-hi);
+}
+
+/* Star map: a soft, see-through dark backdrop behind the system info (top left) and the legend +
+   colour switch (bottom right), fading out at the edges, so the text stays readable over thousands
+   of systems. A faint shadow on the text helps where a system dot is right behind a letter. */
+.map .hud.tl,
+.map .hud.br {
+  z-index: 1;
+}
+
+.map .hud.tl::before,
+.map .hud.br::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.map .hud.tl::before {
+  inset: -30px -80px -36px -40px;
+  background: radial-gradient(
+    ellipse farthest-side at 36% 45%,
+    rgba(var(--panel-rgb), 0.92) 0%,
+    rgba(var(--panel-rgb), 0.84) 50%,
+    rgba(var(--panel-rgb), 0.5) 76%,
+    rgba(var(--panel-rgb), 0) 100%
+  );
+}
+
+.map .hud.br::before {
+  inset: -30px -20px -18px -80px;
+  background: radial-gradient(
+    ellipse farthest-side at 62% 58%,
+    rgba(var(--panel-rgb), 0.92) 0%,
+    rgba(var(--panel-rgb), 0.84) 50%,
+    rgba(var(--panel-rgb), 0.5) 76%,
+    rgba(var(--panel-rgb), 0) 100%
+  );
+}
+
+.map .hud.tl,
+.map .hud.br .legend {
+  text-shadow:
+    0 0 3px rgba(0, 0, 0, 0.95),
+    0 0 1px #000;
+}
+
+/* while a route is shown, the coordinates line gives the route box its room */
+.map .hud.bl .coords-bl {
+  white-space: pre;
+  margin-left: -6px;
+}
+
+/* the route box (bottom left) goes over the system info (top left) where they meet */
+.map .hud.bl {
+  z-index: 2;
+}

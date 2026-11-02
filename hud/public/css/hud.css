@@ -1,0 +1,23 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* EVE HUD styles, split by topic. The order matters: later files win over earlier ones when two
+   rules are equally specific, and motion.css (Animations: Limited / Off) comes last on purpose.
+
+   Colours, fonts and sizes are CSS variables in base.css (:root). Look for a module's styles in its
+   own file (map.css, skills.css, …); what all modules share is in modules-common.css. */
+
+@import url('base.css');
+@import url('grid.css');
+@import url('modules-common.css');
+@import url('topbar.css');
+@import url('character.css');
+@import url('skills.css');
+@import url('industry.css');
+@import url('market.css');
+@import url('warfare.css');
+@import url('chat.css');
+@import url('map.css');
+@import url('lists.css');
+@import url('settings.css');
+@import url('dialogs.css');
+@import url('animations.css');
+@import url('motion.css');
