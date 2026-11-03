@@ -120,15 +120,14 @@ const SKILLS = [
 export function createDemo(universe, publish) {
   const now = Date.now();
   const sys = universe.findByName('Luminaire') || universe.system(30000001);
-  const pilots = [
-    'Arvel Toor',
-    'Kessa Vynn',
-    'Mordu Hale',
-    'Ishuk Lannet',
-    'Ren Okaru',
-    'Teodor Blanc',
-    'Sora Ivanov',
-  ];
+  // other pilots (chat, kills): "Demo" and a number, not invented people's names; the numbers
+  // are random but the same at every start
+  const nr = rng(5);
+  const pilots = [];
+  while (pilots.length < 9) {
+    const name = `Demo ${1000 + Math.floor(nr() * 9000)}`;
+    if (!pilots.includes(name)) pilots.push(name);
+  }
   const lines = [
     'anyone selling scordite?',
     'o7',
@@ -417,9 +416,9 @@ export function createDemo(universe, publish) {
         expense,
         sources: sources.sort((a, b) => b.income + b.expense - (a.income + a.expense)),
         agents: [
-          { id: 3017001, name: 'Aurel Valcour', isk: 1_240_000 * f, count: Math.round(3 * f) },
-          { id: 3017002, name: 'Mirelle Daussin', isk: 690_000 * f, count: Math.round(2 * f) },
-          { id: 3017003, name: 'Jorvan Teskel', isk: 220_000 * f, count: Math.max(1, Math.round(f)) },
+          { id: 3017001, name: 'NPC Aurel', isk: 1_240_000 * f, count: Math.round(3 * f) },
+          { id: 3017002, name: 'NPC Mirelle', isk: 690_000 * f, count: Math.round(2 * f) },
+          { id: 3017003, name: 'NPC Jorvan', isk: 220_000 * f, count: Math.max(1, Math.round(f)) },
         ],
         systems: [
           { id: nm(1).id, name: nm(1).name, sec: nm(1).sec, isk: 910_000 * f, count: Math.round(2 * f) },
@@ -573,8 +572,8 @@ export function createDemo(universe, publish) {
         { id: 1000135, name: 'Serpentis Corporation', standing: -3.4 },
       ],
       agents: [
-        { id: 3017001, name: 'Aurel Valcour', standing: 5.2 },
-        { id: 3017002, name: 'Mirelle Daussin', standing: 2.1 },
+        { id: 3017001, name: 'NPC Aurel', standing: 5.2 },
+        { id: 3017002, name: 'NPC Mirelle', standing: 2.1 },
       ],
     };
     const km = (i, loss, shipTypeId, shipName, value, extra = {}) => ({
@@ -591,7 +590,7 @@ export function createDemo(universe, publish) {
       attackers: loss ? 3 + i : 1 + (i % 4),
       finalBlow: !loss && i % 2 === 0,
       solo: !loss && i % 4 === 1,
-      victimName: loss ? 'Demo Capsuleer' : ['Kessa Vynn', 'Mordu Hale', 'Ishuk Lannet', 'Ren Okaru'][i % 4],
+      victimName: loss ? 'Demo Capsuleer' : pilots[1 + (i % 4)],
       victimCorp: loss ? 'Federal Navy Academy' : 'Dark Harbour Logistics',
       myShipName: loss ? null : 'Tristan',
       ...extra,
@@ -944,7 +943,7 @@ export function createDemo(universe, publish) {
     for (let i = n; i > 0; i--) {
       chat[id].push({
         t: now - i * 47_000,
-        from: pilots[Math.floor(r() * pilots.length)],
+        from: pilots[Math.floor(r() * 7)],
         text: lines[Math.floor(r() * lines.length)],
         system: false,
         self: false,
@@ -975,8 +974,8 @@ export function createDemo(universe, publish) {
     system: false,
     self,
   });
-  chat.local.push(linked('Aura Vex', 'WTS  Damage Control II  and  Tritanium  , convo me'));
-  chat.corp.push(linked('Mira Solenne', 'fit a  Damage Control II  on your  Rifter  and meet in  Jita'));
+  chat.local.push(linked(pilots[7], 'WTS  Damage Control II  and  Tritanium  , convo me'));
+  chat.corp.push(linked(pilots[8], 'fit a  Damage Control II  on your  Rifter  and meet in  Jita'));
 
   function start(publishChat) {
     for (const name of Object.keys(feeds)) emit(name);
@@ -1012,7 +1011,7 @@ export function createDemo(universe, publish) {
       const channel = r() < 0.65 ? 'local' : 'corp';
       const msg = {
         t: Date.now(),
-        from: pilots[Math.floor(r() * pilots.length)],
+        from: pilots[Math.floor(r() * 7)],
         text: lines[Math.floor(r() * lines.length)],
         system: false,
         self: false,
