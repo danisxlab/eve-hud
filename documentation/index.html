@@ -131,14 +131,17 @@
       .topbar .spacer {
         flex: 1;
       }
-      .topbar a.repo {
+      .topbar a.repo,
+      .topbar a.demo {
         color: var(--ink-2);
       }
-      .topbar a.repo:hover {
+      .topbar a.repo:hover,
+      .topbar a.demo:hover {
         color: var(--gal-hi);
       }
       .topbar .brand,
-      .topbar a.repo {
+      .topbar a.repo,
+      .topbar a.demo {
         white-space: nowrap;
       }
       .topbar .short {
@@ -473,6 +476,9 @@
       >
       <span class="what">Documentation</span>
       <span class="spacer"></span>
+      <a class="demo" href="https://danisxlab.github.io/eve-hud/demo/"
+        ><span class="long">Try the demo</span><span class="short">Demo</span></a
+      >
       <a class="repo" href="https://github.com/danisxlab/eve-hud"
         ><span class="long">github.com/danisxlab/eve-hud</span><span class="short">GitHub</span></a
       >
@@ -602,7 +608,9 @@
                   <strong>Run it:</strong> install the app (see
                   <a href="#build-the-installer">Build the installer</a>), or from the project folder (a clone
                   of the repository) with Node.js 20+: <code>npm install</code>, then <code>npm start</code>.
-                  <code>npm run demo</code> shows sample data without a login.
+                  <code>npm run demo</code> shows sample data without a login. To see it before installing
+                  anything,
+                  <a href="https://danisxlab.github.io/eve-hud/demo/">try the demo in your browser</a>.
                 </li>
                 <li>
                   <strong>First start:</strong> start fresh, or import an existing HUD folder (see
@@ -3485,11 +3493,13 @@ build/entitlements.mac.plist   macOS hardened-runtime permissions (JIT)
 build/installer.nsh    Windows installer extra: the uninstaller's &quot;delete settings and data too?&quot; question
 electron-builder.config.cjs    build + signing settings
 scripts/check.js       connection check (npm run check)
+scripts/build-site.js  the GitHub Pages website: this page and the demo (npm run site)
 test/                  tests, the stand-in electron module, run-server.js
 LICENSE                GNU General Public License v3
 README.md              the short introduction on GitHub
 documentation/         this page (index.html) and its screenshots (images/)
-.github/workflows/     docs.yml: publishes this page on GitHub Pages
+demo/fake-server.js    the demo website: answers the HUD page in the browser, instead of server.js
+.github/workflows/     docs.yml: publishes this page and the demo on GitHub Pages
 </code></pre>
             </div>
             <div class="section">
@@ -3540,6 +3550,14 @@ documentation/         this page (index.html) and its screenshots (images/)
                   <code>main</code>, the <em>Documentation</em> workflow
                   (<code>.github/workflows/docs.yml</code>) publishes it on GitHub Pages; once, in the
                   repository's Settings → Pages, set <em>Source</em> to <em>GitHub Actions</em>.
+                </li>
+                <li>
+                  <strong>The demo website</strong> is the HUD page itself with the sample data of
+                  <code>npm run demo</code>, but without the app: <code>demo/fake-server.js</code> answers the
+                  page's requests in the browser, with an invented star map, and keeps the layout in that
+                  browser. The same workflow publishes it next to this page.
+                  <code>npm run site:preview</code> builds both into <code>_site/</code> and shows them at
+                  <code>http://localhost:8790/eve-hud/</code>, like on GitHub.
                 </li>
               </ul>
             </div>

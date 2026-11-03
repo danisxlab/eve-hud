@@ -11,6 +11,7 @@ import { pipeline } from 'node:stream/promises';
 import { dataPath, readJson, writeJson } from './store.js';
 import { listEntries, extractEntry } from './zip.js';
 import { netFetch } from './net.js';
+import { isKSpace, compactPayload, linkSystems } from './universe-data.js';
 
 const FILE = dataPath('universe.json');
 // Item names for recognising items in chat (EVE's chat logs keep only the plain text of links).
@@ -28,8 +29,6 @@ const SDE_LATEST = 'https://developers.eveonline.com/static-data/tranquility/lat
 // 2: adds position2D, the schematic layout the in-game 2D map uses.
 // 3: adds data/typenames.json (item names from types.jsonl), built from the same download.
 const CACHE_FORMAT = 3;
-
-const isKSpace = (regionId) => regionId < 11000000; // excludes wormholes (11xxxxxx), abyssal (12xxxxxx), void (14xxxxxx)
 
 function parseJsonl(buf) {
   const out = [];
@@ -329,37 +328,10 @@ export function createUniverse({ esi, userAgent, log = console, onProgress = () 
     await build();
   }
 
-  // Compact payload for the browser: k-space only, indexed arrays.
+  // Compact payload for the browser (universe-data.js)
   function payload() {
     if (!data) return null;
-    if (compact) return compact;
-    const ks = data.systems.filter((s) => isKSpace(s.regionId));
-    const idx = new Map(ks.map((s, i) => [s.id, i]));
-    const regionIds = [...new Set(ks.map((s) => s.regionId))];
-    const rIdx = new Map(regionIds.map((id, i) => [id, i]));
-    const regionName = new Map(data.regions.map((r) => [r.id, r.name]));
-    // Only offer the schematic layout when (nearly) every system has one.
-    const with2D = ks.filter((s) => Number.isFinite(s.x2)).length;
-    const has2D = ks.length > 0 && with2D / ks.length > 0.98;
-    const r13 = (v) => Math.round(v / 1e13);
-    compact = {
-      source: data.source,
-      builtAt: data.builtAt ?? null,
-      has2D,
-      regions: regionIds.map((id) => [id, regionName.get(id) || String(id)]),
-      // [id, name, x, z, sec, regionIndex, x2, y2]
-      //   x, z:   real 3D position seen from above (CCP: image x = X, image y = -Z)
-      //   x2, y2: schematic 2D position of the in-game 2D map (image x = X, image y = -Y); falls back to 3D
-      systems: ks.map((s) => {
-        const row = [s.id, s.name, r13(s.x), r13(s.z), Math.round(s.sec * 1000) / 1000, rIdx.get(s.regionId)];
-        if (has2D) row.push(...(Number.isFinite(s.x2) ? [r13(s.x2), r13(s.y2)] : [r13(s.x), r13(s.z)]));
-        return row;
-      }),
-      jumps: data.jumps
-        .filter(([a, b]) => idx.has(a) && idx.has(b))
-        .map(([a, b]) => [idx.get(a), idx.get(b)]),
-    };
-    return compact;
+    return (compact ||= compactPayload(data));
   }
 
   // Names the chat module recognises: items (from the SDE) and k-space systems.
@@ -368,7 +340,7 @@ export function createUniverse({ esi, userAgent, log = console, onProgress = () 
       const n = readJson(NAMES_FILE, null);
       itemNameData = n?.names?.length ? n : { names: [], build: null, builtAt: null };
     }
-    const systems = (data?.systems || []).filter((s) => isKSpace(s.regionId)).map((s) => [s.id, s.name]);
+    const systems = linkSystems(data);
     return {
       version: `${itemNameData.builtAt || 'none'}|${data?.builtAt || 'none'}`,
       items: itemNameData.names,

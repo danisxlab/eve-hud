@@ -4,6 +4,8 @@ A live EVE Online HUD for a second screen, as a desktop app for Windows and macO
 
 ![EVE HUD in demo mode: character, training queue, star map, chat, industry, market orders and warfare](documentation/images/hud.webp)
 
+**▶ Try it in your browser: [danisxlab.github.io/eve-hud/demo](https://danisxlab.github.io/eve-hud/demo/)** (sample data, no download or login).
+
 **📖 Documentation: [danisxlab.github.io/eve-hud/documentation](https://danisxlab.github.io/eve-hud/documentation/)** (also in this repository: [`documentation/index.html`](documentation/index.html)). It covers installing, every module and setting, `config.json`, privacy, building and troubleshooting.
 
 ## Features
@@ -39,7 +41,7 @@ Windows builds also work on a Mac. To raise the version number: `npm run version
 - No build step and no frameworks: the page is plain JavaScript modules, the server and app are plain Node.js.
 - Formatting: [Prettier](https://prettier.io) (`npx prettier --write .`).
 - How the code is laid out: [Development](https://danisxlab.github.io/eve-hud/documentation/#development).
-- The documentation is one page, [`documentation/index.html`](documentation/index.html); a GitHub Actions workflow (`.github/workflows/docs.yml`) publishes it on GitHub Pages.
+- The documentation is one page, [`documentation/index.html`](documentation/index.html); a GitHub Actions workflow (`.github/workflows/docs.yml`) publishes it on GitHub Pages, together with the demo website (`demo/`). `npm run site:preview` shows both locally first.
 
 ## License
 

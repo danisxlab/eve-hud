@@ -290,7 +290,9 @@ export function renderDrawer() {
       ? h(
           'p',
           { class: 'note' },
-          'Demo mode: showing sample data. Start the app without --demo to use your character.',
+          store.config?.web
+            ? 'Demo website: sample data, nothing from EVE. Download the app to use your own character.'
+            : 'Demo mode: showing sample data. Start the app without --demo to use your character.',
         )
       : [
           auth.loggedIn
@@ -333,7 +335,13 @@ export function renderDrawer() {
         ],
     h('h3', {}, 'ESI API rate limits'),
     rates,
-    h('p', { class: 'note' }, 'Refresh timings and the rate-limit reserve are in config.json (see Storage).'),
+    store.config?.web
+      ? null
+      : h(
+          'p',
+          { class: 'note' },
+          'Refresh timings and the rate-limit reserve are in config.json (see Storage).',
+        ),
   );
   loadRates(rates);
 }
@@ -342,6 +350,8 @@ export function renderDrawer() {
 // each with Browse… (the app's folder dialog). Moving happens at a restart, before the HUD starts,
 // so nothing is being written meanwhile; the app copies, checks, then removes the old files.
 export function storageBlock() {
+  if (store.config?.web)
+    return h('p', { class: 'note' }, 'Demo website: your layout and settings are kept in this browser only.');
   const box = h('div', { class: 'storage' }, h('p', { class: 'note' }, 'Reading…'));
   fetch('/api/storage')
     .then((r) => (r.ok ? r.json() : null))
@@ -553,6 +563,7 @@ export function combatBlock() {
 }
 
 export function chatLogsBlock() {
+  if (store.config?.web) return null; // the demo website reads no files
   const box = h('div', { class: 'storage chatlogs' }, h('p', { class: 'note' }, 'Reading…'));
   const json = (url, body) =>
     fetch(url, {

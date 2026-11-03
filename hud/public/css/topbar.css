@@ -45,6 +45,61 @@
   font-weight: 500;
 }
 
+/* the demo website: "Get the app", a small red frame with corner ticks like the module windows */
+#topbar .who .get-app {
+  position: relative;
+  display: inline-block;
+  margin-left: 10px;
+  padding: 0 8px;
+  line-height: 18px;
+  color: #ef6a5b;
+  text-decoration: none;
+  border: 1px solid rgba(210, 74, 60, 0.5);
+  background: rgba(210, 74, 60, 0.08);
+}
+
+#topbar .who .get-app:hover {
+  color: #ff8a7c;
+  border-color: rgba(210, 74, 60, 0.8);
+  background: rgba(210, 74, 60, 0.18);
+}
+
+#topbar .who .get-app .tick {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border: 0 solid #ff7d6e;
+  pointer-events: none;
+}
+
+#topbar .who .get-app .tick.tl {
+  left: -1px;
+  top: -1px;
+  border-left-width: 1px;
+  border-top-width: 1px;
+}
+
+#topbar .who .get-app .tick.tr {
+  right: -1px;
+  top: -1px;
+  border-right-width: 1px;
+  border-top-width: 1px;
+}
+
+#topbar .who .get-app .tick.bl {
+  left: -1px;
+  bottom: -1px;
+  border-left-width: 1px;
+  border-bottom-width: 1px;
+}
+
+#topbar .who .get-app .tick.br {
+  right: -1px;
+  bottom: -1px;
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+}
+
 #topbar .spacer {
   flex: 1;
 }

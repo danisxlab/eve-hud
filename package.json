@@ -22,6 +22,8 @@
     "fresh": "electron . --data-dir=./.test-home",
     "rebuild-map": "electron . --rebuild-map",
     "check": "node scripts/check.js",
+    "site": "node scripts/build-site.js _site",
+    "site:preview": "node scripts/build-site.js _site --preview",
     "version:patch": "npm version patch --no-git-tag-version",
     "version:minor": "npm version minor --no-git-tag-version",
     "version:major": "npm version major --no-git-tag-version",

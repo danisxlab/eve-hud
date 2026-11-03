@@ -14,6 +14,7 @@ import { readUseGpu, writeUseGpu, OPTIONS_FILE } from '../src/gpu.js';
 import { createGameLogs, gamelogDirFor } from '../hud/lib/gamelogs.js';
 import { chatDirFor, logsRootFor, configuredLogsDir } from '../hud/lib/chatlogs.js';
 import { configFiles, findDamaged, resetConfig, recoveryPage } from '../src/recovery.js';
+import { buildSite } from '../scripts/build-site.js';
 
 const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HUD = path.join(APP, 'hud');
@@ -446,4 +447,38 @@ test('game logs: the autopilot, from its log lines (on / off and the next jump)'
   ]);
   assert.deepEqual(g.autopilot(), { on: false, next: null });
   fs.rmSync(root, { recursive: true, force: true });
+});
+
+test('website: the documentation and the demo, with only browser code in the demo', () => {
+  const out = buildSite(path.join(tmp, 'site'));
+  for (const f of [
+    'index.html',
+    'documentation/index.html',
+    'demo/index.html',
+    'demo/fake-server.js',
+    'hud/public/js/app.js',
+    'hud/public/fonts/OFL.txt',
+    'LICENSE',
+  ])
+    assert.ok(fs.existsSync(path.join(out, f)), f);
+  const page = fs.readFileSync(path.join(out, 'demo/index.html'), 'utf8');
+  // the demo server first, then the HUD; nothing from the server's root
+  assert.ok(page.indexOf('src="fake-server.js"') < page.indexOf('src="../hud/public/js/app.js"'));
+  assert.doesNotMatch(page, /(?:src|href)="\/(?!\/)/);
+  // hud/lib: only what the demo imports, and none of it may need Node.js
+  const lib = fs.readdirSync(path.join(out, 'hud/lib')).sort();
+  assert.deepEqual(lib, ['demo.js', 'evehtml.js', 'route.js', 'universe-data.js']);
+  for (const f of lib)
+    assert.doesNotMatch(fs.readFileSync(path.join(out, 'hud/lib', f), 'utf8'), /from ['"]node:/, f);
+  assert.doesNotMatch(
+    fs.readFileSync(path.join(HUD, 'public/css/base.css'), 'utf8'),
+    /url\('\//,
+    'fonts relative to the stylesheet',
+  );
+  // building again replaces its own folder, but never a folder it didn't make
+  buildSite(out);
+  const other = fs.mkdtempSync(path.join(tmp, 'other-'));
+  fs.writeFileSync(path.join(other, 'keep.txt'), 'x');
+  assert.throws(() => buildSite(other), /wasn't made by this script/);
+  assert.ok(fs.existsSync(path.join(other, 'keep.txt')));
 });

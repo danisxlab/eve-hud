@@ -174,7 +174,8 @@ export function createDemo(universe, publish) {
       startTime: new Date(now - 3 * H).toISOString(),
       vip: false,
     },
-    // ESI health: all fine, except the market orders route, to show an amber module light
+    // ESI health: all fine, except the market orders route, to show an amber module light;
+    // its status is the text in the hover boxes ("ESI Simulation"), so nobody takes it for real
     esihealth: {
       feeds: {
         status: 'ok',
@@ -190,7 +191,7 @@ export function createDemo(universe, publish) {
         sovereignty: 'ok',
         route: 'ok',
       },
-      problems: { orders: [{ route: 'GET /characters/{}/orders', status: 'degraded' }] },
+      problems: { orders: [{ route: 'GET /characters/{}/orders', status: 'Simulation' }] },
       routes: 180,
     },
     character: {
@@ -984,7 +985,7 @@ export function createDemo(universe, publish) {
       feeds.wallet.series.push([Date.now(), feeds.wallet.balance]);
       if (feeds.wallet.series.length > 60) feeds.wallet.series.shift();
       emit('wallet');
-    }, 9000).unref();
+    }, 9000).unref?.(); // unref: Node only (the demo website runs this in the browser)
     // every 20 s one more unread notification arrives (until two have arrived)
     const notifTimer = setInterval(() => {
       const next = extraNotifications.shift();
@@ -996,7 +997,7 @@ export function createDemo(universe, publish) {
       feeds.notifications.total += 1;
       emit('notifications');
     }, 20000);
-    notifTimer.unref();
+    notifTimer.unref?.();
     const mailCycle = [3, 0, 2];
     let mi = 0;
     setInterval(() => {
@@ -1006,7 +1007,7 @@ export function createDemo(universe, publish) {
       };
       mi = (mi + 1) % mailCycle.length;
       emit('mail');
-    }, 12000).unref();
+    }, 12000).unref?.();
     setInterval(() => {
       const channel = r() < 0.65 ? 'local' : 'corp';
       const msg = {
@@ -1018,7 +1019,7 @@ export function createDemo(universe, publish) {
       };
       chat[channel].push(msg);
       publishChat(channel, [msg]);
-    }, 6500).unref();
+    }, 6500).unref?.();
   }
 
   return { start, chat, feeds };

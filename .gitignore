@@ -1,6 +1,7 @@
 # installed packages and build output
 node_modules/
 dist/
+_site/
 
 # your own settings and EVE login: never in the repository
 config.json

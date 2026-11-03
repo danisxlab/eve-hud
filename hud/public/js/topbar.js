@@ -112,6 +112,20 @@ export function renderTopbar() {
             h('b', {}, c?.name || a.characterName || ''),
             c ? ` [${c.corporation.ticker}]` : '',
             a.demo ? ' · demo data' : '',
+            // the demo website: the way to the real app (GitHub forwards to the newest release)
+            a.demo && store.config?.web
+              ? h(
+                  'a',
+                  {
+                    class: 'get-app',
+                    href: 'https://github.com/danisxlab/eve-hud/releases/latest',
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                  },
+                  'Get the app',
+                  ['tl', 'tr', 'bl', 'br'].map((c) => h('i', { class: `tick ${c}` })),
+                )
+              : '',
           )
         : '',
     );

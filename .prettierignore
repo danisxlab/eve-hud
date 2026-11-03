@@ -1,5 +1,6 @@
 node_modules/
 dist/
+_site/
 package-lock.json
 hud/public/fonts/
 README.md
