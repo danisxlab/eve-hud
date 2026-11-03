@@ -1,0 +1,54 @@
+# Publishes documentation/index.html on GitHub Pages: https://danisxlab.github.io/eve-hud/documentation/
+# One-time setup on GitHub: Settings → Pages → Build and deployment → Source: "GitHub Actions".
+# Runs when the documentation (or what it uses: the font, the icon) changes on main, or by hand
+# (Actions → Documentation → Run workflow).
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'documentation/**'
+      - 'hud/public/fonts/**'
+      - 'assets/icon.png'
+      - 'LICENSE'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}documentation/
+    steps:
+      - uses: actions/checkout@v4
+
+      # the page with the same folder layout as the repository, so its relative links
+      # (../hud/public/fonts, ../assets/icon.png, ../LICENSE) work online too
+      - name: Collect the page and the files it uses
+        run: |
+          mkdir -p _site/hud/public _site/assets
+          cp -r documentation _site/documentation
+          cp -r hud/public/fonts _site/hud/public/fonts
+          cp assets/icon.png _site/assets/icon.png
+          cp LICENSE _site/LICENSE
+          printf '%s\n' '<!doctype html><meta charset="utf-8"><title>EVE HUD</title>' \
+            '<meta http-equiv="refresh" content="0; url=documentation/">' \
+            '<a href="documentation/">EVE HUD documentation</a>' > _site/index.html
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

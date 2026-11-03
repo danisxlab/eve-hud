@@ -221,6 +221,7 @@ export async function startServer({
   let gameLogs = null; // combat from the game logs (not in demo mode)
   let logsHealth = null; // { ok, dir, error }: the "EVE logs can't be read" window in the HUD
   let combat = { active: false, t: 0 };
+  let autopilot = { on: false, next: null }; // the in-game autopilot, from the game log
   const chatLogInfo = () => ({
     dir: configuredLogsDir(config), // EVE's logs folder as set; '' = the usual place
     auto: logsRootFor(chatAutoDir()), // the usual place on this computer, if it exists
@@ -257,6 +258,7 @@ export async function startServer({
       universe: universe.state,
       chat: { status: chatStatus, channels: chatBuffers },
       combat,
+      autopilot,
       logs: logsHealth,
       settings: loadSettings(),
       // files + app: for the help texts in the page, which say where config.json and data/ are
@@ -312,7 +314,7 @@ export async function startServer({
           return errorPage(
             res,
             'EVE refused a permission',
-            'Your EVE application does not have every scope the HUD asked for. Open your application on developers.eveonline.com, tick all scopes listed under "scopes" in config.json (the HUD\'s setup form and README list them), save, and log in again.',
+            'Your EVE application does not have every scope the HUD asked for. Open your application on developers.eveonline.com, tick all scopes listed under "scopes" in config.json (the HUD\'s setup form and the documentation list them), save, and log in again.',
           );
         }
         if (url.searchParams.get('error'))
@@ -753,6 +755,10 @@ export async function startServer({
     onCombat: (c) => {
       combat = c;
       broadcast('combat', c);
+    },
+    onAutopilot: (a) => {
+      autopilot = a;
+      broadcast('autopilot', a);
     },
     onHealth: (health) => {
       logsHealth = health;

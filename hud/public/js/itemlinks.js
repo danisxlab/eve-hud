@@ -49,8 +49,6 @@ export function loadLinkNames() {
   return loading;
 }
 
-export const linkNamesReady = () => Boolean(index && index.size);
-
 function standsAlone(text, start, end) {
   const before =
     start === 0 || text.slice(Math.max(0, start - 2), start) === '  ' || text[start - 1] === '\n';

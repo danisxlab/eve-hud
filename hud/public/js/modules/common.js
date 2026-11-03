@@ -187,43 +187,6 @@ export function netLine(points, { height = 54 } = {}) {
   return wrap;
 }
 
-// Small daily bar chart (oldest left). values: numbers, or { income, expense } (stacked up / down).
-export function dailyBars(values, { height = 34, title = '' } = {}) {
-  const n = values.length;
-  const el = h('svg', {
-    class: 'lm-bars',
-    viewBox: `0 0 ${n * 4} ${height}`,
-    preserveAspectRatio: 'none',
-    role: 'img',
-    'aria-label': title,
-  });
-  const pairs = values.map((v) =>
-    typeof v === 'number' ? { income: Math.max(0, v), expense: Math.min(0, v) } : v,
-  );
-  const max = Math.max(1, ...pairs.map((p) => Math.max(p.income, -p.expense)));
-  const twoSided = pairs.some((p) => p.expense < 0);
-  const mid = twoSided ? height * 0.62 : height;
-  pairs.forEach((p, i) => {
-    const up = (p.income / max) * (mid - 1);
-    if (up > 0)
-      el.append(h('rect', { ns: 'svg', x: i * 4 + 0.5, y: mid - up, width: 3, height: up, class: 'up' }));
-    if (twoSided && p.expense < 0) {
-      const down = (-p.expense / max) * (height - mid - 1);
-      el.append(
-        h('rect', {
-          ns: 'svg',
-          x: i * 4 + 0.5,
-          y: mid + 1,
-          width: 3,
-          height: Math.max(0.6, down),
-          class: 'down',
-        }),
-      );
-    }
-  });
-  return el;
-}
-
 // The module's state when there's no data: needs a scope, failed, or still loading.
 export function placeholder(feed, loading) {
   if (feed?.error?.scope) return scopeNeeded(feed.error.scope);

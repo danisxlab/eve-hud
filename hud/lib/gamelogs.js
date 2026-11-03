@@ -14,7 +14,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { candidateDirs, logsRootFor } from './chatlogs.js';
 
-const LINE_RE = /^\[\s*(\d{4})\.(\d{2})\.(\d{2}) (\d{2}):(\d{2}):(\d{2})\s*\]\s*\(combat\)(.*)$/;
+// every log line: [ 2026.11.02 19:01:12 ] (type) text
+const LINE_RE = /^\[\s*(\d{4})\.(\d{2})\.(\d{2}) (\d{2}):(\d{2}):(\d{2})\s*\]\s*\((\w+)\)\s?(.*)$/;
 // friendly (combat) lines: remote reps and capacitor transfers, given or received, aren't an attack
 const FRIENDLY_RE = /\b(repaired|boosted|transferred)\b/i;
 
@@ -68,6 +69,7 @@ export function createGameLogs(
     chatDir = '',
     getCharacterId = () => null,
     onCombat = () => {},
+    onAutopilot = () => {},
     onHealth = () => {},
     log = console,
     now = () => Date.now(),
@@ -121,6 +123,28 @@ export function createGameLogs(
     onHealth(health);
   }
 
+  // The in-game autopilot, as far as the log tells: on or off, and the system it jumps to next.
+  // ESI can't read the destination or the route the game planned; the log only names the next jump:
+  //   (notify) Autopilot engaged / Autopilot disabled
+  //   (notify) Autopilot warping to Tiberis      (the gate to Tiberis; at the end: a station's name)
+  //   (notify) Autopilot jumping to Tiberis
+  //   (None)   Jumping from Fortitude to Tiberis
+  let autopilot = { on: false, next: null };
+  function setAutopilot(next) {
+    if (next.on === autopilot.on && next.next === autopilot.next) return;
+    autopilot = next;
+    onAutopilot({ ...autopilot, t: now() });
+  }
+  function readAutopilot(type, text) {
+    let m;
+    if (/^Autopilot engaged/i.test(text)) setAutopilot({ on: true, next: autopilot.next });
+    else if (/^Autopilot (disabled|disengaged)/i.test(text)) setAutopilot({ on: false, next: null });
+    else if ((m = text.match(/^Autopilot (?:warping|jumping) to (.+?)\.?$/i)))
+      setAutopilot({ on: true, next: m[1] });
+    else if ((m = text.match(/^Jumping from (.+) to (.+?)\.?$/i)) && autopilot.next === m[2])
+      setAutopilot({ on: autopilot.on, next: null }); // arrived there; the next gate comes in the next line
+  }
+
   function setActive(on) {
     if (on === active) return;
     active = on;
@@ -133,6 +157,7 @@ export function createGameLogs(
     if (!f || f === file) return health;
     file = f;
     remainder = '';
+    if (autopilot.on || autopilot.next) setAutopilot({ on: false, next: null }); // a new game session
     try {
       offset = fs.statSync(f).size;
     } catch {
@@ -170,14 +195,17 @@ export function createGameLogs(
           const lines = (remainder + text).split(/\r?\n/);
           remainder = lines.pop() ?? '';
           for (const raw of lines) {
-            const m = raw.replace(/^﻿/, '').match(LINE_RE);
+            const m = raw.replace(/^\uFEFF/, '').match(LINE_RE);
             if (!m) continue;
-            const [, Y, M, D, h, mi, s, rest] = m;
-            if (FRIENDLY_RE.test(rest.replace(/<[^>]*>/g, ''))) continue;
+            const [, Y, M, D, h, mi, s, type, rest] = m;
             const t = Date.UTC(+Y, +M - 1, +D, +h, +mi, +s); // EVE time is UTC
             if (Math.abs(now() - t) > 120_000) continue; // an old line (a copied file, a wrong clock)
-            lastHit = now();
-            setActive(true);
+            const text = rest.replace(/<[^>]*>/g, '').trim();
+            if (type === 'combat') {
+              if (FRIENDLY_RE.test(text)) continue;
+              lastHit = now();
+              setActive(true);
+            } else readAutopilot(type, text);
           }
         } catch {
           /* try again next time */
@@ -214,6 +242,7 @@ export function createGameLogs(
     setIdleSeconds,
     status: () => ({ dir, file: file ? path.basename(file) : null, active, idleSeconds: idleMs / 1000 }),
     health: () => health,
+    autopilot: () => autopilot,
     poll,
     scan,
   };

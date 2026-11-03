@@ -1,0 +1,3708 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>EVE HUD documentation</title>
+    <meta
+      name="description"
+      content="EVE HUD: a live EVE Online HUD for a second screen. Installing, using, configuring and building it."
+    />
+    <link rel="icon" type="image/png" href="../assets/icon.png" />
+    <style>
+      /* The font that comes with the HUD (SIL Open Font License, hud/public/fonts/OFL.txt) */
+      @font-face {
+        font-family: 'Saira Semi Condensed';
+        font-weight: 400;
+        font-display: swap;
+        src: url('../hud/public/fonts/saira-semi-condensed-latin-400-normal.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'Saira Semi Condensed';
+        font-weight: 500;
+        font-display: swap;
+        src: url('../hud/public/fonts/saira-semi-condensed-latin-500-normal.woff2') format('woff2');
+      }
+      @font-face {
+        font-family: 'Saira Semi Condensed';
+        font-weight: 600;
+        font-display: swap;
+        src: url('../hud/public/fonts/saira-semi-condensed-latin-600-normal.woff2') format('woff2');
+      }
+
+      /* The HUD's colours (hud/public/css/base.css) */
+      :root {
+        --void: #000000;
+        --panel: rgba(8, 12, 14, 0.82);
+        --gal: #4fb08f;
+        --gal-hi: #8fe6c4;
+        --gal-rgb: 79, 176, 143;
+        --cal: #4fa3d6;
+        --cal-hi: #7cc6ee;
+        --amber: #d98a32;
+        --amber-hi: #f0a952;
+        --red: #d24a3c;
+        --ink: #d4d9db;
+        --ink-2: #8e979b;
+        --ink-3: #535b5f;
+        --line: rgba(var(--gal-rgb), 0.18);
+        --line-2: rgba(var(--gal-rgb), 0.42);
+        --hair: rgba(255, 255, 255, 0.06);
+        --font: 'Saira Semi Condensed', 'Saira Condensed', 'Arial Narrow', 'Helvetica Neue', sans-serif;
+        --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+        --nav-w: 270px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 64px;
+      }
+      body {
+        margin: 0;
+        color: var(--ink);
+        font: 400 15px/1.6 var(--font);
+        background:
+          radial-gradient(ellipse at 18% 20%, rgba(79, 176, 143, 0.08), transparent 55%),
+          radial-gradient(ellipse at 85% 80%, rgba(79, 163, 214, 0.07), transparent 55%), var(--void);
+        background-attachment: fixed;
+        -webkit-font-smoothing: antialiased;
+      }
+      a {
+        color: var(--gal-hi);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      :focus-visible {
+        outline: 1px solid var(--gal-hi);
+        outline-offset: 2px;
+      }
+      .glyph {
+        display: inline-grid;
+        place-items: center;
+        width: 18px;
+        height: 18px;
+        color: var(--gal);
+        flex: none;
+      }
+      .glyph svg {
+        width: 100%;
+        height: 100%;
+      }
+
+      /* ---- top bar, like the HUD's ---- */
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        height: 46px;
+        padding: 0 18px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(8, 12, 14, 0.9);
+        backdrop-filter: blur(8px);
+        font-size: 13px;
+      }
+      .topbar .brand {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        color: var(--ink);
+        font-weight: 500;
+        letter-spacing: 0.04em;
+      }
+      .topbar .brand .glyph {
+        width: 20px;
+        height: 20px;
+      }
+      .topbar .what {
+        color: var(--ink-3);
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .topbar .spacer {
+        flex: 1;
+      }
+      .topbar a.repo {
+        color: var(--ink-2);
+      }
+      .topbar a.repo:hover {
+        color: var(--gal-hi);
+      }
+      .topbar .brand,
+      .topbar a.repo {
+        white-space: nowrap;
+      }
+      .topbar .short {
+        display: none;
+      }
+      .topbar .menu {
+        display: none;
+        font: inherit;
+        color: var(--ink-2);
+        background: none;
+        border: 1px solid var(--line);
+        padding: 3px 10px;
+        cursor: pointer;
+      }
+
+      /* ---- layout: contents on the left, chapters on the right ---- */
+      .layout {
+        display: grid;
+        grid-template-columns: var(--nav-w) minmax(0, 1fr);
+        gap: 28px;
+        max-width: 1280px;
+        margin: 0 auto;
+        padding: 24px 22px 60px;
+      }
+      nav.toc {
+        position: sticky;
+        top: 70px;
+        align-self: start;
+        max-height: calc(100vh - 90px);
+        overflow-y: auto;
+        padding-right: 6px;
+        font-size: 13.5px;
+      }
+      nav.toc ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      nav.toc .chap {
+        margin-bottom: 14px;
+      }
+      nav.toc .chap > a {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--ink-3);
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      nav.toc .chap li a {
+        display: block;
+        padding: 2px 0 2px 11px;
+        border-left: 1px solid var(--hair);
+        color: var(--ink-2);
+      }
+      nav.toc a:hover {
+        color: var(--gal-hi);
+        text-decoration: none;
+      }
+      nav.toc a.here {
+        color: var(--gal-hi);
+        border-left-color: var(--gal);
+      }
+      nav.toc .chap > a.here {
+        color: var(--gal);
+      }
+
+      /* ---- the intro ---- */
+      .hero {
+        margin-bottom: 26px;
+      }
+      .hero .label {
+        color: var(--ink-3);
+        font-size: 11px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .hero h1 {
+        margin: 2px 0 6px;
+        font-size: 34px;
+        font-weight: 400;
+        letter-spacing: 0.01em;
+      }
+      .hero p {
+        max-width: 760px;
+        margin: 0 0 14px;
+        color: var(--ink-2);
+        font-size: 16px;
+      }
+      .hero figure {
+        margin: 18px 0 0;
+      }
+
+      /* ---- a chapter looks like a HUD module ---- */
+      .chapter {
+        position: relative;
+        margin-bottom: 26px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+      }
+      .tick {
+        position: absolute;
+        width: 9px;
+        height: 9px;
+        border: 0 solid var(--gal-hi);
+        pointer-events: none;
+      }
+      .tick.tl {
+        left: -1px;
+        top: -1px;
+        border-left-width: 1px;
+        border-top-width: 1px;
+      }
+      .tick.tr {
+        right: -1px;
+        top: -1px;
+        border-right-width: 1px;
+        border-top-width: 1px;
+      }
+      .tick.bl {
+        left: -1px;
+        bottom: -1px;
+        border-left-width: 1px;
+        border-bottom-width: 1px;
+      }
+      .tick.br {
+        right: -1px;
+        bottom: -1px;
+        border-right-width: 1px;
+        border-bottom-width: 1px;
+      }
+      .chapter-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding: 11px 18px;
+        border-bottom: 1px solid var(--line);
+      }
+      .chapter-head h2 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 400;
+        letter-spacing: 0.02em;
+      }
+      .chapter-head .sub {
+        margin-left: auto;
+        color: var(--ink-3);
+        font-size: 12.5px;
+      }
+      .chapter-body {
+        padding: 4px 22px 18px;
+      }
+      .section + .section {
+        border-top: 1px solid var(--hair);
+      }
+      h3 {
+        margin: 22px 0 8px;
+        color: var(--gal-hi);
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      h3 code {
+        text-transform: none;
+        letter-spacing: 0;
+      }
+      h4 {
+        margin: 20px 0 6px;
+        color: var(--ink);
+        font-size: 15.5px;
+        font-weight: 500;
+      }
+      p,
+      li {
+        color: var(--ink);
+      }
+      ul,
+      ol {
+        padding-left: 22px;
+      }
+      li {
+        margin: 3px 0;
+      }
+      li::marker {
+        color: var(--gal);
+      }
+      strong {
+        color: #fff;
+        font-weight: 500;
+      }
+      em {
+        color: var(--ink);
+      }
+      code {
+        padding: 0 4px;
+        font: 0.88em var(--mono);
+        color: var(--gal-hi);
+        background: rgba(var(--gal-rgb), 0.08);
+        border: 1px solid rgba(var(--gal-rgb), 0.12);
+      }
+      pre {
+        overflow-x: auto;
+        padding: 12px 14px;
+        background: rgba(0, 0, 0, 0.45);
+        border: 1px solid var(--line);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      pre code {
+        padding: 0;
+        background: none;
+        border: 0;
+        color: var(--ink);
+      }
+      .table {
+        overflow-x: auto;
+        margin: 12px 0;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th {
+        padding: 6px 10px;
+        color: var(--ink-3);
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.12em;
+        text-align: left;
+        text-transform: uppercase;
+        border-bottom: 1px solid var(--line-2);
+      }
+      td {
+        padding: 7px 10px;
+        vertical-align: top;
+        border-bottom: 1px solid var(--hair);
+      }
+      tr:hover td {
+        background: rgba(var(--gal-rgb), 0.04);
+      }
+      figure {
+        margin: 14px 0 18px;
+      }
+      figure img {
+        display: block;
+        max-width: 100%;
+        height: auto;
+        border: 1px solid var(--line);
+        background: #000;
+      }
+      figure img.tall {
+        max-height: 520px;
+        width: auto;
+      }
+      figcaption {
+        margin-top: 6px;
+        color: var(--ink-3);
+        font-size: 12.5px;
+      }
+      footer {
+        margin-top: 10px;
+        color: var(--ink-3);
+        font-size: 12.5px;
+      }
+
+      /* ---- small screens: the contents fold away behind a button ---- */
+      @media (max-width: 900px) {
+        .layout {
+          grid-template-columns: minmax(0, 1fr);
+          padding: 16px;
+        }
+        .topbar .menu {
+          display: block;
+        }
+        .topbar .what,
+        .topbar .long {
+          display: none;
+        }
+        .topbar .short {
+          display: inline;
+        }
+        nav.toc {
+          display: none;
+          position: fixed;
+          top: 46px;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          z-index: 9;
+          max-height: none;
+          padding: 18px 20px;
+          background: rgba(8, 12, 14, 0.97);
+        }
+        body.toc-open nav.toc {
+          display: block;
+        }
+        .chapter-head .sub {
+          margin-left: 0;
+          width: 100%;
+        }
+        .chapter-body {
+          padding: 4px 14px 14px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="#top"
+        ><span class="glyph" aria-hidden="true"
+          ><svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.4"
+            stroke-linecap="square"
+            stroke-linejoin="miter"
+          >
+            <path d="M12 2.5 20.5 7.4v9.2L12 21.5 3.5 16.6V7.4z" />
+            <circle cx="12" cy="12" r="3" />
+            <path d="M12 2.5V7M12 17v4.5" /></svg></span
+        >EVE HUD</a
+      >
+      <span class="what">Documentation</span>
+      <span class="spacer"></span>
+      <a class="repo" href="https://github.com/danisxlab/eve-hud"
+        ><span class="long">github.com/danisxlab/eve-hud</span><span class="short">GitHub</span></a
+      >
+      <button class="menu" type="button" aria-expanded="false" aria-controls="toc">Contents</button>
+    </header>
+
+    <div class="layout" id="top">
+      <nav class="toc" id="toc" aria-label="Contents">
+        <ul>
+          <li class="chap">
+            <a href="#getting-started">Getting started</a>
+            <ul>
+              <li><a href="#quick-start">Quick start</a></li>
+              <li><a href="#first-start">First start</a></li>
+              <li><a href="#build-the-installer">Build the installer</a></li>
+              <li><a href="#signing">Signing</a></li>
+            </ul>
+          </li>
+          <li class="chap">
+            <a href="#using">Using the HUD</a>
+            <ul>
+              <li><a href="#using-the-hud">Using the HUD</a></li>
+              <li><a href="#window">Window</a></li>
+              <li>
+                <a href="#tray-menu-windows-and-settings-menu-mac"
+                  >Tray menu (Windows) and Settings menu (Mac)</a
+                >
+              </li>
+              <li><a href="#optional-modules">Optional modules</a></li>
+              <li><a href="#star-map-routes">Star map routes</a></li>
+              <li><a href="#star-map-hazard-overlay">Star map hazard overlay</a></li>
+              <li><a href="#warfare-module">Warfare module</a></li>
+              <li><a href="#chat-logs">Chat logs</a></li>
+            </ul>
+          </li>
+          <li class="chap">
+            <a href="#configuration">Configuration</a>
+            <ul>
+              <li><a href="#configuration-reference-configjson">Configuration reference (config.json)</a></li>
+              <li><a href="#where-the-files-are">Where the files are</a></li>
+              <li><a href="#files-and-folders">Files and folders</a></li>
+              <li><a href="#start-options">Start options</a></li>
+              <li><a href="#port-4747-and-the-login">Port 4747 and the login</a></li>
+              <li><a href="#refresh-timing">Refresh timing</a></li>
+              <li><a href="#esi-rate-limits">ESI rate limits</a></li>
+            </ul>
+          </li>
+          <li class="chap">
+            <a href="#data-privacy">Data and privacy</a>
+            <ul>
+              <li><a href="#privacy-login-cookies-network">Privacy: login, cookies, network</a></li>
+              <li><a href="#network-access">Network access</a></li>
+              <li><a href="#where-the-data-comes-from">Where the data comes from</a></li>
+              <li><a href="#star-map-data">Star map data</a></li>
+            </ul>
+          </li>
+          <li class="chap">
+            <a href="#help">Troubleshooting</a>
+            <ul>
+              <li><a href="#troubleshooting">Troubleshooting</a></li>
+            </ul>
+          </li>
+          <li class="chap">
+            <a href="#development">Development</a>
+            <ul>
+              <li><a href="#commands">Commands</a></li>
+              <li><a href="#project-layout">Project layout</a></li>
+              <li><a href="#reading-and-changing-the-code">Reading and changing the code</a></li>
+              <li><a href="#tests">Tests</a></li>
+            </ul>
+          </li>
+          <li class="chap">
+            <a href="#legal">License and credits</a>
+            <ul>
+              <li><a href="#license">License</a></li>
+              <li><a href="#licenses-and-credits">Licenses and credits</a></li>
+            </ul>
+          </li>
+        </ul>
+      </nav>
+
+      <main>
+        <div class="hero">
+          <div class="label">Documentation</div>
+          <h1>EVE HUD</h1>
+          <p>
+            A live EVE Online HUD for a second screen, as a desktop app for Windows and macOS. It shows your
+            character, skill training, industry, market orders, chat, a star map with routes and hazards,
+            Faction Warfare and more, from CCP's ESI and EVE's own log files. Laid out for a portrait monitor
+            such as 1200×1920, but any window size works.
+          </p>
+          <figure>
+            <img
+              src="images/hud.webp"
+              width="1600"
+              height="900"
+              alt="EVE HUD with its modules: character, training queue, star map, chat, industry, market orders and warfare"
+            />
+            <figcaption>The HUD in demo mode (<code>npm run demo</code>): sample data, no login.</figcaption>
+          </figure>
+        </div>
+
+        <section class="chapter" id="getting-started" aria-labelledby="getting-started-title">
+          <i class="tick tl"></i><i class="tick tr"></i><i class="tick bl"></i><i class="tick br"></i>
+          <header class="chapter-head">
+            <span class="glyph" aria-hidden="true"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="square"
+                stroke-linejoin="miter"
+              >
+                <path d="M12 2.5 20.5 7.4v9.2L12 21.5 3.5 16.6V7.4z" />
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 2.5V7M12 17v4.5" /></svg
+            ></span>
+            <h2 id="getting-started-title">Getting started</h2>
+            <span class="sub">Install, connect your EVE application, build your own copy.</span>
+          </header>
+          <div class="chapter-body">
+            <div class="section">
+              <h3 id="quick-start">Quick start</h3>
+              <ol>
+                <li>
+                  <strong>Run it:</strong> install the app (see
+                  <a href="#build-the-installer">Build the installer</a>), or from the project folder (a clone
+                  of the repository) with Node.js 20+: <code>npm install</code>, then <code>npm start</code>.
+                  <code>npm run demo</code> shows sample data without a login.
+                </li>
+                <li>
+                  <strong>First start:</strong> start fresh, or import an existing HUD folder (see
+                  <a href="#first-start">First start</a>).
+                </li>
+                <li>
+                  <strong>EVE developer application</strong> on
+                  <a href="https://developers.eveonline.com">https://developers.eveonline.com</a>: starting
+                  fresh, the HUD shows <em>Set up your EVE application</em> with the
+                  <strong>Callback URL</strong> and the <strong>scopes</strong> to enable (each with a
+                  <em>Copy</em> button), and fields for the <strong>Client ID</strong> and
+                  <strong>Secret Key</strong>.
+                  <ul>
+                    <li>
+                      The Callback URL must be exactly <code>http://localhost:4747/callback</code>, because
+                      EVE only returns to that exact URL. If 4747 is taken on that computer, type another port
+                      in the setup screen (it says whether a port is free); the HUD moves there and
+                      <em>Copy</em> copies the URL with that port.
+                    </li>
+                    <li>
+                      Every scope in <code>config.json</code> must also be enabled on the application,
+                      otherwise the login fails. See <a href="#scopes">Scopes</a>.
+                    </li>
+                    <li>
+                      <em>Save and continue</em> stores them (encrypted) in the app's
+                      <code>config.json</code> and takes effect at once.
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  Click <strong>Log in with EVE Online</strong>. The login opens in your default browser; when
+                  it says you're logged in, close the tab and the HUD updates. The character comes from the
+                  login, so there is no character ID to configure.
+                </li>
+              </ol>
+            </div>
+            <div class="section">
+              <h3 id="first-start">First start</h3>
+              <p>
+                The app keeps <code>config.json</code> and <code>data/</code> in its own folder (see
+                <a href="#where-the-files-are">Where the files are</a>), for <code>npm start</code> and the
+                installed app alike. The first time it starts there is none yet, so it asks:
+              </p>
+              <ul>
+                <li>
+                  <p>
+                    <strong>Import from folder…</strong> pick an existing HUD folder, for example a backup or
+                    one from another computer (the folder with <code>config.json</code> and
+                    <code>data/</code>; picking its <code>data</code> folder works too). It copies:
+                  </p>
+                  <ul>
+                    <li><code>config.json</code> (client ID and secret, scopes, refresh timings…)</li>
+                    <li><code>data/tokens.json</code> — your EVE login, so you don't have to log in again</li>
+                    <li>
+                      <code>data/universe.json</code> + <code>data/typenames.json</code> — the star map and
+                      item names, so nothing is downloaded again
+                    </li>
+                    <li>
+                      <code>data/settings.json</code> + <code>data/settings-demo.json</code> — layout and
+                      appearance
+                    </li>
+                    <li><code>data/names.json</code> — the name cache</li>
+                  </ul>
+                  <p>
+                    Files are copied as they are; their contents are never shown or logged. The originals stay
+                    where they were. On the first load the app encrypts the Client ID, Secret Key and login in
+                    its copies (see <a href="#privacy-login-cookies-network">Privacy</a>). Values encrypted on
+                    another computer can't be read: the HUD then asks for the Client ID and Secret Key and the
+                    EVE login again.
+                  </p>
+                </li>
+                <li>
+                  <p>
+                    <strong>Start fresh</strong> creates <code>config.json</code> from
+                    <code>config.example.json</code>, and the HUD window asks for your EVE application's
+                    <strong>Client ID</strong> and <strong>Secret Key</strong> (with the callback URL and
+                    scopes to copy). They are saved, encrypted, to the app's <code>config.json</code> and used
+                    at once, no restart. Settings → Account → <em>Reset EVE HUD</em> removes them again.
+                  </p>
+                </li>
+                <li>
+                  <p><strong>Quit</strong> leaves without creating anything.</p>
+                </li>
+              </ul>
+              <p>
+                Later, <strong>Import from an existing HUD folder…</strong> (tray / Settings menu) does the
+                same again, replacing the app's files, and restarts the app.
+              </p>
+              <p>
+                Moving to another computer: the encrypted values only work on the computer (and user account)
+                that saved them. Copy <code>data/</code> (layout, star map) and on the new computer enter the
+                Client ID and Secret Key and log in again; the HUD asks by itself.
+              </p>
+            </div>
+            <div class="section">
+              <h3 id="build-the-installer">Build the installer</h3>
+              <div class="table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Command</th>
+                      <th>Result</th>
+                      <th>Build on</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>npm run dist:win</code></td>
+                      <td><code>dist/EVE HUD Setup &lt;version&gt;.exe</code> (NSIS installer, x64)</td>
+                      <td>Windows, or a Mac (see below)</td>
+                    </tr>
+                    <tr>
+                      <td><code>npm run dist:win-zip</code></td>
+                      <td>
+                        <code>dist/EVE HUD-&lt;version&gt;-win.zip</code> (the app in a zip, no installer,
+                        x64)
+                      </td>
+                      <td>Windows or a Mac</td>
+                    </tr>
+                    <tr>
+                      <td><code>npm run dist:mac</code></td>
+                      <td><code>dist/EVE HUD-&lt;version&gt;-universal.dmg</code> (Apple silicon + Intel)</td>
+                      <td>a Mac</td>
+                    </tr>
+                    <tr>
+                      <td><code>npm run dist:mac-dev</code></td>
+                      <td>
+                        the same, signed with your own Apple Development certificate (see
+                        <a href="#signing">Signing</a>)
+                      </td>
+                      <td>a Mac</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <ul>
+                <li>
+                  <strong>Windows builds on a Mac:</strong> they work without Windows and without Wine
+                  (electron-builder 26.11+ edits the .exe's icon and details itself). The game PC then needs
+                  nothing: no Node.js.
+                  <ul>
+                    <li>
+                      <code>npm run dist:win-zip</code> is the sure way: unzip it anywhere on the game PC and
+                      start <code>EVE HUD.exe</code>. It uses the same settings folder (<code
+                        >%APPDATA%\EVE HUD</code
+                      >) as the installed app.
+                    </li>
+                    <li>
+                      <code>npm run dist:win</code> also tries to make the installer on the Mac. If
+                      electron-builder stops and asks for Wine, use the zip, or build the installer on the
+                      game PC.
+                    </li>
+                    <li>
+                      Unsigned either way: Windows SmartScreen asks once (see <a href="#signing">Signing</a>).
+                    </li>
+                  </ul>
+                </li>
+                <li>Mac apps can only be built on a Mac.</li>
+                <li>
+                  <strong>The Mac .dmg</strong> opens in a window in the HUD's style: the plexus background,
+                  the app on the left, an arrow, and the Applications folder on the right to drag it onto. The
+                  picture is <code>build/background.png</code> (and <code>background@2x.png</code> for Retina
+                  screens), the layout is under <code>dmg</code> in <code>electron-builder.config.cjs</code>.
+                </li>
+                <li>
+                  On the game PC instead: install Node.js 20+ once (just for building), copy or clone this
+                  folder, then <code>npm install</code> and <code>npm run dist:win</code>.
+                </li>
+                <li>
+                  <strong>The Windows installer</strong> is a normal one: you accept the license (the GPL,
+                  from <code>LICENSE</code>), choose <em>Only for me</em> (no admin rights) or
+                  <em>Anyone who uses this computer</em>, choose the folder, and it adds Start-menu and
+                  desktop shortcuts, with a <em>Run EVE HUD</em> tick box at the end. Settings → Apps (or
+                  <em>Uninstall EVE HUD</em> in the Start menu) removes it again and asks whether to delete
+                  your settings and data too (EVE login, layout, star map in <code>%APPDATA%\EVE HUD</code>);
+                  the default is to keep them. The installer's settings are under <code>nsis</code> in
+                  <code>electron-builder.config.cjs</code>, the uninstall question in
+                  <code>build/installer.nsh</code>. Its picture, the plexus with the logo in the HUD's style
+                  down the left of the last page, is <code>build/installerSidebar.bmp</code>.
+                </li>
+                <li>
+                  <strong>What goes into the app:</strong> <code>src/</code>, <code>hud/</code>,
+                  <code>assets/</code>, <code>package.json</code> and <code>LICENSE</code> (a whitelist in
+                  <code>electron-builder.config.cjs</code>). Your <code>config.json</code> and
+                  <code>data/</code> live in the app folder (see
+                  <a href="#where-the-files-are">Where the files are</a>), never in the project folder, so
+                  they can't end up in the installer.
+                </li>
+                <li>Version number: see <a href="#changing-the-version">Changing the version</a>.</li>
+              </ul>
+              <h4 id="changing-the-version">Changing the version</h4>
+              <p>
+                The version lives in one place, <code>&quot;version&quot;</code> in <code>package.json</code>.
+                Everything else follows it: the About window, the log file, the build file names, and the
+                User-Agent the HUD sends to CCP. Change it with one command in the project folder:
+              </p>
+              <div class="table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Command</th>
+                      <th>1.0.0 becomes</th>
+                      <th>Use it for</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>npm run version:patch</code></td>
+                      <td>1.0.1</td>
+                      <td>bug fixes</td>
+                    </tr>
+                    <tr>
+                      <td><code>npm run version:minor</code></td>
+                      <td>1.1.0</td>
+                      <td>new features</td>
+                    </tr>
+                    <tr>
+                      <td><code>npm run version:major</code></td>
+                      <td>2.0.0</td>
+                      <td>big changes</td>
+                    </tr>
+                    <tr>
+                      <td><code>npm run version:set -- 1.2.3</code></td>
+                      <td>1.2.3</td>
+                      <td>any number you choose</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>
+                These update <code>package.json</code> and <code>package-lock.json</code> together (npm's own
+                <code>npm version</code>, without a git commit or tag). Then build as usual (<code
+                  >npm run dist:win</code
+                >, <code>npm run dist:mac-dev</code>…). Editing the number in <code>package.json</code> by
+                hand works too; run <code>npm install</code> afterwards so
+                <code>package-lock.json</code> matches.
+              </p>
+            </div>
+            <div class="section">
+              <h3 id="signing">Signing</h3>
+              <p>Unsigned builds work, with warnings the first time:</p>
+              <ul>
+                <li>
+                  <strong>Windows:</strong> SmartScreen shows <em>Windows protected your PC</em>. Click
+                  <strong>More info → Run anyway</strong>. Since 2024 no certificate (not even EV) removes
+                  this warning straight away; it fades as a signed app builds up reputation.
+                </li>
+                <li>
+                  <strong>macOS:</strong> an unsigned app is blocked on first open. Right-click the app →
+                  <strong>Open</strong>, or in <strong>System Settings → Privacy &amp; Security</strong> click
+                  <strong>Open Anyway</strong>. (<code
+                    >xattr -dr com.apple.quarantine &quot;/Applications/EVE HUD.app&quot;</code
+                  >
+                  also works.) For a build that only runs on your own Mac, set
+                  <code>CSC_IDENTITY_AUTO_DISCOVERY=false</code> so electron-builder doesn't try a certificate
+                  it finds in the keychain.
+                </li>
+              </ul>
+              <p>
+                <strong>Your own Macs, with a free Apple account:</strong>
+                <code>npm run dist:mac-dev</code> signs the app with your
+                <strong>Apple Development</strong> certificate (no notarization, which needs the paid
+                program). Create the certificate once in Xcode → <strong>Settings → Accounts</strong> → add
+                your Apple ID → <strong>Manage Certificates</strong> → <strong>+</strong> →
+                <em>Apple Development</em>. Why bother: the HUD keeps its secrets encrypted with a key in your
+                Keychain, and the Keychain trusts an app by its signature. Unsigned builds get a new signature
+                every time, so macOS may ask
+                <em
+                  >EVE HUD wants to use your confidential information stored in &quot;EVE HUD Safe
+                  Storage&quot;</em
+                >
+                after each new build; with the same certificate it keeps trusting it. A build you made
+                yourself opens without the &quot;can't be verified&quot; warning anyway; that warning only
+                comes for apps downloaded or copied from elsewhere.
+              </p>
+              <p>
+                To sign later, set environment variables before <code>npm run dist:*</code>; nothing in the
+                project changes. <code>electron-builder.config.cjs</code> lists them:
+              </p>
+              <div class="table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Platform</th>
+                      <th>Variables</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        Windows, certificate in the certificate store (USB token or cloud HSM from a CA)
+                      </td>
+                      <td><code>WIN_CERT_SUBJECT=&quot;Your Name&quot;</code></td>
+                    </tr>
+                    <tr>
+                      <td>Windows, <code>.pfx</code> file</td>
+                      <td><code>CSC_LINK=C:\path\cert.pfx</code> <code>CSC_KEY_PASSWORD=…</code></td>
+                    </tr>
+                    <tr>
+                      <td>
+                        Windows, Azure Artifact Signing (currently not offered to individuals in the EU)
+                      </td>
+                      <td>
+                        <code>AZURE_SIGN_ENDPOINT</code>, <code>AZURE_SIGN_ACCOUNT</code>,
+                        <code>AZURE_SIGN_PROFILE</code>, <code>AZURE_SIGN_PUBLISHER</code>,
+                        <code>AZURE_TENANT_ID</code>, <code>AZURE_CLIENT_ID</code>,
+                        <code>AZURE_CLIENT_SECRET</code>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>macOS (Apple Developer account)</td>
+                      <td>
+                        <code>CSC_NAME=&quot;Developer ID Application: …&quot;</code> (optional) and
+                        <code>APPLE_API_KEY</code>, <code>APPLE_API_KEY_ID</code>,
+                        <code>APPLE_API_ISSUER</code> (or <code>APPLE_ID</code>,
+                        <code>APPLE_APP_SPECIFIC_PASSWORD</code>, <code>APPLE_TEAM_ID</code>) for notarization
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>
+                Change <code>appId</code> in <code>electron-builder.config.cjs</code> to your own reverse
+                domain before the first signed release.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="chapter" id="using" aria-labelledby="using-title">
+          <i class="tick tl"></i><i class="tick tr"></i><i class="tick bl"></i><i class="tick br"></i>
+          <header class="chapter-head">
+            <span class="glyph" aria-hidden="true"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="square"
+                stroke-linejoin="miter"
+              >
+                <circle cx="12" cy="12" r="8.5" />
+                <circle cx="12" cy="12" r="2" />
+                <path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3" /></svg
+            ></span>
+            <h2 id="using-title">Using the HUD</h2>
+            <span class="sub">The top bar, the modules, the star map, chat and combat.</span>
+          </header>
+          <div class="chapter-body">
+            <div class="section">
+              <h3 id="using-the-hud">Using the HUD</h3>
+              <ul>
+                <li>
+                  <strong>Top bar</strong>, from left to right:
+                  <ul>
+                    <li>your character and corporation ticker;</li>
+                    <li>
+                      your <strong>clone</strong>: the system (with its security status) and station where
+                      your medical clone is, i.e. where you wake up if you get podded. Hover it for when the
+                      home station was set, how many jump clones you have, and your last clone jump;
+                    </li>
+                    <li>
+                      the <strong>triangle</strong>: alerts and EVE notifications in one icon, always visible.
+                      It's blue; with something new it lights up with a count badge (alerts + new
+                      notifications), and it turns amber when an alert needs your attention. It blinks once
+                      when the count goes up. Hover it for the list (a box spanning from the icon to the
+                      CLUSTER light): alerts first, then up to three new notifications (or two plus &quot;+ N
+                      more&quot;); with nothing new, &quot;No alerts or new notifications&quot; plus the
+                      latest notification and how long ago it arrived.
+                      <ul>
+                        <li>
+                          <p>
+                            <strong>Alerts</strong> are worked out from data the HUD already has, with no
+                            extra ESI calls:
+                          </p>
+                          <figure>
+                            <img
+                              src="images/settings.webp"
+                              width="360"
+                              height="860"
+                              alt="The settings drawer: appearance, modules, alerts, combat, grid, storage"
+                              loading="lazy"
+                              class="tall"
+                            />
+                            <figcaption>The settings drawer (gear icon in the top bar).</figcaption>
+                          </figure>
+                          <ul>
+                            <li>
+                              skill queue empty, or ending within 24 hours; unallocated skill points (blue);
+                            </li>
+                            <li>industry jobs ready to deliver;</li>
+                            <li>market orders expiring within 2 days.</li>
+                          </ul>
+                          <p>
+                            Switch each kind on or off under Settings → <em>Top bar alerts</em>. An alert
+                            that's on keeps its data updating even while its module (Training Queue, Industry,
+                            Market Orders) is hidden. Your freelance jobs and campaign objectives are in
+                            Warfare → <em>Campaigns</em>.
+                          </p>
+                        </li>
+                        <li>
+                          <p>
+                            <strong>New notifications</strong> are the ones that arrived
+                            <strong>since you last opened the box</strong>. Keeping it open for a moment marks
+                            them as seen, and the count drops when it closes; a quick pass over the icon
+                            doesn't count.
+                          </p>
+                          <ul>
+                            <li>
+                              Why not ESI's own read flag: it isn't updated when you read notifications in
+                              EVE's notification panel, so everything would stay &quot;unread&quot; forever.
+                              The HUD remembers what you've seen in <code>data/settings.json</code>. On the
+                              first run, existing notifications count as seen.
+                            </li>
+                            <li>
+                              Some of what EVE pops up, such as skill training completed, comes from the game
+                              client and never reaches ESI, so it can't appear here.
+                            </li>
+                            <li>
+                              Hide types you never want to see with
+                              <code
+                                >&quot;notifications&quot;: { &quot;ignoreTypes&quot;:
+                                [&quot;NPCStandingsLost&quot;] }</code
+                              >
+                              in <code>config.json</code>. The exact type names are listed in
+                              <code>data/debug/notifications.json</code>.
+                            </li>
+                            <li>
+                              Source: <code>/notifications</code> (scope
+                              <code>esi-characters.read_notifications.v1</code>). ESI caches notifications for
+                              about 10 minutes.
+                            </li>
+                          </ul>
+                        </li>
+                      </ul>
+                    </li>
+                    <li>
+                      the <strong>mail</strong> icon (envelope), with a green count badge when there's unread
+                      mail; it blinks once when the count goes up. Hover it for &quot;No unread mail&quot;, or
+                      how many unread mails there are per label. Source: <code>/mail/labels</code> (counts
+                      only, never contents; scope <code>esi-mail.read_mail.v1</code>). Hide it with Settings →
+                      Appearance → <em>Show the mail icon in the top bar</em>.
+                    </li>
+                    <li>
+                      <strong>ATTACK</strong> (only while you're in combat, from EVE's game log; see
+                      <a href="#combat-attack">Combat</a>);
+                    </li>
+                    <li>players online;</li>
+                    <li>EVE time;</li>
+                    <li>
+                      <strong>CLUSTER</strong> light (Tranquility shows &quot;–&quot; while its status is
+                      unknown): green when Tranquility is online (ESI <code>/status</code>) and every ESI
+                      route the HUD uses is OK; amber in VIP mode (only CCP can log in) or when ESI reports
+                      one of those routes as slow, recovering or down; red when Tranquility doesn't answer;
+                      grey until it's known. Hover it for players, server version, uptime and which routes
+                      have trouble;
+                    </li>
+                    <li>layout padlock, settings gear, ⓘ (About: version, CCP notice and licenses).</li>
+                  </ul>
+                </li>
+                <li>
+                  <strong>Module lights:</strong> the small light in each module's header. It shows the
+                  module's own state (e.g. Online, Training, jobs ready, chat log found) and turns
+                  <strong>amber</strong> when an ESI route the module uses is slow or recovering,
+                  <strong>red</strong> when one is down, according to ESI's health page (<code
+                    >GET /meta/status</code
+                  >, checked every 1–5 minutes). Hover it to see which route. Each module's routes are listed
+                  in <code>FEED_ROUTES</code> in <code>hud/lib/feeds/health.js</code>.
+                </li>
+                <li>
+                  <strong>&quot;EVE HUD stopped working&quot;:</strong> the HUD's server runs inside the app.
+                  If it stops answering, a red window says so after a few seconds, with a link to the log
+                  file, <strong>Restart</strong> and <strong>Close EVE HUD</strong>. (If the page itself can't
+                  be loaded, the app shows the same choices in a system dialog.)
+                </li>
+                <li>
+                  <strong>Move a module:</strong> drag its header. Modules snap to the grid (4×4 by default).
+                </li>
+                <li>
+                  <strong>Resize:</strong> drag a module's left or right edge, its bottom edge or a bottom
+                  corner.
+                </li>
+                <li>
+                  <strong>Swap two modules:</strong> drop one onto another. The teal outline shows where the
+                  dragged module lands, and the blue outline shows where the other module goes. Modules of
+                  different sizes can swap if the other one fits in the space you leave. A red outline
+                  (&quot;Occupied&quot;) means the drop is impossible: it would cover two or more modules, or
+                  the other module doesn't fit.
+                </li>
+                <li>
+                  <strong>Show a module:</strong> tick it under Settings → Modules. It goes into the first
+                  free cell. When the grid is full, the settings close and a bar asks you to
+                  <strong>click the module it should replace</strong>: the new module takes that module's cell
+                  and size, and the replaced one is hidden (tick it again to bring it back, the same way).
+                  Esc, <em>Cancel</em> or a click outside the modules cancels.
+                </li>
+                <li>
+                  <strong>Lock the layout:</strong> use the padlock in the top bar, so you don't move things
+                  by accident.
+                </li>
+                <li>
+                  <strong>Settings drawer:</strong> the gear icon in the top bar. Press <code>Esc</code> or
+                  click outside to close it.
+                  <ul>
+                    <li>
+                      <strong>Appearance:</strong> module background opacity, background blur, scanlines, boot
+                      animation, update blink, starfield, background (plexus network).
+                      <ul>
+                        <li>
+                          <strong>Module background opacity</strong> (default 0.72): how much of the
+                          background (starfield, plexus) shines through the modules, from 0 (see-through) to 1
+                          (solid). The cheap way to tone the moving background down.
+                        </li>
+                        <li>
+                          <strong>Background blur</strong> (default 0 = off): a frosted-glass blur behind the
+                          modules. It's the most expensive effect while the background moves: the graphics
+                          card has to blur every module again for each frame of the plexus and starfield. At 0
+                          it's switched off completely, which (measured on a Mac with the plexus animating)
+                          takes about a third off the CPU of the GPU process and most of its GPU time.
+                        </li>
+                        <li>
+                          <strong>Display background:</strong> the plexus network, a low-poly constellation
+                          mesh (points, thin lines and faint triangles), busiest in the bottom-right corner
+                          and fading out towards the top left. It has a little depth: near points are bigger
+                          and brighter and drift a bit more, far ones are dimmer, and each triangle is shaded
+                          by its slant, lit from the top left.
+                        </li>
+                        <li>
+                          <strong>Animate background</strong> (off by default, because a moving background
+                          costs a game on the other screen many frames a second): the points wander slowly, so
+                          lines and triangles connect and disconnect, each fading in and out over about three
+                          seconds, and every triangle glows and dims on its own slow rhythm; a few are a
+                          deeper green or a pale mint. It redraws 30 times a second (24 with Animations:
+                          Limited); switched off, or with Animations: Off, it stands still and costs nothing.
+                        </li>
+                        <li>
+                          <strong>Update blink:</strong> a module's frame blinks twice, like at start-up, when
+                          its data actually changes; the content stays visible. Each module blinks at most
+                          once every 8 seconds, so busy feeds like Local chat don't strobe.
+                        </li>
+                        <li>
+                          <strong>Flash the whole HUD red when you are attacked</strong> (on by default): see
+                          <a href="#combat-attack">Combat</a>.
+                        </li>
+                        <li>
+                          <strong>Blink the chat window on new messages:</strong> a separate switch, so you
+                          can keep the other modules blinking while chat stays calm.
+                        </li>
+                        <li>
+                          <strong>Animations:</strong>
+                          <ul>
+                            <li>
+                              <em>Full</em> (default): everything moves smoothly, at up to 30 frames a second.
+                              Only with <em>Full</em>, data changes animate too: bars ease to their new length
+                              with a bright head on the moving edge; a new row (an ore in the Mining Ledger, a
+                              killmail, a wallet source) fades in while the rows below glide down; switching a
+                              tab inside a module fades the content out and brings the new content in with one
+                              soft half blink; the Activity &amp; Income line pulses twice when it changes;
+                              the wallet balance counts up or down, flashing green (ISK in) or red (ISK out)
+                              and fading back to white, with a scan line across the wallet chart; a new
+                              location slides in under a soft fade, a new ship drops the old one out of view
+                              and blinks in; and stars drift and twinkle inside the training progress bar.
+                              With <strong>Light running along the training bar</strong> switched on (off by
+                              default), a light also runs along the bar's fill and its edge blooms white for a
+                              moment, then fades.
+                            </li>
+                            <li>
+                              <em>Limited</em>: the same effects, but less smooth (about 10 frames a second,
+                              CSS animations in steps). Much less CPU.
+                            </li>
+                            <li>
+                              <em>Off</em>: no motion at all; the HUD only redraws when something changes. The
+                              least CPU and battery.
+                            </li>
+                            <li>
+                              Whatever the setting, the HUD pauses while its window is minimised or completely
+                              hidden (not when another app, like EVE, has the focus).
+                            </li>
+                          </ul>
+                        </li>
+                      </ul>
+                    </li>
+                    <li>
+                      <strong>Modules:</strong> show or hide each module. A shown module goes into the first
+                      free spot.
+                    </li>
+                    <li>
+                      <strong>Grid:</strong> columns, rows, gap. <em>Reset layout</em> restores the default
+                      arrangement. <em>Replay boot animation</em> does what it says.
+                    </li>
+                    <li>
+                      <strong>Combat:</strong> seconds without combat before a new attack alert (see
+                      <a href="#combat-attack">Combat</a>).
+                    </li>
+                    <li>
+                      <strong>Storage:</strong> where <code>config.json</code> and <code>data/</code> are kept
+                      (see <a href="#where-the-files-are">Where the files are</a>), and EVE's logs folder (see
+                      <a href="#chat-logs">Chat logs</a>).
+                    </li>
+                    <li>
+                      <strong>Account:</strong> how many of the HUD's permissions (scopes) your login has,
+                      with <strong>Grant the missing N</strong> (see <a href="#scopes">Scopes</a>); refresh
+                      now, log in again; <strong>Log out</strong> and <strong>Reset EVE HUD</strong>: after a
+                      confirmation window it logs out and removes the Client ID and Secret Key from
+                      <code>config.json</code> (to switch to another EVE application, or before handing the
+                      HUD on). Layout, settings and the star map stay; the HUD then asks for the credentials
+                      again like the first time.
+                    </li>
+                    <li>
+                      <strong>ESI API rate limits:</strong> the live token balance of each ESI route group the
+                      HUD has used.
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <strong>Star map:</strong>
+                  <ul>
+                    <li>
+                      Under your current system: <strong>last hour</strong> jumps (&quot;busy&quot; = in the
+                      top 10% of systems) and kills. Player kills show amber, or red at 3 or more. NPC kills
+                      are dimmed. Hovering any system shows the same numbers for it.
+                    </li>
+                    <li>
+                      These come from <code>/universe/system_jumps</code> and
+                      <code>/universe/system_kills</code>. ESI totals them per hour for every system in one
+                      request, so jumping to a new system costs no extra request. They show the past hour, not
+                      live activity: Local is still the live signal.
+                    </li>
+                    <li>
+                      At first it shows your own surroundings at 29× zoom, centred on your system (as soon as
+                      your location is known). After that it remembers the view you leave it at.
+                    </li>
+                    <li>Scroll to zoom, and drag to pan.</li>
+                    <li>
+                      The ◎ button (<strong>Center on my location</strong>) centres the map on your system at
+                      25× zoom; double-click centres it without zooming out.
+                    </li>
+                    <li>
+                      <strong>Search</strong> (bottom left, under the zoom level; press <code>/</code> to jump
+                      there): type part of a system or region name and pick a match with the mouse, or with
+                      the arrow keys and Enter.
+                    </li>
+                    <li>
+                      The system info (top left) and the legend with its colour switch (bottom right) have a
+                      soft dark backdrop, so they stay readable over thousands of systems.
+                      <ul>
+                        <li>
+                          <strong>A system:</strong> the map zooms to it and marks it with a pulsing white
+                          dot.
+                        </li>
+                        <li>
+                          <strong>A region:</strong> the map zooms to fit it and draws a white dotted outline
+                          around it.
+                        </li>
+                        <li>
+                          <strong>Layouts:</strong> this works in both the in-game 2D layout and real 3D
+                          positions; switching layouts keeps the result in view.
+                        </li>
+                        <li>
+                          <strong>Clearing:</strong> Esc, or clearing the box, removes the highlight (and the
+                          route).
+                        </li>
+                        <li>
+                          <strong>No API calls</strong> for the search itself: the names come from the star
+                          map data the HUD already has.
+                        </li>
+                        <li>
+                          <strong>Route:</strong> searching a system also draws the route from your location
+                          to it, with <em>Set destination</em>. See
+                          <a href="#star-map-routes">Star map routes</a>.
+                        </li>
+                        <li>
+                          <strong>Arriving:</strong> when you reach the route's destination (flying yourself
+                          or by autopilot), the route box closes, the search clears and the map zooms in on
+                          your new system at 25×.
+                        </li>
+                      </ul>
+                    </li>
+                    <li>The green ring marks every system within 3 jumps of you.</li>
+                    <li>The buttons toggle jump lanes and the hazard overlay.</li>
+                    <li>
+                      <strong>Colour switch</strong> (bottom right, above the legend):
+                      <strong>Security</strong>, <strong>Faction</strong> or <strong>Region</strong>. The
+                      lit-up one is active, and the legend below it changes with it.
+                      <ul>
+                        <li><em>Security:</em> the usual -1.0 to 1.0 colour scale.</li>
+                        <li>
+                          <em>Faction:</em> who controls each system.
+                          <ul>
+                            <li>
+                              <strong>Groups:</strong> Amarr, Ammatar/Khanid, Caldari, Gallente, Minmatar,
+                              Thukker, CONCORD/Jove, Pochven, NPC pirate null-sec, player alliances (a shade
+                              per alliance) and unclaimed. The legend counts the systems per group.
+                            </li>
+                            <li>
+                              <strong>Faction Warfare:</strong> systems taken by the enemy show the occupier's
+                              colour.
+                            </li>
+                            <li>
+                              <strong>Hover:</strong> a star shows the owner, e.g. &quot;Caldari State space ·
+                              occupied by Gallente Federation&quot;, or the alliance name.
+                            </li>
+                          </ul>
+                        </li>
+                        <li>
+                          <em>Region:</em> every region gets its own colour, so you can see where one region
+                          ends and the next begins. The colours have no meaning; the legend shows your current
+                          region's colour, and hovering a star names its region.
+                        </li>
+                      </ul>
+                    </li>
+                    <li>
+                      The layout button (three linked squares) switches between the
+                      <strong>in-game 2D map</strong> (default) and <strong>real 3D positions</strong> seen
+                      from above. The 2D layout is CCP's schematic <code>position2D</code>, the same one the
+                      game's 2D map draws, so regions like the new-player area look as they do in game.
+                      Distances on it aren't to scale, so the scale bar is hidden there.
+                    </li>
+                    <li>Hover over a star for its name, security and region.</li>
+                  </ul>
+                </li>
+              </ul>
+              <p>
+                Everything you change in the HUD is saved to <code>data/settings.json</code> automatically.
+              </p>
+            </div>
+            <div class="section">
+              <h3 id="window">Window</h3>
+              <p>
+                Two modes, set in <code>config.json</code> and switched with <strong>F11</strong>, the tray
+                menu or the Mac's View → Enter Full Screen (each also saves the choice back into
+                <code>config.json</code>, changing only that value):
+              </p>
+              <pre><code class="language-json">&quot;window&quot;: { &quot;mode&quot;: &quot;normal&quot;, &quot;display&quot;: &quot;last&quot; }
+</code></pre>
+              <div class="table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Key</th>
+                      <th>Values</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>mode</code></td>
+                      <td>
+                        <code>&quot;normal&quot;</code>: a resizable window. Its size, position, monitor and
+                        whether it was maximized (on a Mac: zoomed, e.g. by double-clicking the title bar) are
+                        remembered (<code>data/window-state.json</code>). <code>&quot;fullscreen&quot;</code>:
+                        borderless, filling one monitor.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>display</code></td>
+                      <td>
+                        Monitor at start-up. <code>&quot;last&quot;</code>: where it was last time; on the
+                        very first start the first portrait monitor, else the main one.
+                        <code>&quot;portrait&quot;</code>: always the first portrait monitor.
+                        <code>&quot;primary&quot;</code>: the main monitor.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <ul>
+                <li>
+                  <strong>Move to monitor</strong> (tray / Settings menu) moves the window (in either mode) to
+                  another monitor; it's remembered.
+                </li>
+                <li>
+                  A remembered position on a monitor that's no longer connected is ignored, and the window
+                  opens on the main monitor instead.
+                </li>
+                <li>
+                  The first window: on a portrait monitor 1200×1920, scaled down to fill it; on any other
+                  monitor 1600×900, which fits a 1920×1080 screen without covering the taskbar or Dock
+                  (smaller screens get it scaled down to 90% of their free area, still 16:9). After that, the
+                  size you give it is remembered.
+                </li>
+                <li>
+                  <strong>Keys:</strong> F11 full-screen on/off · F5 or Ctrl+R reload · Ctrl + / Ctrl − / Ctrl
+                  0 zoom (Cmd on a Mac). Esc still belongs to the HUD.
+                </li>
+                <li>
+                  <strong>Developer tools</strong> (F12 or Ctrl+Shift+I) only work when run from source (<code
+                    >npm start</code
+                  >), or when the app is started with <code>--devtools</code>. The installed app has none.
+                </li>
+                <li>
+                  <strong>Mac menu bar:</strong> EVE HUD, Edit, View (Reload and zoom), Settings and Window.
+                  Full screen is the <em>Enter Full Screen</em> item macOS adds to View by itself (or F11).
+                </li>
+                <li><strong>Closing the window quits the app</strong> and stops the server.</li>
+                <li>Links that leave the HUD (zKillboard and the like) open in your default browser.</li>
+              </ul>
+            </div>
+            <div class="section">
+              <h3 id="tray-menu-windows-and-settings-menu-mac">
+                Tray menu (Windows) and Settings menu (Mac)
+              </h3>
+              <p>
+                <strong>Windows:</strong> an icon in the notification area. Left click shows the HUD, right
+                click opens the menu. <strong>Mac:</strong> no menu bar icon. The menu bar has a
+                <strong>Settings</strong> menu with the same options, next to EVE HUD, Edit, View and Window.
+                What a Mac has elsewhere already isn't repeated there: Show HUD is the Dock icon, Reload is
+                View → Reload (Cmd+R), full screen is View → Enter Full Screen (or F11, or the green button;
+                the mode is saved either way), and Quit is EVE HUD → Quit (Cmd+Q).
+              </p>
+              <div class="table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th>Does</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Show HUD</td>
+                      <td>Brings the window to the front. (Windows)</td>
+                    </tr>
+                    <tr>
+                      <td>Reload</td>
+                      <td>Reloads the page. (Windows)</td>
+                    </tr>
+                    <tr>
+                      <td>Normal window / Full-screen (F11)</td>
+                      <td>Switches the window mode (saved in <code>config.json</code>). (Windows)</td>
+                    </tr>
+                    <tr>
+                      <td>Move to monitor</td>
+                      <td>Every connected monitor, with resolution; the current one is ticked.</td>
+                    </tr>
+                    <tr>
+                      <td>Open config file / Open data folder / Open log file</td>
+                      <td>
+                        Opens them. A <code>.json</code> file without an app to open it is shown in Explorer /
+                        Finder instead.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Import from an existing HUD folder…</td>
+                      <td>See <a href="#first-start">First start</a>.</td>
+                    </tr>
+                    <tr>
+                      <td>Use the graphics card (restart needed)</td>
+                      <td>
+                        On by default. Off, the HUD draws with the processor instead, so a game on the other
+                        screen (EVE in <em>Fixed window</em> mode, say) has the graphics card to itself. It
+                        costs some CPU; Settings → Animations → Limited keeps that low. Saved in
+                        <code>app-options.json</code> in the app folder; <code>--no-gpu</code> turns it off
+                        for one start.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Start with Windows (Open at login on a Mac)</td>
+                      <td>
+                        Off by default. Only in the installed app; run from source it would register Electron
+                        itself.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Restart (Restart EVE HUD on a Mac)</td>
+                      <td>Quits and starts again, e.g. after editing <code>config.json</code>.</td>
+                    </tr>
+                    <tr>
+                      <td>Quit EVE HUD</td>
+                      <td>Stops the server and quits. (Windows)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="section">
+              <h3 id="optional-modules">Optional modules</h3>
+              <p>
+                Hidden by default, because the default 4×4 grid is full. Tick the module under Settings →
+                Modules: it goes into a free cell, or, when there is none, you pick a module for it to replace
+                (see <em>Show a module</em> under <a href="#using-the-hud">Using the HUD</a>). Each one needs
+                a scope (see <a href="#scopes">Scopes</a>); without it the module says which.
+              </p>
+              <div class="table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Module</th>
+                      <th>Shows</th>
+                      <th>ESI source</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>Activity &amp; Income</strong></td>
+                      <td>
+                        Where your ISK came from and went, for today, 7 days or 30 days: totals, a bar per
+                        day, and per source (mission rewards, bounties, market, insurance, contracts,
+                        industry, planetary, LP store, rewards, transfers, fees, other). Mission rewards per
+                        <strong>agent</strong>, bounties per <strong>system</strong>. Your
+                        <strong>loyalty points</strong> per corporation.
+                      </td>
+                      <td>
+                        <code>/characters/{id}/wallet/journal</code> (ESI keeps 30 days),
+                        <code>/characters/{id}/loyalty/points</code>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><strong>Mining Ledger</strong></td>
+                      <td>
+                        Ore mined today, in 7 or 30 days: value, units, a bar per day, per ore and per system.
+                      </td>
+                      <td><code>/characters/{id}/mining</code>, <code>/markets/prices</code></td>
+                    </tr>
+                    <tr>
+                      <td><strong>Ships &amp; Assets</strong></td>
+                      <td>
+                        <em>Ships</em>: every ship you own and where it is (also inside a carrier's ship
+                        hangar), with its custom name and value including fitting and cargo; the ship you're
+                        flying is marked <em>active</em>. <em>Locations</em>: the most valuable places, with
+                        item and ship counts. Total value of everything.
+                      </td>
+                      <td>
+                        <code>/characters/{id}/assets</code>, <code>…/assets/names</code>,
+                        <code>/markets/prices</code>, <code>/universe/types</code> +
+                        <code>/universe/groups</code> (to spot ships, kept in <code>data/typecats.json</code>)
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><strong>Standings</strong></td>
+                      <td>
+                        Factions, NPC corporations and agents, from +10 (blue) to -10 (red). Raw values,
+                        before your social skills.
+                      </td>
+                      <td><code>/characters/{id}/standings</code></td>
+                    </tr>
+                    <tr>
+                      <td><strong>Kills &amp; Losses</strong></td>
+                      <td>
+                        Kills, losses, ISK destroyed and lost, and ISK efficiency for the last 30 days; the
+                        latest 40 killmails with ship, victim, system and value. Clicking one opens it on
+                        zKillboard. zKillboard only has killmails someone shared with it: when it shows a 404,
+                        hover the row, click <strong>Copy killmail link</strong> (the official EVE link) and
+                        paste it on zKillboard's Post page. Logging in on zKillboard with your character once
+                        lets it fetch all your killmails itself.
+                      </td>
+                      <td>
+                        <code>/characters/{id}/killmails/recent</code>,
+                        <code>/killmails/{id}/{hash}</code> (fetched once, kept in
+                        <code>data/killmails.json</code>)
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>
+                <strong>Values</strong> are estimates at CCP's average market prices (the game's
+                &quot;estimated price&quot;). Blueprint copies count as 0, and killmail values don't have
+                zKillboard's corrections.
+              </p>
+            </div>
+            <div class="section">
+              <h3 id="star-map-routes">Star map routes</h3>
+              <p>
+                Searching a system on the star map (see <em>Search</em> under
+                <a href="#using-the-hud">Using the HUD</a>) also shows the route to it from where you are:
+              </p>
+              <figure>
+                <img
+                  src="images/star-map-route.webp"
+                  width="1186"
+                  height="422"
+                  alt="The star map with a route, its route box and Set destination"
+                  loading="lazy"
+                />
+                <figcaption>
+                  A route on the star map, with the route box and <em>Set destination</em>.
+                </figcaption>
+              </figure>
+              <ul>
+                <li>
+                  <strong>On the map:</strong> the route is drawn in the security colour of each system, with
+                  a light travelling along it, and the view zooms to fit the whole route.
+                </li>
+                <li>
+                  <strong>Route box</strong> (bottom left, above the search box): jump count, the lowest
+                  security on the way, how many systems are below 0.5, and a row of coloured squares, one per
+                  system, like the route bar in the game.
+                </li>
+                <li>
+                  <strong>Shorter / Safer / Less secure:</strong> the same choices as the game's autopilot
+                  settings. The choice is remembered.
+                </li>
+                <li>
+                  <strong>Set destination:</strong> sets that system as your in-game autopilot destination and
+                  clears your other waypoints, like <em>Set Destination</em> in the game. It needs the scope
+                  <code>esi-ui.write_waypoint.v1</code>, and EVE must be running with that character logged
+                  in.
+                </li>
+                <li>
+                  <strong>When you jump</strong> along the route, the rest of it stays as it was. Off the
+                  route (you took another way), it is worked out again from your new system. Your new system
+                  comes from the Local chat log at once; a location from ESI that still says where you were a
+                  few seconds earlier is ignored.
+                </li>
+                <li>
+                  <strong>The game's autopilot:</strong> ESI can't read a destination or route set in the
+                  game, but EVE's game log names the autopilot's next jump. While the autopilot flies, the map
+                  shows <em>Autopilot → system</em> under your current system and green brackets on that
+                  system. On the route, that next jump gets a green dotted border on both sides, marching
+                  towards the system (still with Animations: Off), so you can tell the autopilot's jump from
+                  the rest of the route. When the HUD's route goes another way of the same length, it's worked
+                  out again through that system, so the map follows the way the game flies. A destination set
+                  only in the game isn't shown (the log doesn't name it); set it with
+                  <strong>Set destination</strong> to see the whole route.
+                </li>
+                <li>
+                  <strong>Same length, different way:</strong> often several routes have the same number of
+                  jumps (Dodixie to Aunia: through Auvergne, Botane or Agrallarier, all 2 jumps). ESI's route
+                  planner then picks one of them, and the game's autopilot may pick another. Both are equally
+                  short; <em>Set destination</em> only sets the destination, so the game follows its own
+                  choice. Your game's autopilot settings (Shorter / Safer, the security penalty, avoided
+                  systems) also aren't visible to the HUD: pick the same choice in the route box.
+                </li>
+                <li>
+                  <strong>Source:</strong> ESI's route planner (<code>POST /route/{origin}/{destination}</code
+                  >), the same as the game's. In demo mode, or when ESI can't be reached, the HUD works the
+                  route out from the map's stargates and labels it <em>estimate</em>.
+                </li>
+                <li><strong>Clearing</strong> the search removes the route.</li>
+              </ul>
+            </div>
+            <div class="section">
+              <h3 id="star-map-hazard-overlay">Star map hazard overlay</h3>
+              <p>
+                The ◇! button on the star map switches the hazard overlay on and off. Systems where something
+                is going on get a pulsing diamond outline. When several things happen in one system, the
+                diamonds are nested, one per kind of event:
+              </p>
+              <div class="table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Diamond</th>
+                      <th>Meaning</th>
+                      <th>ESI source</th>
+                      <th>Updates</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Red</td>
+                      <td>
+                        <strong>Incursion</strong>: Sansha fleets in the infested systems, including the
+                        staging system
+                      </td>
+                      <td><code>/incursions</code></td>
+                      <td>about every 5 min</td>
+                    </tr>
+                    <tr>
+                      <td>Orange</td>
+                      <td>
+                        <strong>Player kills</strong>: at least <code>hazards.pvpKillThreshold</code> (default
+                        3) ships + pods destroyed in the last hour
+                      </td>
+                      <td><code>/universe/system_kills</code></td>
+                      <td>hourly (ESI's cache)</td>
+                    </tr>
+                    <tr>
+                      <td>Violet</td>
+                      <td><strong>Sovereignty fight</strong>: sov structures under attack (null-sec)</td>
+                      <td><code>/sovereignty/campaigns</code></td>
+                      <td>about every 5 min</td>
+                    </tr>
+                    <tr>
+                      <td>Yellow</td>
+                      <td><strong>Faction Warfare frontline</strong>: contested or vulnerable FW systems</td>
+                      <td><code>/fw/systems</code></td>
+                      <td>about every 30 min (ESI's cache)</td>
+                    </tr>
+                    <tr>
+                      <td>Light blue</td>
+                      <td><strong>Military campaign</strong>: systems named in active campaign objectives</td>
+                      <td><code>/military-campaigns</code></td>
+                      <td>about every 5 min</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <ul>
+                <li>
+                  <strong>Legend:</strong> shown in the bottom-right corner of the map while the overlay is
+                  on. It lists how many systems have each kind of event. Click a row to hide or show that
+                  kind; your choice is remembered.
+                </li>
+                <li>
+                  <strong>Hover a system</strong> to see what's happening there, for example &quot;6 player
+                  kills in the last hour · 4 ships · 2 pods&quot;, or how far an FW system is contested.
+                </li>
+                <li>
+                  <strong>Warning in the map's top-left corner:</strong> it tells you when your current system
+                  has a hazard (red), or how many hazard systems are within 3 jumps, and which ones (amber).
+                </li>
+                <li>
+                  <strong>Brightness:</strong> the pulse is stronger for bigger events, such as more kills or
+                  a vulnerable FW system.
+                </li>
+                <li>
+                  <strong>Military campaigns:</strong> ESI doesn't document their location format, so systems
+                  are only shown when the campaign data actually contains them. Raw responses are saved in
+                  <code>data/debug/hazards.json</code>.
+                </li>
+                <li>
+                  <strong>No location, so not on the map:</strong> wars, FW statistics and leaderboards are
+                  about corporations and factions, not systems.
+                </li>
+                <li>
+                  <strong>Settings:</strong> change the kill threshold under
+                  <code>&quot;hazards&quot;</code> and the refresh timing under
+                  <code>&quot;refresh&quot; → &quot;hazards&quot;</code> in <code>config.json</code>. This
+                  data is public, so it works without logging in.
+                </li>
+              </ul>
+            </div>
+            <div class="section">
+              <h3 id="warfare-module">Warfare module</h3>
+              <p>
+                Conflict information that has no map location, plus your own freelance jobs and campaign
+                objectives. It's in the bottom row by default. A wider module (2 columns) shows more at once.
+              </p>
+              <div class="table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Tab</th>
+                      <th>Shows</th>
+                      <th>ESI source</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>Wars</strong></td>
+                      <td>
+                        The 15 most recent wars: aggressor → defender (⇄ for mutual), ships killed and ISK
+                        destroyed per side (amber bar = aggressor, blue = defender), allies, and active or
+                        ended. Wars involving
+                        <strong>your corporation or alliance are highlighted in amber</strong>, and the module
+                        header warns you. NPC corporations can't be at war, which the tab tells you too.
+                      </td>
+                      <td><code>/wars</code>, <code>/wars/{id}</code></td>
+                    </tr>
+                    <tr>
+                      <td><strong>Factions</strong></td>
+                      <td>
+                        Who's at war with whom, and per faction: systems controlled, pilots, kills today and
+                        this week, and victory points this week. Your own status (enlisted, rank, weekly kills
+                        and VP) appears when the <code>esi-characters.read_fw_stats.v1</code> scope is
+                        granted.
+                      </td>
+                      <td>
+                        <code>/fw/stats</code>, <code>/fw/wars</code>, <code>/characters/{id}/fw/stats</code>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><strong>Leaders</strong></td>
+                      <td>
+                        Top factions, corporations or pilots by kills or victory points, for yesterday, last
+                        week or all time (top 10).
+                      </td>
+                      <td>
+                        <code>/fw/leaderboards</code>, <code>…/corporations</code>, <code>…/characters</code>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><strong>Campaigns</strong></td>
+                      <td>
+                        <strong>Your freelance jobs and military campaign objectives</strong> (progress, your
+                        share, end time, reward), incursions per constellation (state, influence, staging
+                        system, mothership) and military campaigns (state, progress, end time).
+                      </td>
+                      <td>
+                        <code>/characters/{id}/freelance-jobs</code>,
+                        <code>/characters/{id}/military-campaigns/objectives</code>, <code>/incursions</code>,
+                        <code>/military-campaigns</code>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>
+                The module remembers the chosen tab and leaderboard options. It refreshes every 10–60 minutes
+                (<code>refresh.warfare</code> in <code>config.json</code>). The footer shows when it last
+                updated, and whether any source was unavailable; hover that note for details.
+              </p>
+              <p>
+                <strong>Wars caveat:</strong> ESI has no &quot;wars of my corporation&quot; route, so the HUD
+                only checks the 15 most recent wars. A war declared longer ago won't be flagged.
+              </p>
+            </div>
+            <div class="section">
+              <h3 id="chat-logs">Chat logs</h3>
+              <p>
+                ESI has no chat API, so chat is <strong>read-only</strong>. It's read from the log files EVE
+                writes:
+              </p>
+              <figure>
+                <img
+                  src="images/top-bar-attack.webp"
+                  width="840"
+                  height="36"
+                  alt="The top bar with ATTACK shown during combat"
+                  loading="lazy"
+                />
+                <figcaption>ATTACK in the top bar while you're in combat.</figcaption>
+              </figure>
+              <ul>
+                <li>
+                  <strong>macOS / Linux:</strong> <code>~/Documents/EVE/logs/Chatlogs</code>, detected
+                  automatically. Steam/Proton paths on Linux are checked too.
+                </li>
+                <li>
+                  <strong>Windows:</strong> <code>Documents\EVE\logs\Chatlogs</code>, including OneDrive
+                  Documents.
+                </li>
+                <li>
+                  <strong>Requirement:</strong> in EVE,
+                  <strong>Settings → Chat → Log chat to file</strong> must be on. It is by default.
+                </li>
+                <li>
+                  <strong>Tabs:</strong> Local and Corp, plus <strong>Militia</strong> while you're enlisted
+                  in Faction Warfare (from your character's public info on ESI; it appears or disappears
+                  within a few minutes of enlisting or leaving).
+                </li>
+                <li>
+                  <strong>Other locations:</strong> Settings → Storage → <strong>EVE logs</strong>: type or
+                  browse to EVE's logs folder (the one with <code>Chatlogs</code> and <code>Gamelogs</code> in
+                  it), then <strong>Use this folder</strong>. Choosing <code>Chatlogs</code> or
+                  <code>Gamelogs</code> itself works too: the logs folder above it is saved. It applies at
+                  once (no restart) and is saved as <code>&quot;eveLogDir&quot;</code> in
+                  <code>config.json</code>. <strong>Use the default folder</strong> goes back to the usual
+                  place. The line under it says which folder is being read, or what can't be reached.
+                </li>
+                <li>
+                  <strong>More tabs:</strong> add entries to <code>&quot;chatChannels&quot;</code>, using the
+                  start of the log file name. For example,
+                  <code
+                    >{ &quot;id&quot;: &quot;fleet&quot;, &quot;label&quot;: &quot;Fleet&quot;,
+                    &quot;filePrefix&quot;: &quot;Fleet&quot; }</code
+                  >
+                  reads <code>Fleet_20261029_….txt</code>.
+                </li>
+                <li>
+                  <strong>Which file is used:</strong> when you have several characters, the HUD picks the log
+                  files of the logged-in character. Newer EVE clients put the character ID at the end of each
+                  file name.
+                </li>
+                <li>
+                  <strong>New sessions:</strong> after relogging, the new log file is picked up within 5
+                  seconds.
+                </li>
+                <li>
+                  <strong>EVE runs on another computer:</strong> the HUD needs to read the log files while you
+                  play, so share that computer's <code>Documents\EVE\logs</code> folder on your network
+                  (read-only is enough) and point Settings → Storage → <strong>EVE logs</strong> at it: a UNC
+                  path such as <code>\\gamepc\evelogs</code> on Windows; on the Mac connect to it in Finder
+                  (Go → Connect to Server, <code>smb://&lt;pc-name&gt;/evelogs</code>, optionally under System
+                  Settings → General → Login Items so it reconnects) and choose <code>/Volumes/evelogs</code>.
+                  The HUD polls the files, so a network share works like a local folder. A copied-over folder
+                  works too, but it won't update.
+                </li>
+              </ul>
+              <h4 id="combat-attack">Combat (ATTACK)</h4>
+              <p>
+                ESI has no combat data either, so combat comes from EVE's <strong>game logs</strong>, in
+                <code>Gamelogs</code> next to <code>Chatlogs</code> (it follows the
+                <strong>EVE logs</strong> folder in Settings → Storage).
+              </p>
+              <ul>
+                <li>
+                  <strong>Start:</strong> the first new <code>(combat)</code> line (damage done or taken,
+                  misses, scrams…; remote reps and capacitor transfers don't count) shows
+                  <strong>ATTACK</strong> in the top bar, before the notifications, and the whole HUD flashes
+                  red for about a second (a blink, a quick fade to red, 0.5 s red, a fade back).
+                </li>
+                <li>
+                  <strong>End:</strong> no <code>(combat)</code> line for 15 seconds; ATTACK blinks once and
+                  fades out. Change the wait in Settings → <strong>Combat</strong> (5 to 120 seconds); it's
+                  saved as <code>&quot;combatIdleSeconds&quot;</code> in <code>config.json</code>.
+                </li>
+                <li>
+                  <strong>Red flash:</strong> Settings → Appearance →
+                  <em>Flash the whole HUD red when you are attacked</em> (on by default) switches it off;
+                  ATTACK still shows. With Animations: Off the red flash and the blinks are skipped too.
+                </li>
+                <li>
+                  <strong>Which lines count:</strong> only lines EVE writes while the HUD runs, in the newest
+                  game log (the logged-in character's, when the file name has the character ID).
+                </li>
+                <li>
+                  <strong>Can't read the game logs:</strong> a window over the whole HUD says why (folder
+                  missing, network share not connected, or on a Mac no permission for Documents or network
+                  volumes) and asks for EVE's logs folder: type it or <strong>Browse…</strong>, then
+                  <strong>Use this folder</strong>. Under the field are the usual places: Windows
+                  <code>C:\Users\&lt;you&gt;\Documents\EVE\logs</code> (or under OneDrive), Mac
+                  <code>/Users/&lt;you&gt;/Documents/EVE/logs</code>.
+                  <ul>
+                    <li>
+                      It appears only after the folder has been unreadable for 6 seconds, so a short network
+                      hiccup or macOS's own permission question comes first. Started with
+                      <code>npm start</code>, the app is called <em>Electron</em> to macOS, so macOS asks
+                      again for that one.
+                    </li>
+                    <li>
+                      <strong>Exit</strong> closes it until the next start; the HUD then runs without combat
+                      alerts. It also closes by itself when the folder can be read again (for example a
+                      network share that reconnected).
+                    </li>
+                  </ul>
+                </li>
+              </ul>
+              <h4 id="item-links-in-chat">Item links in chat</h4>
+              <ul>
+                <li>
+                  <strong>What you see:</strong> item and system names show in EVE's link orange. Clicking one
+                  opens a small window at the link with what it is, its group, tech and meta level, average
+                  market price, volume and description. Systems show security and region, plus
+                  <strong>Show on map</strong>, which centres the star map on them and marks them with orange
+                  brackets. Clicking anywhere outside the window, or pressing Esc, closes it.
+                </li>
+                <li>
+                  <strong>How names are found:</strong> EVE's log files keep only the plain text of a link,
+                  not the link itself (checked against real logs). So the HUD recognises names using CCP's
+                  item list from the static data:
+                  <ul>
+                    <li>
+                      Names of two or more words, like <em>Medium Core Defense Field Extender II</em>, are
+                      matched anywhere, with exact spelling and capitals.
+                    </li>
+                    <li>
+                      One-word names, like <em>Tritanium</em> or <em>Jita</em>, only when they stand on their
+                      own: the whole message, or set apart by the double space EVE writes around a linked
+                      name. So a casually typed &quot;water&quot; stays plain.
+                    </li>
+                    <li>
+                      The longest name wins: <em>Exequror Navy Issue Intaki Syndicate SKIN</em> rather than
+                      <em>Exequror Navy Issue</em>.
+                    </li>
+                    <li>
+                      Character and corporation names can't be recognised this way, because there's no list of
+                      them.
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <strong>Data:</strong> item names are saved to <code>data/typenames.json</code> during the
+                  star map download (from <code>types.jsonl</code> and <code>groups.jsonl</code>). Details
+                  come from public ESI routes when you click, with no extra scopes:
+                  <code>/universe/types</code>, <code>/universe/groups</code>,
+                  <code>/universe/categories</code> and <code>/markets/prices</code>.
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="chapter" id="configuration" aria-labelledby="configuration-title">
+          <i class="tick tl"></i><i class="tick tr"></i><i class="tick bl"></i><i class="tick br"></i>
+          <header class="chapter-head">
+            <span class="glyph" aria-hidden="true"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="square"
+                stroke-linejoin="miter"
+              >
+                <path
+                  d="M10.37 5.19 L10.78 2.88 L13.22 2.88 L13.63 5.19 L15.66 6.03 L17.58 4.69 L19.31 6.42 L17.97 8.34 L18.81 10.37 L21.12 10.78 L21.12 13.22 L18.81 13.63 L17.97 15.66 L19.31 17.58 L17.58 19.31 L15.66 17.97 L13.63 18.81 L13.22 21.12 L10.78 21.12 L10.37 18.81 L8.34 17.97 L6.42 19.31 L4.69 17.58 L6.03 15.66 L5.19 13.63 L2.88 13.22 L2.88 10.78 L5.19 10.37 L6.03 8.34 L4.69 6.42 L6.42 4.69 L8.34 6.03Z"
+                />
+                <circle cx="12" cy="12" r="3" /></svg
+            ></span>
+            <h2 id="configuration-title">Configuration</h2>
+            <span class="sub">config.json, where the files are, and how often the HUD asks ESI.</span>
+          </header>
+          <div class="chapter-body">
+            <div class="section">
+              <h3 id="configuration-reference-configjson">
+                Configuration reference (<code>config.json</code>)
+              </h3>
+              <p>
+                <code>config.json</code> is in the app folder (<a href="#where-the-files-are"
+                  >Where the files are</a
+                >; tray / Settings menu → Open config file). It holds your Client ID and Secret Key
+                (encrypted), so <strong>keep it private</strong>. Keys starting with <code>_</code> are help
+                text and are ignored. Restart the app after editing (tray / Settings menu → Restart).
+              </p>
+              <div class="table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Key</th>
+                      <th>Default</th>
+                      <th>Meaning</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>clientId</code>, <code>clientSecret</code></td>
+                      <td>(none)</td>
+                      <td>
+                        From your application on developers.eveonline.com. Entered in the HUD's setup form,
+                        which writes them here encrypted (<code>&quot;enc:…&quot;</code>);
+                        <em>Reset EVE HUD</em> clears them. A plain value typed in by hand is encrypted at the
+                        next start. The secret is never sent to the page or written to the log.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>port</code></td>
+                      <td><code>4747</code></td>
+                      <td>Local port of the HUD.</td>
+                    </tr>
+                    <tr>
+                      <td><code>callbackUrl</code></td>
+                      <td><code>http://localhost:4747/callback</code></td>
+                      <td>Must match the developer portal exactly, and use the same port.</td>
+                    </tr>
+                    <tr>
+                      <td><code>scopes</code></td>
+                      <td>see file</td>
+                      <td>
+                        ESI permissions requested at login. After changing them, use <em>Log in again</em> in
+                        settings. A module whose scope is missing tells you which one it needs.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>compatibilityDate</code></td>
+                      <td><code>2026-08-18</code></td>
+                      <td>
+                        ESI version date, sent as the <code>X-Compatibility-Date</code> header. Response
+                        formats are frozen at this date. Only move it forward deliberately. Every route the
+                        HUD uses exists at this date; changes it brought: <code>/sovereignty/map</code> →
+                        <code>/sovereignty/systems</code>, the route planner is
+                        <code>POST /route/{origin}/{destination}</code>, and military campaign lists are
+                        wrapped objects.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>userAgent</code></td>
+                      <td><code>eve-hud/&lt;version&gt; (+https://github.com/danisxlab/eve-hud)</code></td>
+                      <td>
+                        Identifies the app to CCP. Leave it out to follow the app's version (the built-in one
+                        also replaces the one older versions wrote here).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>refresh</code></td>
+                      <td>see <a href="#refresh-timing">Refresh timing</a></td>
+                      <td>
+                        <code>min</code> / <code>max</code> seconds per feed, and an optional
+                        <code>&quot;enabled&quot;: false</code>.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>rateLimit.reserve</code></td>
+                      <td><code>0.25</code></td>
+                      <td>Fraction of each ESI rate-limit group's tokens that is never used (0.25 = 25%).</td>
+                    </tr>
+                    <tr>
+                      <td><code>rateLimit.maxWaitSeconds</code></td>
+                      <td><code>15</code></td>
+                      <td>
+                        Longest a request may wait for tokens. Beyond that, the feed keeps its last data and
+                        tries again later.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>hazards.pvpKillThreshold</code></td>
+                      <td><code>3</code></td>
+                      <td>
+                        Minimum player kills (ships + pods) in the last hour for an orange hazard diamond.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>notifications.ignoreTypes</code></td>
+                      <td><code>[]</code></td>
+                      <td>
+                        Notification types to hide completely (case-insensitive), e.g.
+                        <code>[&quot;NPCStandingsLost&quot;]</code>.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>window.mode</code></td>
+                      <td><code>&quot;normal&quot;</code></td>
+                      <td>
+                        <code>&quot;normal&quot;</code>: a resizable window that remembers its size, position
+                        and monitor. <code>&quot;fullscreen&quot;</code>: borderless, filling one monitor.
+                        F11, the tray menu and View → Enter Full Screen on a Mac change it (and save it here).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>window.display</code></td>
+                      <td><code>&quot;last&quot;</code></td>
+                      <td>
+                        Monitor at start-up: <code>&quot;last&quot;</code> (where it was last time; on the
+                        very first start the first portrait monitor), <code>&quot;portrait&quot;</code> or
+                        <code>&quot;primary&quot;</code>.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>eveLogDir</code></td>
+                      <td><code>&quot;&quot;</code> (auto-detect)</td>
+                      <td>
+                        EVE's logs folder (the one with <code>Chatlogs</code>, <code>Gamelogs</code>,
+                        <code>Fleetlogs</code>, <code>Marketlogs</code>), if auto-detection doesn't find it,
+                        or a network share. Easiest set in Settings → Storage → <strong>EVE logs</strong>. An
+                        older <code>chatLogDir</code> (a <code>Chatlogs</code> folder) still works; saving in
+                        Settings replaces it.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>chatPollMs</code></td>
+                      <td><code>1000</code></td>
+                      <td>
+                        How often the chat log files are checked, in milliseconds. Reads local files only,
+                        never ESI.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>combatIdleSeconds</code></td>
+                      <td><code>15</code></td>
+                      <td>
+                        Seconds without a <code>(combat)</code> line in the game log before ATTACK goes off
+                        (5–300; Settings → Combat).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>chatChannels</code></td>
+                      <td>Local, Corp, Militia</td>
+                      <td>
+                        Chat tabs: <code>id</code>, <code>label</code>, and <code>filePrefix</code> (the start
+                        of the log file name). <code>&quot;fw&quot;: true</code> shows the tab only while
+                        you're enlisted in Faction Warfare. Militia is always added, also to an older
+                        <code>config.json</code>.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <h4 id="scopes">Scopes</h4>
+              <p>
+                <code>config.example.json</code> lists every scope the HUD can use. The login asks EVE for the
+                scopes in <strong>your</strong> <code>config.json</code>; EVE only shows its approval screen
+                when that list has something new.
+              </p>
+              <ul>
+                <li>
+                  <strong>Grant access:</strong> a module whose scope is missing says which one and has a
+                  <em>Grant access</em> button (Settings → Account has <em>Grant the missing N</em>). It adds
+                  the scope to <code>config.json</code> (one line, nothing else touched) and starts the login,
+                  so EVE asks you to approve it.
+                </li>
+                <li>
+                  <strong>Tick it on the developer site too:</strong> every scope in
+                  <code>config.json</code> must also be enabled on your application at
+                  developers.eveonline.com. If one isn't, EVE refuses the login and the HUD says so.
+                </li>
+              </ul>
+              <div class="table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Scope</th>
+                      <th>Used for</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <code>esi-location.read_location.v1</code>, <code>…read_ship_type.v1</code>,
+                        <code>…read_online.v1</code>
+                      </td>
+                      <td>Location, ship and online status (top bar, Character, star map)</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>esi-skills.read_skills.v1</code>, <code>esi-skills.read_skillqueue.v1</code>
+                      </td>
+                      <td>Training Queue, skill alerts</td>
+                    </tr>
+                    <tr>
+                      <td><code>esi-wallet.read_character_wallet.v1</code></td>
+                      <td>Wallet (Character), Activity &amp; Income</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>esi-clones.read_implants.v1</code>, <code>esi-clones.read_clones.v1</code>
+                      </td>
+                      <td>Implants, medical clone (top bar)</td>
+                    </tr>
+                    <tr>
+                      <td><code>esi-industry.read_character_jobs.v1</code></td>
+                      <td>Industry, industry alert</td>
+                    </tr>
+                    <tr>
+                      <td><code>esi-markets.read_character_orders.v1</code></td>
+                      <td>Market Orders, order alert</td>
+                    </tr>
+                    <tr>
+                      <td><code>esi-universe.read_structures.v1</code></td>
+                      <td>Names of player structures</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>esi-characters.read_freelance_jobs.v1</code>,
+                        <code>esi.activity.char:read</code>
+                      </td>
+                      <td>Your freelance jobs and campaign objectives (Warfare)</td>
+                    </tr>
+                    <tr>
+                      <td><code>esi-characters.read_fw_stats.v1</code></td>
+                      <td>Your Faction Warfare status (Warfare)</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>esi-mail.read_mail.v1</code>, <code>esi-characters.read_notifications.v1</code>
+                      </td>
+                      <td>Mail icon, notifications in the triangle</td>
+                    </tr>
+                    <tr>
+                      <td><code>esi-characters.read_loyalty.v1</code></td>
+                      <td>loyalty points (Activity &amp; Income)</td>
+                    </tr>
+                    <tr>
+                      <td><code>esi-industry.read_character_mining.v1</code></td>
+                      <td>Mining Ledger</td>
+                    </tr>
+                    <tr>
+                      <td><code>esi-assets.read_assets.v1</code></td>
+                      <td>Ships &amp; Assets</td>
+                    </tr>
+                    <tr>
+                      <td><code>esi-characters.read_standings.v1</code></td>
+                      <td>Standings</td>
+                    </tr>
+                    <tr>
+                      <td><code>esi-killmails.read_killmails.v1</code></td>
+                      <td>Kills &amp; Losses</td>
+                    </tr>
+                    <tr>
+                      <td><code>esi-ui.write_waypoint.v1</code></td>
+                      <td>
+                        <em>Set destination</em> on the star map (the only scope that changes something in the
+                        game)
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="section">
+              <h3 id="where-the-files-are">Where the files are</h3>
+              <div class="table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th></th>
+                      <th>Windows</th>
+                      <th>macOS</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>config.json</code> and <code>data/</code> (default)</td>
+                      <td><code>%APPDATA%\EVE HUD</code></td>
+                      <td><code>~/Library/Application Support/EVE HUD</code></td>
+                    </tr>
+                    <tr>
+                      <td>Log file</td>
+                      <td><code>%APPDATA%\EVE HUD\logs\eve-hud.log</code></td>
+                      <td><code>~/Library/Logs/EVE HUD/eve-hud.log</code></td>
+                    </tr>
+                    <tr>
+                      <td>The app</td>
+                      <td>
+                        the folder chosen in the installer (default:
+                        <code>%LOCALAPPDATA%\Programs\EVE HUD</code> for <em>Only for me</em>,
+                        <code>C:\Program Files\EVE HUD</code> for everyone)
+                      </td>
+                      <td>wherever you put <code>EVE HUD.app</code></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <ul>
+                <li>
+                  The tray menu (Settings menu on a Mac) opens all of them (Open config file / Open data
+                  folder / Open log file).
+                </li>
+                <li>
+                  <strong>Other folders:</strong> Settings → <strong>Storage</strong> in the HUD has a field
+                  for each, with <strong>Browse…</strong>: <em>Settings</em> (<code>config.json</code>) and
+                  <em>Data</em> (<code>data/</code>). <strong>Move and restart</strong> restarts the app and
+                  moves the files before the HUD starts again: it copies them, checks the copies, records the
+                  new place in <code>location.json</code> in the default folder above (which stays put), and
+                  then removes the old ones. A folder that already has a <code>config.json</code>, or a data
+                  folder that isn't empty, is refused, so nothing gets overwritten.
+                  <strong>Use default folders</strong> moves them back. Folders that sync to the cloud (iCloud
+                  Drive, OneDrive) work, but bring no benefit: the encrypted login and Secret Key only work on
+                  this computer.
+                </li>
+                <li>
+                  With <code>--data-dir</code> (or <code>EVE_HUD_HOME</code>) the folders are set by that
+                  option, and the HUD shows them without the option to change them.
+                </li>
+                <li>
+                  <code>npm start</code> (run from source) uses the same folder as the installed app.
+                  <code>npm run fresh</code> uses <code>./.test-home</code> instead, for trying a first start.
+                </li>
+                <li>The log file is rotated at 1 MB.</li>
+              </ul>
+            </div>
+            <div class="section">
+              <h3 id="files-and-folders">Files and folders</h3>
+              <div class="table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Path</th>
+                      <th>What it holds</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>config.json</code></td>
+                      <td>
+                        Settings (<a href="#configuration-reference-configjson">reference</a>) and the Client
+                        ID / Secret Key, encrypted. <strong>Private.</strong>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>data/settings.json</code></td>
+                      <td>Layout, appearance, map view, chosen chat tab. Written by the HUD.</td>
+                    </tr>
+                    <tr>
+                      <td><code>data/settings-demo.json</code></td>
+                      <td>
+                        The same for demo mode, kept separate so the demo never changes your live layout.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>data/tokens.json</code></td>
+                      <td>
+                        Your EVE login (refresh token), encrypted. <strong>Private.</strong> Deleting it, or
+                        using <em>Log out</em>, disconnects the character.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>data/universe.json</code></td>
+                      <td>Cached star map and its SDE build number.</td>
+                    </tr>
+                    <tr>
+                      <td><code>data/typenames.json</code></td>
+                      <td>Item names for the orange chat links, from the same SDE download.</td>
+                    </tr>
+                    <tr>
+                      <td><code>data/names.json</code></td>
+                      <td>Cache of names for items, systems, stations and structures. Safe to delete.</td>
+                    </tr>
+                    <tr>
+                      <td><code>data/debug/objectives.json</code></td>
+                      <td>Last raw freelance-job and campaign responses.</td>
+                    </tr>
+                    <tr>
+                      <td><code>data/killmails.json</code></td>
+                      <td>
+                        Kills &amp; Losses: summaries of your newest 300 killmails (a killmail never changes,
+                        so each is fetched once). Safe to delete.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>data/typecats.json</code></td>
+                      <td>Item type → category (to spot ships among your assets). Safe to delete.</td>
+                    </tr>
+                    <tr>
+                      <td><code>data/debug/industry.json</code></td>
+                      <td>
+                        Last raw industry job list from ESI, with when it was fetched and when ESI's cache
+                        expires.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>data/debug/notifications.json</code></td>
+                      <td>
+                        Last notification list from ESI: type, time, read flag and whether it's ignored (never
+                        the notification text).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>data/debug/feeds-status.json</code></td>
+                      <td>
+                        For every feed: last update, next scheduled refresh, and last error. The first place
+                        to look when a module seems stuck.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>data/window-state.json</code></td>
+                      <td>The window's last size, position and monitor.</td>
+                    </tr>
+                    <tr>
+                      <td><code>location.json</code></td>
+                      <td>
+                        Only when Settings → Storage moved the files: where <code>config.json</code> and
+                        <code>data/</code> are now. Stays in the default app folder.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>app-options.json</code></td>
+                      <td>
+                        <em>Use the graphics card</em> (tray / Settings menu). In the default app folder.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>
+                They are in the app folder (<a href="#where-the-files-are">Where the files are</a>);
+                <code>hud/config.example.json</code> is the template for a new <code>config.json</code>. The
+                HUD's Settings drawer and login screen show the actual paths.
+              </p>
+              <p>
+                The whole <code>data/</code> folder can be deleted to start fresh: you'll need to log in
+                again, and the map downloads again.
+              </p>
+            </div>
+            <div class="section">
+              <h3 id="start-options">Start options</h3>
+              <p>
+                For a shortcut to the installed app (e.g. <code>&quot;…\EVE HUD.exe&quot; --demo</code>) or
+                after <code>npm start --</code>:
+              </p>
+              <div class="table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Option</th>
+                      <th>Meaning</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>--demo</code></td>
+                      <td>Sample data, no login (uses <code>data/settings-demo.json</code>).</td>
+                    </tr>
+                    <tr>
+                      <td><code>--port=N</code></td>
+                      <td>
+                        Another port (the login only works on the <code>callbackUrl</code> port, so mainly
+                        with <code>--demo</code>).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>--rebuild-map</code></td>
+                      <td>Download the star map again (<code>npm run rebuild-map</code>).</td>
+                    </tr>
+                    <tr>
+                      <td><code>--no-gpu</code></td>
+                      <td>
+                        Draw without the graphics card for this start (see <em>Use the graphics card</em>).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>--data-dir=PATH</code></td>
+                      <td>
+                        Keep <code>config.json</code> and <code>data/</code> in <code>PATH</code>.
+                        <code>EVE_HUD_HOME=PATH</code> does the same.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>--devtools</code></td>
+                      <td>Allow the developer tools (F12) in the installed app, for troubleshooting.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="section">
+              <h3 id="port-4747-and-the-login">Port 4747 and the login</h3>
+              <ul>
+                <li>
+                  The app's server listens on <code>127.0.0.1</code> only, on <code>port</code> from
+                  <code>config.json</code> (4747). Other devices on your network can't reach it. It's there
+                  because EVE's login has to return somewhere: EVE sends your browser to
+                  <code>http://localhost:4747/callback</code>.
+                </li>
+                <li>
+                  It never moves to another port by itself: EVE's login only returns to the exact
+                  <code>callbackUrl</code> registered for your application,
+                  <code>http://localhost:4747/callback</code>.
+                </li>
+                <li>
+                  <strong>When the port is taken</strong> the app tells you who has it:
+                  <ul>
+                    <li>
+                      <em>Another EVE HUD is already running</em> (for example a second copy started with
+                      <code>--data-dir</code>): stop that one and choose <strong>Try again</strong>, or
+                      <strong>Show the running HUD</strong> in the app window (quitting the app then leaves
+                      the other server running).
+                    </li>
+                    <li>
+                      <em>Used by another program</em>: close it and <strong>Try again</strong>, or
+                      <strong>Open config file</strong> to pick another port.
+                    </li>
+                    <li>
+                      <em>May not be used on this computer</em> (Windows can reserve port ranges for
+                      Hyper-V/WSL; check with
+                      <code>netsh interface ipv4 show excludedportrange protocol=tcp</code>).
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <strong>First start on a computer where 4747 is taken by something else:</strong> the setup
+                  screen lets you type another port in the callback URL; the HUD moves there when you save,
+                  and the window follows.
+                </li>
+                <li>
+                  If you change <code>port</code>, change <code>callbackUrl</code> in
+                  <code>config.json</code> and the Callback URL of your application on
+                  developers.eveonline.com to the same port. The app logs a warning when <code>port</code> and
+                  <code>callbackUrl</code> don't match.
+                </li>
+              </ul>
+            </div>
+            <div class="section">
+              <h3 id="refresh-timing">Refresh timing</h3>
+              <p>
+                <strong>Only what's on screen is polled.</strong> Every feed declares what shows it: a module,
+                the top bar, an alert, or a star map option. The app window tells the server what it shows,
+                and the server polls only those feeds:
+              </p>
+              <ul>
+                <li>
+                  <strong>Hiding a module</strong> pauses its feed. Its last data is kept, so showing the
+                  module again shows it straight away, and <strong>showing a module fetches at once</strong>.
+                </li>
+                <li>
+                  <strong>The top bar always counts as visible:</strong> players online, location and ship,
+                  character, clone, notifications, and mail (unless the mail icon is hidden in Settings →
+                  Appearance).
+                </li>
+                <li>
+                  <strong>Alerts</strong> that are on keep the skills, industry or orders feed running even
+                  with that module hidden.
+                </li>
+                <li>
+                  <strong>Star map extras:</strong> the hazard feed only runs with the hazard overlay on, and
+                  the sovereignty feed only in <em>Faction</em> colouring.
+                </li>
+                <li>
+                  <strong>No page open:</strong> after 30 seconds (so a reload doesn't pause and restart
+                  everything) only the top bar's feeds keep running.
+                </li>
+                <li>
+                  <code>data/debug/feeds-status.json</code> shows for every feed whether it's
+                  <code>active</code>.
+                </li>
+              </ul>
+              <p>
+                <strong>The rule:</strong> every ESI response says how long its data is cached (the
+                <code>Expires</code> header). Each feed requests again just after that moment, so it's as
+                fresh as ESI allows. Asking earlier would only return the same cached data. The result is then
+                clamped to the <code>min</code> and <code>max</code> from <code>config.json</code>.
+              </p>
+              <div class="table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Feed (<code>refresh</code> key)</th>
+                      <th>Feeds these modules</th>
+                      <th>ESI cache (typical)</th>
+                      <th>Default min / max (s)</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>presence</code></td>
+                      <td>location, ship, online status (map, character, top bar)</td>
+                      <td>5 s (online: 60 s)</td>
+                      <td>5 / 60</td>
+                    </tr>
+                    <tr>
+                      <td><code>status</code></td>
+                      <td>players online, CLUSTER light (top bar)</td>
+                      <td>30 s</td>
+                      <td>30 / 120</td>
+                    </tr>
+                    <tr>
+                      <td><code>esihealth</code></td>
+                      <td>module lights and CLUSTER light (ESI <code>/meta/status</code>)</td>
+                      <td>1 min</td>
+                      <td>60 / 300</td>
+                    </tr>
+                    <tr>
+                      <td><code>skills</code></td>
+                      <td>training queue, total SP, attributes, skill alerts</td>
+                      <td>120 s</td>
+                      <td>60 / 900</td>
+                    </tr>
+                    <tr>
+                      <td><code>wallet</code></td>
+                      <td>balance (journal and chart: 1 hour)</td>
+                      <td>120 s</td>
+                      <td>60 / 900</td>
+                    </tr>
+                    <tr>
+                      <td><code>industry</code></td>
+                      <td>industry jobs</td>
+                      <td>300 s</td>
+                      <td>120 / 900</td>
+                    </tr>
+                    <tr>
+                      <td><code>objectives</code></td>
+                      <td>your freelance jobs and campaign objectives (Warfare → Campaigns)</td>
+                      <td>varies</td>
+                      <td>120 / 900</td>
+                    </tr>
+                    <tr>
+                      <td><code>orders</code></td>
+                      <td>market orders (price history: once a day)</td>
+                      <td>1200 s</td>
+                      <td>300 / 1800</td>
+                    </tr>
+                    <tr>
+                      <td><code>character</code></td>
+                      <td>name, corporation, alliance, implants</td>
+                      <td>1 hour or more</td>
+                      <td>120 / 3600</td>
+                    </tr>
+                    <tr>
+                      <td><code>hazards</code></td>
+                      <td>star map hazard overlay (public data)</td>
+                      <td>5 min – 1 hour</td>
+                      <td>300 / 1800</td>
+                    </tr>
+                    <tr>
+                      <td><code>warfare</code></td>
+                      <td>Warfare module (public data, plus your FW status)</td>
+                      <td>5 min – 1 hour</td>
+                      <td>600 / 3600</td>
+                    </tr>
+                    <tr>
+                      <td><code>traffic</code></td>
+                      <td>star map: jumps and kills in the last hour, for every system</td>
+                      <td>1 hour</td>
+                      <td>600 / 3600</td>
+                    </tr>
+                    <tr>
+                      <td><code>sovereignty</code></td>
+                      <td>
+                        star map Faction colouring: owner of every system (<code>/sovereignty/systems</code>;
+                        a sample of the raw answer is saved to <code>data/debug/sovereignty.json</code>),
+                        Faction Warfare occupation (<code>/fw/systems</code>), faction and alliance names
+                      </td>
+                      <td>1 hour</td>
+                      <td>1800 / 3600</td>
+                    </tr>
+                    <tr>
+                      <td><code>clones</code></td>
+                      <td>top bar: medical clone location (needs <code>esi-clones.read_clones.v1</code>)</td>
+                      <td>2 min</td>
+                      <td>300 / 3600</td>
+                    </tr>
+                    <tr>
+                      <td><code>mail</code></td>
+                      <td>top bar: unread mail count (needs <code>esi-mail.read_mail.v1</code>)</td>
+                      <td>30 s</td>
+                      <td>60 / 600</td>
+                    </tr>
+                    <tr>
+                      <td><code>notifications</code></td>
+                      <td>
+                        top bar: unread notifications (needs
+                        <code>esi-characters.read_notifications.v1</code>)
+                      </td>
+                      <td>10 min</td>
+                      <td>120 / 1800</td>
+                    </tr>
+                    <tr>
+                      <td><code>activity</code></td>
+                      <td>Activity &amp; Income: wallet journal by source, loyalty points</td>
+                      <td>1 hour (LP: 1 hour)</td>
+                      <td>300 / 1800</td>
+                    </tr>
+                    <tr>
+                      <td><code>mining</code></td>
+                      <td>Mining Ledger</td>
+                      <td>10 min (ESI updates the ledger a few times a day)</td>
+                      <td>600 / 3600</td>
+                    </tr>
+                    <tr>
+                      <td><code>assets</code></td>
+                      <td>Ships &amp; Assets</td>
+                      <td>1 hour</td>
+                      <td>1800 / 3600</td>
+                    </tr>
+                    <tr>
+                      <td><code>standings</code></td>
+                      <td>Standings</td>
+                      <td>1 hour</td>
+                      <td>1800 / 3600</td>
+                    </tr>
+                    <tr>
+                      <td><code>kills</code></td>
+                      <td>Kills &amp; Losses (each killmail fetched only once)</td>
+                      <td>5 min</td>
+                      <td>600 / 3600</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>How to adjust:</p>
+              <ul>
+                <li>
+                  <strong>Poll less often:</strong> raise <code>min</code>. For example,
+                  <code>&quot;orders&quot;: { &quot;min&quot;: 1800, &quot;max&quot;: 3600 }</code> checks
+                  orders at most every 30 minutes.
+                </li>
+                <li>
+                  <strong>Faster than ESI's cache</strong> isn't possible: a <code>min</code> below the cache
+                  time has no effect.
+                </li>
+                <li>
+                  <strong>Switch a feed off:</strong>
+                  <code>&quot;industry&quot;: { &quot;enabled&quot;: false }</code>.
+                </li>
+                <li>
+                  <strong>Countdowns keep running between refreshes:</strong> skill training, job timers and
+                  order expiry are computed locally every second, without asking ESI.
+                </li>
+              </ul>
+              <p>
+                <strong>Load:</strong> about 20–25 ESI requests per minute in normal use, mostly the 5-second
+                location check. The map extras (hazards, traffic) and the Warfare module add only a few dozen
+                requests per hour in total, because they fetch data for all systems at once and ESI caches it
+                for 5–60 minutes. The HUD also saves requests in other ways:
+              </p>
+              <ul>
+                <li>
+                  Repeat requests send the previous ETag, so unchanged data comes back as a short &quot;not
+                  modified&quot; reply.
+                </li>
+                <li>
+                  Names of items, systems and stations are cached permanently in <code>data/names.json</code>.
+                </li>
+                <li>&quot;Refresh now&quot; in settings respects the cache too.</li>
+              </ul>
+              <p>
+                Chat doesn't use ESI at all. When you jump, Local announces it instantly, and the map moves
+                before ESI's location even updates.
+              </p>
+            </div>
+            <div class="section">
+              <h3 id="esi-rate-limits">ESI rate limits</h3>
+              <p>
+                ESI limits requests per <em>route group</em>, using a floating window (<a
+                  href="https://developers.eveonline.com/docs/services/esi/rate-limiting/"
+                  >CCP documentation</a
+                >). Each group has its own token bucket per character (logged-in routes) or per IP address
+                (public routes). Tokens flow back into the bucket over time.
+              </p>
+              <p><strong>Token cost per request (CCP's rules):</strong></p>
+              <div class="table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Response</th>
+                      <th>Cost</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>2xx (data returned)</td>
+                      <td>2 tokens</td>
+                    </tr>
+                    <tr>
+                      <td>3xx (e.g. 304 &quot;not modified&quot;)</td>
+                      <td>1 token</td>
+                    </tr>
+                    <tr>
+                      <td>4xx (error)</td>
+                      <td>5 tokens</td>
+                    </tr>
+                    <tr>
+                      <td>429 (rate limited)</td>
+                      <td>not counted as a 4xx</td>
+                    </tr>
+                    <tr>
+                      <td>5xx (server error)</td>
+                      <td>0 tokens</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p><strong>What the HUD does:</strong></p>
+              <ol>
+                <li>
+                  <strong>Reads the headers on every response.</strong> <code>X-Ratelimit-Group</code> names
+                  the route group. <code>X-Ratelimit-Limit</code> gives the size, for example
+                  <code>150/15m</code>. <code>X-Ratelimit-Remaining</code> gives the tokens left, and
+                  <code>X-Ratelimit-Used</code> what the request cost.
+                </li>
+                <li>
+                  <strong>Estimates the current balance</strong> between responses: the last
+                  <code>Remaining</code> plus the tokens that have flowed back since.
+                </li>
+                <li>
+                  <strong>Holds requests back before reaching the limit.</strong> If sending a request would
+                  drop the group below <code>rateLimit.reserve</code> (25%) of its tokens, the request waits.
+                  <ul>
+                    <li>
+                      When there's older data, the module keeps showing it, and the feed tries again once
+                      tokens have returned.
+                    </li>
+                    <li>
+                      When there's no data yet, the request waits up to <code>rateLimit.maxWaitSeconds</code>,
+                      and otherwise retries later.
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <strong>Books tokens before sending,</strong> so feeds running at the same time can't all
+                  squeeze past the check.
+                </li>
+                <li>
+                  <strong>Sends the first request to an unknown route alone.</strong> Until ESI's reply says
+                  which group a route belongs to, other requests for it wait.
+                </li>
+                <li>
+                  <strong>On a 429:</strong> waits as long as ESI's <code>Retry-After</code> header says, for
+                  that group only. A 429 without rate-limit headers, which comes from a deeper limiter, pauses
+                  just that route.
+                </li>
+                <li>
+                  <strong>Routes still on the old error limit</strong> (at most 100 errors per minute): the
+                  HUD pauses everything when the <code>X-ESI-Error-Limit-Remain</code> header gets low, or
+                  after a 420 response.
+                </li>
+              </ol>
+              <p>
+                <strong>Pagination:</strong> ESI splits some long lists over several responses. The HUD
+                handles both kinds CCP uses:
+              </p>
+              <ul>
+                <li>
+                  <strong>X-Pages</strong> (<a
+                    href="https://developers.eveonline.com/docs/services/esi/pagination/x-pages/"
+                    >docs</a
+                  >) is used for the wallet journal. Page 1 holds the newest entries. Further pages (at most
+                  5) are only fetched until the 30-day balance chart is covered.
+                </li>
+                <li>
+                  <strong>Cursor-based</strong> (<a
+                    href="https://developers.eveonline.com/docs/services/esi/pagination/cursor-based/"
+                    >docs</a
+                  >) is used for freelance jobs and military campaign objectives. The HUD follows the
+                  <code>before</code> cursor back through older records, at most 5 responses.
+                </li>
+                <li>
+                  <strong>Duplicates:</strong> both docs warn that a record can show up twice when data
+                  changes between page requests, so the HUD drops repeats by ID.
+                </li>
+                <li>
+                  <strong>Not involved:</strong> the other feeds aren't paginated, and the star map comes from
+                  a single SDE download.
+                </li>
+              </ul>
+              <p>
+                You can watch the live balance per group in Settings → <em>ESI rate limits</em>. The colours:
+                amber means the group is below the reserve and requests are being held back, and red means a
+                429 is being waited out. In normal use every group stays near full.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section class="chapter" id="data-privacy" aria-labelledby="data-privacy-title">
+          <i class="tick tl"></i><i class="tick tr"></i><i class="tick bl"></i><i class="tick br"></i>
+          <header class="chapter-head">
+            <span class="glyph" aria-hidden="true"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="square"
+                stroke-linejoin="miter"
+              >
+                <path d="M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3" /></svg
+            ></span>
+            <h2 id="data-privacy-title">Data and privacy</h2>
+            <span class="sub">What the HUD stores, what it connects to, and where its data comes from.</span>
+          </header>
+          <div class="chapter-body">
+            <div class="section">
+              <h3 id="privacy-login-cookies-network">Privacy: login, cookies, network</h3>
+              <ul>
+                <li>
+                  <strong>The EVE login opens in your default browser</strong>, not in the app.
+                  <em>Log in with EVE Online</em> (and <em>Grant access</em>) open
+                  <code>http://localhost:4747/login?from=app</code> in the browser; EVE sends you back to the
+                  HUD's server there, which shows &quot;Logged in as …, you can close this tab&quot;, and the
+                  app window updates and comes to the front by itself. EVE's login cookies stay in the browser
+                  you already use.
+                </li>
+                <li>
+                  <strong>No cookies or site data on disk:</strong> the window uses an in-memory session, so
+                  cookies, storage and cache are gone when the app quits. Your EVE login itself is the refresh
+                  token in <code>data/tokens.json</code>.
+                </li>
+                <li>
+                  <strong>Only EVE servers:</strong> the window loads only the HUD itself and
+                  <code>https://*.evetech.net</code> / <code>https://*.eveonline.com</code> (portraits,
+                  icons); everything else is blocked before it connects and noted in the log. The HUD server
+                  has the same rule for its own requests. Camera, microphone, location, notifications and the
+                  like are refused; only the Copy buttons' clipboard writes are allowed.
+                </li>
+                <li>
+                  <strong>Secrets encrypted:</strong> the Client ID and Secret Key in
+                  <code>config.json</code> (<code>&quot;enc:…&quot;</code>) and the EVE login in
+                  <code>data/tokens.json</code> are encrypted with Electron's safeStorage: the macOS Keychain
+                  (item <em>EVE HUD Safe Storage</em>) or Windows' data protection (DPAPI) for your user
+                  account. The key is kept by the operating system, not in a file. Other user accounts,
+                  another computer, or someone with only the files can't read them; programs running as you on
+                  this computer still could, as with any local app. Plain values (typed in by hand, or
+                  imported) are encrypted the first time they're loaded.
+                  <ul>
+                    <li>
+                      Mac: an app without an Apple certificate may ask once after an update to
+                      <em>use your confidential information stored in &quot;EVE HUD Safe Storage&quot;</em>.
+                      Click <strong>Always Allow</strong>. <code>npm start</code> and the installed app are
+                      different apps to the Keychain, so each asks once.
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  Starting the app a second time just brings the running one to the front (one instance at a
+                  time).
+                </li>
+              </ul>
+            </div>
+            <div class="section">
+              <h3 id="network-access">Network access</h3>
+              <p>
+                The app only talks to EVE's own servers (<code>*.evetech.net</code>,
+                <code>*.eveonline.com</code>): the server (<code>hud/lib/net.js</code>) refuses every other
+                host, also when a redirect points elsewhere, the window blocks everything else (<a
+                  href="#privacy-login-cookies-network"
+                  >Privacy</a
+                >), and the page has a Content Security Policy with the same rule. The font is a local file.
+                In detail:
+              </p>
+              <div class="table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Host</th>
+                      <th>Used for</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>esi.evetech.net</code></td>
+                      <td>All character data</td>
+                    </tr>
+                    <tr>
+                      <td><code>login.eveonline.com</code></td>
+                      <td>Login and token refresh</td>
+                    </tr>
+                    <tr>
+                      <td><code>developers.eveonline.com</code></td>
+                      <td>Star map (Static Data Export)</td>
+                    </tr>
+                    <tr>
+                      <td><code>images.evetech.net</code></td>
+                      <td>Portraits, logos, ship renders (loaded by the window)</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>
+                zKillboard and EVE Ref links (Kills &amp; Losses, show-info) are plain links: nothing is
+                loaded from them until you click one, and then it opens in your browser.
+              </p>
+              <p>
+                If you use a DNS blocker or firewall (Pi-hole, Little Snitch, a router filter), these hosts
+                must be allowed.
+              </p>
+            </div>
+            <div class="section">
+              <h3 id="where-the-data-comes-from">Where the data comes from</h3>
+              <div class="table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Module</th>
+                      <th>Source</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Character</td>
+                      <td>
+                        ESI: public character info, corporation, alliance, implants, location, ship, online
+                        status. Wallet: balance plus journal, which feeds the 30-day chart.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Training queue</td>
+                      <td>
+                        ESI: skill queue, skills, attributes. Progress and countdowns are computed locally
+                        every second.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Industry</td>
+                      <td>ESI: industry jobs (active, paused, ready).</td>
+                    </tr>
+                    <tr>
+                      <td>Market orders</td>
+                      <td>
+                        ESI: your orders, plus 30-day regional price history for the sparklines. The ▲/▼
+                        compares your price with the 7-day average.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Chat</td>
+                      <td>EVE's chat log files (see <a href="#chat-logs">Chat logs</a>).</td>
+                    </tr>
+                    <tr>
+                      <td>Star map</td>
+                      <td>
+                        CCP Static Data Export, plus your ESI location. Faction colouring: ESI sovereignty map
+                        and Faction Warfare systems (public).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Warfare</td>
+                      <td>
+                        ESI: wars, Faction Warfare stats and leaderboards, incursions, military campaigns,
+                        your freelance jobs and campaign objectives (see
+                        <a href="#warfare-module">Warfare module</a>).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Optional modules</td>
+                      <td>See <a href="#optional-modules">Optional modules</a>.</td>
+                    </tr>
+                    <tr>
+                      <td>Top bar</td>
+                      <td>
+                        ESI server status (players online) and EVE time (UTC). Alerts: worked out from the
+                        skills, industry and orders feeds.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>
+                <strong>Not available through ESI:</strong> Daily goals (AIR), agent missions and the
+                Opportunities tracker. They can't appear in the HUD.
+              </p>
+              <p>
+                <strong>Freelance jobs / campaigns caveat:</strong> the exact response format of the
+                freelance-job and campaign routes wasn't documented when this was written, so the HUD reads
+                them loosely (at this compatibility date the lists are wrapped, e.g.
+                <code>{ campaigns }</code> and <code>{ objectives, cursor }</code>, with <code>id</code>,
+                <code>started</code>, <code>finished</code>, <code>is_committed</code>). The raw responses are
+                saved to <code>data/debug/objectives.json</code> on every refresh. If something looks off,
+                that file shows what ESI actually sent.
+              </p>
+            </div>
+            <div class="section">
+              <h3 id="star-map-data">Star map data</h3>
+              <ul>
+                <li>
+                  <strong>Source:</strong> CCP's official Static Data Export (SDE), from
+                  <a href="https://developers.eveonline.com/static-data"
+                    >https://developers.eveonline.com/static-data</a
+                  >.
+                </li>
+                <li>
+                  <strong>First start:</strong>
+                  <ol>
+                    <li>
+                      The server reads the current build number from
+                      <code>…/static-data/tranquility/latest.jsonl</code>.
+                    </li>
+                    <li>
+                      It downloads exactly that build:
+                      <code>…/tranquility/eve-online-static-data-&lt;build&gt;-jsonl.zip</code>. The log file
+                      shows a progress percentage.
+                    </li>
+                    <li>
+                      It extracts only <code>mapSolarSystems.jsonl</code>, <code>mapRegions.jsonl</code> and
+                      <code>mapStargates.jsonl</code>. This uses a small built-in zip reader, so no unzip tool
+                      is needed.
+                    </li>
+                    <li>
+                      It saves the result to <code>data/universe.json</code>, together with the build number,
+                      and deletes the zip. Each system keeps both its real 3D <code>position</code> and its
+                      schematic <code>position2D</code>.
+                    </li>
+                  </ol>
+                </li>
+                <li>
+                  <strong>Later starts:</strong> the cached map is used immediately. Only the tiny
+                  <code>latest.jsonl</code> is fetched, and the map is rebuilt in the background when CCP has
+                  published a newer build.
+                </li>
+                <li>
+                  <strong>Fallback:</strong> if the SDE can't be downloaded, the map is built from ESI. That
+                  takes a few minutes and has no jump lanes. It's replaced by the SDE version on the next
+                  start where the download works.
+                </li>
+                <li>
+                  <strong>Force a rebuild:</strong> run <code>npm run rebuild-map</code>, or delete
+                  <code>data/universe.json</code>.
+                </li>
+                <li>
+                  <strong>Shown on the map:</strong> known space only (high-, low- and null-sec, plus
+                  Pochven). Wormhole and Abyssal systems are left out. In a wormhole, the map says so.
+                </li>
+                <li>
+                  <strong>Success</strong> shows in the log file as
+                  <code>Star map ready: … systems, … jump lanes (ccp-sde build …)</code>.
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section class="chapter" id="help" aria-labelledby="help-title">
+          <i class="tick tl"></i><i class="tick tr"></i><i class="tick bl"></i><i class="tick br"></i>
+          <header class="chapter-head">
+            <span class="glyph" aria-hidden="true"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="square"
+                stroke-linejoin="miter"
+              >
+                <path d="M12 3 22 20H2z" />
+                <path d="M12 10v4M12 16.5v.5" /></svg
+            ></span>
+            <h2 id="help-title">Troubleshooting</h2>
+            <span class="sub">When something doesn&#x27;t work.</span>
+          </header>
+          <div class="chapter-body">
+            <div class="section">
+              <h3 id="troubleshooting">Troubleshooting</h3>
+              <p>
+                <strong>&quot;EVE HUD's configuration is damaged&quot;</strong>: at start-up, a configuration
+                file (<code>config.json</code>, <code>data/settings.json</code>,
+                <code>data/tokens.json</code>, <code>data/window-state.json</code>, or
+                <code>location.json</code> / <code>app-options.json</code> in the app folder) isn't valid
+                JSON, for example after a crash while saving or a bad hand edit. The only button,
+                <strong>Reset EVE HUD and restart</strong>, deletes all configuration files and starts the app
+                as on its first start: Welcome (import or start fresh), then the Client ID and Secret Key, and
+                the EVE login again. The star map and other downloaded data stay. Closing the window quits
+                without changing anything; the next start asks again.
+              </p>
+              <div class="table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Symptom</th>
+                      <th>Cause / fix</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>The log shows <code>Cannot reach &lt;host&gt;: …</code></td>
+                      <td>
+                        That host is blocked or unreachable. Run <code>npm run check</code>: it tests each
+                        host over IPv4 and IPv6 and prints the reason (DNS, timeout, blocked TLS…).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Login fails with &quot;Login state did not match&quot;</td>
+                      <td>
+                        The app restarted during login, or an old login tab was used. Start again from the
+                        HUD's login button.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>The browser says the HUD can't be reached after the login</td>
+                      <td>The app was closed or restarted during the login. Start it and log in again.</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        The HUD asks for the Client ID and Secret Key again (&quot;could not be
+                        decrypted&quot;)
+                      </td>
+                      <td>
+                        <code>config.json</code> was encrypted on another computer or user account (or the
+                        Keychain entry was removed). Enter them again; log in again too.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Login page shows an error about the redirect URI</td>
+                      <td>
+                        The callback URL in the developer portal differs from <code>callbackUrl</code> in
+                        <code>config.json</code>.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Map shows &quot;Star map unavailable&quot;</td>
+                      <td>
+                        The SDE download failed. Check the log file and <code>npm run check</code>, then
+                        restart. (Demo mode uses a made-up map on purpose.)
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Chat says logs not found</td>
+                      <td>
+                        Turn on <em>Log chat to file</em> in EVE, or choose the folder in Settings → Storage →
+                        EVE logs.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>The CLUSTER light or a module light is amber with &quot;ESI degraded&quot;</td>
+                      <td>
+                        ESI itself reports that route as slow (CCP's <code>/meta/status</code>). Nothing to
+                        fix in the HUD; it clears when CCP's servers recover.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>No ATTACK in combat, or <em>Autopilot</em> never shows</td>
+                      <td>
+                        Check that Settings → Storage → EVE logs reads the right folder and that its
+                        <code>Gamelogs</code> can be read (the line under the field says so).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Data seems slow to update, e.g. a new industry job doesn't appear</td>
+                      <td>
+                        Each feed waits for ESI's cache (see <a href="#refresh-timing">Refresh timing</a>). A
+                        new industry job can take up to ~5 minutes, market orders up to 20 minutes.
+                        <em>Refresh now</em> doesn't bypass ESI's cache.
+                        <code>data/debug/feeds-status.json</code> shows when each feed refreshes next.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Settings → ESI rate limits shows amber or red</td>
+                      <td>
+                        The HUD is holding requests back to protect the limit. It recovers on its own. If it
+                        happens often, raise <code>min</code> values or <code>rateLimit.reserve</code>.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>A module says it needs a scope</td>
+                      <td>
+                        Add the scope to <code>&quot;scopes&quot;</code> in <code>config.json</code>
+                        <em>and</em> to your application on developers.eveonline.com, then
+                        <em>Log in again</em>. See <a href="#scopes">Scopes</a>.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><em>Set destination</em> fails</td>
+                      <td>
+                        It needs <code>esi-ui.write_waypoint.v1</code>, and EVE has to be running with that
+                        character logged in.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>A module stays empty after showing it</td>
+                      <td>
+                        Its feed starts at once; <code>data/debug/feeds-status.json</code> shows
+                        <code>active: true</code> and any error.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Want to start completely fresh</td>
+                      <td>
+                        Quit the app, delete the <code>data/</code> folder (tray / Settings menu → Open data
+                        folder), start again. Settings → Reset EVE HUD removes the Client ID and Secret Key.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>The app starts, but the HUD asks for the Client ID and Secret Key</td>
+                      <td>A fresh start without import: enter them in the HUD window.</td>
+                    </tr>
+                    <tr>
+                      <td>Map downloads again although you imported</td>
+                      <td>
+                        <code>data/universe.json</code> and <code>data/typenames.json</code> both need to be
+                        in the imported folder.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>&quot;EVE HUD could not start&quot;</td>
+                      <td>The message names the log file; the first error is there.</td>
+                    </tr>
+                    <tr>
+                      <td>Window is off-screen</td>
+                      <td>
+                        Delete <code>data/window-state.json</code> (tray / Settings menu → Open data folder)
+                        while the app is closed.
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="chapter" id="development" aria-labelledby="development-title">
+          <i class="tick tl"></i><i class="tick tr"></i><i class="tick bl"></i><i class="tick br"></i>
+          <header class="chapter-head">
+            <span class="glyph" aria-hidden="true"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="square"
+                stroke-linejoin="miter"
+              >
+                <path d="M19 12a7 7 0 1 1-2.05-4.95M19 4v4h-4" /></svg
+            ></span>
+            <h2 id="development-title">Development</h2>
+            <span class="sub">Run from source, how the code is laid out, tests.</span>
+          </header>
+          <div class="chapter-body">
+            <div class="section">
+              <h3 id="commands">Commands</h3>
+              <p>Run in the project folder (Node.js 20+, only for developing and building):</p>
+              <div class="table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Command</th>
+                      <th>What it does</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><code>npm install</code></td>
+                      <td>Installs Electron and electron-builder (dev dependencies only).</td>
+                    </tr>
+                    <tr>
+                      <td><code>npm start</code></td>
+                      <td>
+                        The app with your character, using the app folder (<a href="#where-the-files-are"
+                          >Where the files are</a
+                        >).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>npm run demo</code></td>
+                      <td>Sample data, no login. Good for trying layout or appearance changes.</td>
+                    </tr>
+                    <tr>
+                      <td><code>npm run fresh</code></td>
+                      <td>
+                        Like a brand-new install: config and data in <code>./.test-home</code> (shows the
+                        first-start questions).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>npm run rebuild-map</code></td>
+                      <td>Starts the app and downloads the star map again.</td>
+                    </tr>
+                    <tr>
+                      <td><code>npm run check</code></td>
+                      <td>
+                        Connection check for every host the HUD uses (see
+                        <a href="#troubleshooting">Troubleshooting</a>).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td><code>npm test</code></td>
+                      <td>All tests, without Electron, network or login (see <a href="#tests">Tests</a>).</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>npm run version:patch</code> (or <code>:minor</code>, <code>:major</code>,
+                        <code>:set -- 1.2.3</code>)
+                      </td>
+                      <td>
+                        Raises the version number (see
+                        <a href="#changing-the-version">Changing the version</a>).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>npm run dist:win</code> / <code>dist:win-zip</code> / <code>dist:mac</code> /
+                        <code>dist:mac-dev</code>
+                      </td>
+                      <td>Builds the app (see <a href="#build-the-installer">Build the installer</a>).</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>
+                <strong>What needs a restart:</strong> changes to <code>config.json</code>, <code>src/</code>,
+                <code>hud/server.js</code> or <code>hud/lib/</code> need a restart (tray / Settings menu →
+                Restart). Changes in <code>hud/public/</code> only need a reload (F5). Settings changed in the
+                HUD itself apply immediately.
+              </p>
+            </div>
+            <div class="section">
+              <h3 id="project-layout">Project layout</h3>
+              <pre><code>src/                   the app (Electron main process)
+  main.js              start-up, first-run import, encryption, port problems, quitting
+  paths.js             where the HUD code and its config.json + data/ are
+  storage.js           where config.json and data/ are kept, and moving them (Settings → Storage)
+  importer.js          copies config.json + data files from an older HUD folder
+  window.js            the window: normal / full-screen, monitors, remembered position, keys, links, login
+  privacy.js           in-memory session, EVE-only request filter, permissions
+  tray.js              tray icon and menu (Windows), Settings menu (Mac)
+  gpu.js               &quot;Use the graphics card&quot; (app-options.json)
+  config-edit.js       saves &quot;window.mode&quot; into config.json without reformatting it
+  port-check.js        another EVE HUD on the port, or something else?
+  log.js               the log file
+  recovery.js          damaged configuration files: the reset window
+hud/                   the HUD (server and page; no dependencies)
+  server.js            local HTTP server: the API routes, login, live updates to the window (server-sent events)
+  config.example.json  template for config.json
+  lib/store.js         config.json + settings loading, JSON file helpers
+  lib/secrets.js       encryption of Client ID, Secret Key and login (key from the app: Keychain / DPAPI)
+  lib/auth.js          EVE SSO login, token refresh
+  lib/esi.js           ESI client: caching, ETags, error limit, name resolution
+  lib/ratelimit.js     X-Ratelimit tracking and request holding
+  lib/net.js           fetch wrapper: EVE servers only, readable network errors (prefers IPv4)
+  lib/feeds.js         feed scheduling: which feeds run, when they refresh, what they publish
+  lib/feeds/           the feeds themselves: public-feeds.js, character-feeds.js, economy-feeds.js,
+                       plus health.js (ESI's route health), summaries.js (wallet sources, killmails),
+                       shapes.js (helpers for answers of unknown shape)
+  lib/route.js         star map routes (ESI POST /route) and Set destination (ESI autopilot waypoint)
+  lib/universe.js      star map from the SDE (fallback: ESI), update check
+  lib/zip.js           minimal zip reader for the SDE archive
+  lib/chatlogs.js      chat log tailing (UTF-16), the EVE logs folder
+  lib/gamelogs.js      the game logs: combat (ATTACK) and the autopilot's next jump
+  lib/evehtml.js       EVE markup: plain text and links
+  lib/showinfo.js      lookups for the chat link window (/api/showinfo)
+  lib/demo.js          sample data for --demo
+  public/              the page (plain JavaScript modules, no build step)
+    index.html         the page itself; loads css/hud.css and js/app.js
+    js/app.js          start-up: what this page shows (sent to the server), module lights and blinks
+    js/topbar.js       the top bar and its hover boxes
+    js/settings-drawer.js   the settings drawer (gear icon)
+    js/dialogs.js      About, graphics-card restart, confirmations, &quot;EVE HUD stopped working&quot;
+    js/logs-dialog.js  &quot;EVE's log files can't be read&quot;
+    js/login-gate.js   setup form and &quot;Log in with EVE Online&quot;
+    js/appearance.js   Settings → Appearance applied to the page
+    js/backdrop.js     the starfield; js/plexus.js the low-poly background
+    js/grid.js         module grid: drag, resize, swap
+    js/store.js        the page's state: settings, feeds, live updates from the server
+    js/util.js         small helpers: h() to create elements, formatting, the shared animation clock
+    js/glyphs.js       the line icons (ICONS)
+    js/fx.js           data-change animations
+    js/alerts.js       the top-bar alerts
+    js/itemlinks.js    recognises item and system names in chat
+    js/showinfo.js     the chat link window
+    js/hud-context.js  what the parts share (the grid)
+    js/modules/        one file per module, index.js lists them (common.js: shared parts of the list
+                       modules; map/: the star map's tables and sprites)
+    css/hud.css        imports the stylesheets below, in order (colours are CSS variables in base.css)
+    css/*.css          base, grid, modules-common, topbar, one per module, settings, dialogs,
+                       animations, motion (Animations: Limited / Off, last on purpose)
+    fonts/             Saira Semi Condensed + OFL.txt
+assets/                icon.ico (window, tray and installer on Windows), icon.png
+build/icon.png         1024 px icon for the Mac build; build/src/*.svg are the sources
+build/background*.png  the Mac .dmg window's background (600×460, and @2x for Retina)
+build/installerSidebar.bmp   the Windows installer's side picture (164×314)
+build/entitlements.mac.plist   macOS hardened-runtime permissions (JIT)
+build/installer.nsh    Windows installer extra: the uninstaller's &quot;delete settings and data too?&quot; question
+electron-builder.config.cjs    build + signing settings
+scripts/check.js       connection check (npm run check)
+test/                  tests, the stand-in electron module, run-server.js
+LICENSE                GNU General Public License v3
+README.md              the short introduction on GitHub
+documentation/         this page (index.html) and its screenshots (images/)
+.github/workflows/     docs.yml: publishes this page on GitHub Pages
+</code></pre>
+            </div>
+            <div class="section">
+              <h3 id="reading-and-changing-the-code">Reading and changing the code</h3>
+              <ul>
+                <li>
+                  <strong>No build step, no frameworks.</strong> The page is plain ES modules loaded by the
+                  browser; the server and the app are plain Node.js (ES modules too). Change a file, reload
+                  the window (Ctrl+R / Cmd+R) or restart <code>npm start</code>.
+                </li>
+                <li>
+                  <strong>How data flows:</strong> the server (<code>hud/server.js</code>) polls ESI through
+                  <code>lib/feeds.js</code>, only for what the open page shows (it tells the server with
+                  <code>/api/demand</code>). Each feed's result goes to the page over server-sent events
+                  (<code>/api/stream</code>); <code>js/store.js</code> keeps it and emits
+                  <code>feed:&lt;name&gt;</code>; modules listen with <code>store.on(...)</code> and redraw.
+                </li>
+                <li>
+                  <strong>A module</strong> (<code>js/modules/*.js</code>) is an object with <code>id</code>,
+                  <code>title</code>, <code>glyph</code> and <code>mount(ctx)</code>, which builds its content
+                  into <code>ctx.body</code> and returns an object with optional <code>destroy()</code>,
+                  <code>resize()</code> and <code>tick()</code> (see <code>js/grid.js</code>). Add it to
+                  <code>js/modules/index.js</code> to make it appear in Settings → Modules.
+                </li>
+                <li>
+                  <strong>Elements</strong> are made with <code>h(tag, attributes, ...children)</code> from
+                  <code>js/util.js</code>, e.g. <code>h('div', { class: 'row', onclick: fn }, 'text')</code>;
+                  icons with <code>svg(ICONS.name)</code>.
+                </li>
+                <li>
+                  <strong>Animations</strong> run on one shared clock (<code>onFrame()</code> in
+                  <code>js/util.js</code>) at 30 frames a second (fewer with Animations: Limited, none with
+                  Off). Continuous effects are driven from JavaScript through CSS variables instead of CSS
+                  animations, which keeps the window cheap to draw.
+                </li>
+                <li>
+                  <strong>Formatting:</strong> <a href="https://prettier.io">Prettier</a> with
+                  <code>.prettierrc.json</code> (<code>npx prettier --write .</code>).
+                </li>
+                <li>
+                  <strong>Tests:</strong> <code>npm test</code> (see <a href="#tests">Tests</a>). Every file
+                  starts with a comment that says what it is for.
+                </li>
+                <li>
+                  <strong>This documentation</strong> is one hand-written page,
+                  <code>documentation/index.html</code>, with its screenshots in
+                  <code>documentation/images/</code>. Open it in a browser straight from the folder. Pushed to
+                  <code>main</code>, the <em>Documentation</em> workflow
+                  (<code>.github/workflows/docs.yml</code>) publishes it on GitHub Pages; once, in the
+                  repository's Settings → Pages, set <em>Source</em> to <em>GitHub Actions</em>.
+                </li>
+              </ul>
+            </div>
+            <div class="section">
+              <h3 id="tests">Tests</h3>
+              <pre><code class="language-sh">npm test
+</code></pre>
+              <p>Runs without Electron, network or login.</p>
+              <ul>
+                <li>
+                  <code>test/hud.test.js</code>: the server: feed scheduling, the modules' data, routes, the
+                  HTTP endpoints, setup and Reset, the EVE-only network rule, and the encryption of the Client
+                  ID, Secret Key and login (including values from &quot;another computer&quot;).
+                  <code>test/run-server.js</code> starts the server on its own for these tests.
+                </li>
+                <li>
+                  <code>test/main.test.js</code>: <code>test/fake-electron/</code> is a stand-in for the
+                  <code>electron</code> module that records windows, dialogs, the tray and Mac menus and
+                  safeStorage instead of using them. With it, the real main process starts the real server and
+                  the tests check:
+                  <ul>
+                    <li>
+                      run from source: server in-process, window loads it, links and login in the browser,
+                      in-memory session, EVE-only requests, permissions, single instance, closing the window
+                      quits and frees the port;
+                    </li>
+                    <li>
+                      the window: first start on the portrait monitor, F11 / tray mode switch saved in
+                      <code>config.json</code> (only that value changes), move to monitor, remembered on the
+                      next start;
+                    </li>
+                    <li>
+                      first start: import (secret never logged, values encrypted in place, imported layout
+                      used), start fresh, quit;
+                    </li>
+                    <li>port taken by another HUD (both choices) or by another program (Try again);</li>
+                    <li>
+                      damaged configuration files (the reset window); a second instance; the Mac menu bar
+                      (Settings menu, no icon).
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <code>test/units.test.js</code>: window placement, importer, paths,
+                  <code>config.json</code> edits, the request filter, the game and chat log folders, combat
+                  and autopilot lines in the game log, damaged configuration files.
+                </li>
+              </ul>
+              <p>They use temporary folders only; your app folder isn't touched.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="chapter" id="legal" aria-labelledby="legal-title">
+          <i class="tick tl"></i><i class="tick tr"></i><i class="tick bl"></i><i class="tick br"></i>
+          <header class="chapter-head">
+            <span class="glyph" aria-hidden="true"
+              ><svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.4"
+                stroke-linecap="square"
+                stroke-linejoin="miter"
+              >
+                <path d="M12 3v18" />
+                <path d="M5 7h14" />
+                <path d="M5 7l-2.5 6h5zM19 7l-2.5 6h5z" />
+                <path d="M8 21h8" /></svg
+            ></span>
+            <h2 id="legal-title">License and credits</h2>
+            <span class="sub">GPL-3.0-or-later, CCP&#x27;s material, the font.</span>
+          </header>
+          <div class="chapter-body">
+            <div class="section">
+              <h3 id="license">License</h3>
+              <p>
+                EVE HUD is free software, © 2026 danisxlab (<a href="https://github.com/danisxlab/eve-hud"
+                  >github.com/danisxlab/eve-hud</a
+                >): you can redistribute it and/or modify it under the terms of the
+                <strong>GNU General Public License, version 3 or (at your option) any later version</strong>
+                (<a href="../LICENSE"><code>LICENSE</code></a
+                >; SPDX <code>GPL-3.0-or-later</code>). It comes with no warranty. The About window (ⓘ in the
+                top bar) says the same.
+              </p>
+              <p>
+                The GPL covers this project's own code and icons. It doesn't cover CCP's material or the font,
+                which keep their own terms (below). Anyone who runs the HUD uses ESI with their own EVE
+                application (Client ID), so CCP's EVE Developer License Agreement applies to them too,
+                including its non-commercial rule for CCP's data and images.
+              </p>
+            </div>
+            <div class="section">
+              <h3 id="licenses-and-credits">Licenses and credits</h3>
+              <ul>
+                <li>
+                  <strong>EVE Online material:</strong> portraits, logos, item and ship icons
+                  (<code>images.evetech.net</code>), the star map data and all ESI data are CCP's, used under
+                  the
+                  <a href="https://developers.eveonline.com/license-agreement"
+                    >EVE Developer License Agreement</a
+                  >. It allows non-commercial use only (no fee; voluntary donations or ISK are allowed) and
+                  asks for CCP's notice, which is in the About window (the ⓘ button at the far right of the
+                  top bar). None of it is bundled: the HUD fetches it while it runs.
+                </li>
+                <li>
+                  <strong>Font:</strong> Saira Semi Condensed by Hector Gatti / Omnibus-Type, under the SIL
+                  Open Font License 1.1, in <code>hud/public/fonts/</code> with its <code>OFL.txt</code>.
+                  &quot;Saira&quot; is a Reserved Font Name: a changed (e.g. trimmed) font file may not be
+                  called Saira. Fonts named after it in the CSS are only used when already installed.
+                </li>
+                <li>
+                  <strong>Electron</strong> (MIT) and <strong>Chromium</strong>: their license files come with
+                  every build (electron-builder adds them).
+                </li>
+                <li>
+                  The HUD's icons (<code>hud/public/js/glyphs.js</code>), the app icon and tray icon were
+                  drawn for this project. The HUD uses no outside libraries.
+                </li>
+                <li>zKillboard and EVE Ref are only linked.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <footer>
+          EVE HUD is free software under the GNU General Public License, version 3 or later. Not made,
+          endorsed or supported by CCP hf. EVE Online and all related logos and images are trademarks or
+          registered trademarks of CCP hf.
+        </footer>
+      </main>
+    </div>
+
+    <script>
+      // The contents follow the reading position; on small screens they open with the button.
+      (() => {
+        const links = [...document.querySelectorAll('nav.toc a')];
+        const targets = links.map((a) => document.getElementById(a.hash.slice(1))).filter(Boolean);
+        const mark = () => {
+          let current = null;
+          for (const t of targets) if (t.getBoundingClientRect().top < 90) current = t;
+          for (const a of links) a.classList.toggle('here', current !== null && a.hash === `#${current.id}`);
+          const chapter = current?.closest('.chapter');
+          for (const a of links)
+            if (a.parentElement.classList.contains('chap'))
+              a.classList.toggle(
+                'here',
+                chapter !== null && chapter !== undefined && a.hash === `#${chapter.id}`,
+              );
+        };
+        addEventListener('scroll', mark, { passive: true });
+        mark();
+        const button = document.querySelector('.topbar .menu');
+        button.addEventListener('click', () => {
+          const open = document.body.classList.toggle('toc-open');
+          button.setAttribute('aria-expanded', String(open));
+        });
+        for (const a of links)
+          a.addEventListener('click', () => {
+            document.body.classList.remove('toc-open');
+            button.setAttribute('aria-expanded', 'false');
+          });
+      })();
+    </script>
+  </body>
+</html>

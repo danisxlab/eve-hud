@@ -79,21 +79,6 @@
   color: var(--down);
 }
 
-.lm-bars {
-  display: block;
-  width: calc(100% - 28px);
-  height: 34px;
-  margin: 6px 14px 2px;
-}
-
-.lm-bars rect.up {
-  fill: rgba(var(--gal-rgb), 0.75);
-}
-
-.lm-bars rect.down {
-  fill: rgba(210, 74, 60, 0.6);
-}
-
 .lm-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

@@ -7,10 +7,11 @@ import { store } from '../store.js';
 import { snapshot, animateChanges, switchTab } from '../fx.js';
 import { ICONS } from '../glyphs.js';
 
+// short names, so all four fit even in the smallest Warfare module
 const TABS = [
   ['wars', 'Wars'],
-  ['fw', 'Faction Warfare'],
-  ['boards', 'Leaderboards'],
+  ['fw', 'Factions'], // Faction Warfare
+  ['boards', 'Leaders'], // Faction Warfare leaderboards
   ['campaigns', 'Campaigns'],
 ];
 const FACTION_COLORS = {

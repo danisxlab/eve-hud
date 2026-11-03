@@ -14,6 +14,7 @@ export const store = {
   universe: null,
   chat: { status: null, channels: {} },
   combat: { active: false },
+  autopilot: { on: false, next: null },
   config: {},
   settings: null,
   connected: false,
@@ -53,6 +54,7 @@ export const DEFAULT_SETTINGS = {
     plexus: true,
     plexusMotion: false,
     trainingLight: false,
+    redFlash: true, // Settings → Appearance: the red flash when a fight starts
   },
   locked: false,
   modules: {
@@ -136,6 +138,7 @@ export function connect() {
     store.universe = s.universe;
     store.chat = s.chat || { status: null, channels: {} };
     store.combat = s.combat || { active: false };
+    store.autopilot = s.autopilot || { on: false, next: null };
     store.logs = s.logs || null;
     store.config = s.config || {};
     if (!store.settings) initSettings(s.settings);
@@ -169,6 +172,11 @@ export function connect() {
   es.addEventListener('logs', (e) => {
     store.logs = JSON.parse(e.data);
     store.emit('logs', store.logs);
+  });
+  // the in-game autopilot: on or off, and the next system (server: lib/gamelogs.js)
+  es.addEventListener('autopilot', (e) => {
+    store.autopilot = JSON.parse(e.data);
+    store.emit('autopilot', store.autopilot);
   });
   es.addEventListener('combat', (e) => {
     store.combat = JSON.parse(e.data);

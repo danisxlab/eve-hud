@@ -11,7 +11,7 @@
 //
 // No secrets live in this file. Certificates and passwords come from environment variables, so
 // the folder can be shared safely. Without any of them you get an unsigned build, which is fine
-// for your own computers (README.md, "Signing", explains the warnings and how to add it later).
+// for your own computers (the documentation, "Signing", explains the warnings and how to add it later).
 //
 // Windows, pick one:
 //   a) certificate in the Windows certificate store (USB token or cloud HSM from your CA):
@@ -62,20 +62,35 @@ module.exports = {
   copyright: 'Copyright © 2026 danisxlab',
   directories: { output: 'dist', buildResources: 'build' },
   files: ['src/**/*', 'assets/**/*', 'package.json', 'LICENSE', 'hud/**/*'],
+  // No automatic updates, so no update files: no latest.yml / latest-mac.yml (electron-builder would
+  // otherwise make them for the GitHub repository it finds) and no .blockmap files next to the
+  // installers (the pieces an updater downloads). dist/ then holds just what you share.
+  publish: null,
 
   win: {
     target: [{ target: 'nsis', arch: ['x64'] }],
     icon: 'assets/icon.ico',
     ...windowsSigning(),
   },
+  // A normal (assisted) Windows installer: the license (GPL, from LICENSE) to accept, install for
+  // you only or for everyone, the folder to install to, shortcuts, and "Run EVE HUD" at the end.
+  // Uninstalling asks whether to delete your settings and data too (build/installer.nsh).
   nsis: {
-    oneClick: true, // installs for the current user, no admin rights, no questions
-    perMachine: false,
-    runAfterFinish: true,
+    oneClick: false,
+    perMachine: false, // shows the "Only for me / Anyone who uses this computer" page
+    allowToChangeInstallationDirectory: true,
+    license: 'LICENSE',
     createDesktopShortcut: true,
+    createStartMenuShortcut: true,
+    runAfterFinish: true, // a "Run EVE HUD" tick box on the last page
     shortcutName: 'EVE HUD',
-    deleteAppDataOnUninstall: true,
+    include: 'build/installer.nsh',
+    // in the HUD's style: the plexus with the logo, down the left of the last page (and the
+    // uninstaller's first and last pages). A 24-bit BMP file of exactly 164×314
+    installerSidebar: 'build/installerSidebar.bmp',
+    uninstallerSidebar: 'build/installerSidebar.bmp',
     artifactName: '${productName} Setup ${version}.${ext}',
+    differentialPackage: false, // no .exe.blockmap
   },
 
   mac: {
@@ -91,7 +106,22 @@ module.exports = {
     // Application", and no notarization (Apple only notarizes Developer ID builds).
     ...(macDev ? { type: 'development', notarize: false } : {}),
   },
+  // The window that opens with the .dmg: the plexus background in the HUD's style, with an arrow
+  // from the app to the Applications folder (build/background.png, and background@2x.png for Retina
+  // screens; electron-builder combines the two). The icons sit on that picture's two plates.
+  // electron-builder sizes the window from the picture (a "window" setting is ignored then), and
+  // Finder counts its title bar in that size: so the picture is 600×460, with the design in the top
+  // 600×400 and 60 px of background below it for the title bar.
   dmg: {
     artifactName: '${productName}-${version}-${arch}.${ext}',
+    writeUpdateInfo: false, // no .dmg.blockmap
+    title: '${productName} ${version}',
+    background: 'build/background.png',
+    iconSize: 96,
+    iconTextSize: 13,
+    contents: [
+      { x: 160, y: 200 }, // the app
+      { x: 440, y: 200, type: 'link', path: '/Applications' },
+    ],
   },
 };

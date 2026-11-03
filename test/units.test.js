@@ -403,3 +403,47 @@ test('EVE logs folder: the logs folder, Chatlogs or Gamelogs all read the chat f
   assert.deepEqual(health, [false, true]);
   fs.rmSync(root, { recursive: true, force: true });
 });
+
+test('game logs: the autopilot, from its log lines (on / off and the next jump)', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'autopilot-'));
+  fs.mkdirSync(path.join(root, 'Chatlogs'));
+  fs.mkdirSync(path.join(root, 'Gamelogs'));
+  const file = path.join(root, 'Gamelogs', '20261102_190000.txt');
+  const clock = Date.UTC(2026, 10, 2, 19, 0, 0);
+  const at = '[ 2026.11.02 19:00:00 ]';
+  fs.writeFileSync(file, '------\n  Gamelog\n');
+  const seen = [];
+  const g = createGameLogs(
+    {},
+    {
+      chatDir: path.join(root, 'Chatlogs'),
+      onAutopilot: (a) => seen.push(`${a.on}:${a.next}`),
+      log: {},
+      now: () => clock,
+    },
+  );
+  g.scan();
+  const add = (line) => {
+    fs.appendFileSync(file, `${at} ${line}\n`);
+    g.poll();
+  };
+  add('(notify) Autopilot engaged');
+  add('(notify) Autopilot warping to Tiberis');
+  add('(notify) Autopilot jumping to Tiberis');
+  add('(None) Jumping from Fortitude to Tiberis');
+  add('(notify) Autopilot warping to Ligare');
+  add('(None) Jumping from Tiberis to Ligare');
+  add('(notify) Autopilot warping to Ligare V - University of Caille');
+  add('(notify) Autopilot disabled');
+  assert.deepEqual(seen, [
+    'true:null',
+    'true:Tiberis',
+    'true:null',
+    'true:Ligare',
+    'true:null',
+    'true:Ligare V - University of Caille',
+    'false:null',
+  ]);
+  assert.deepEqual(g.autopilot(), { on: false, next: null });
+  fs.rmSync(root, { recursive: true, force: true });
+});

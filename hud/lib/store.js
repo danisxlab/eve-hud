@@ -41,6 +41,18 @@ export function writeJson(file, value) {
   fs.renameSync(tmp, file);
 }
 
+// The app's version (package.json "version"; the app passes it in EVE_HUD_VERSION), for the
+// User-Agent that identifies the HUD to CCP. Changing the version changes it too.
+const APP_VERSION =
+  process.env.EVE_HUD_VERSION || readJson(path.join(ROOT, '..', 'package.json'), {})?.version || 'dev';
+const DEFAULT_USER_AGENT = `eve-hud/${APP_VERSION} (+https://github.com/danisxlab/eve-hud)`;
+// User-Agents earlier versions wrote into config.json: replaced by the current one
+const isOldDefaultUserAgent = (ua) =>
+  typeof ua === 'string' &&
+  /^eve-hud\/[\w.-]+ \((personal second-screen dashboard|\+https:\/\/github\.com\/danisxlab\/eve-hud)\)$/.test(
+    ua,
+  );
+
 const DEFAULT_CONFIG = {
   clientId: '',
   clientSecret: '',
@@ -48,7 +60,7 @@ const DEFAULT_CONFIG = {
   callbackUrl: 'http://localhost:4747/callback',
   scopes: [],
   compatibilityDate: '2026-08-18',
-  userAgent: 'eve-hud/0.1 (personal second-screen dashboard)',
+  userAgent: DEFAULT_USER_AGENT,
   eveLogDir: '', // EVE's logs folder ('' = the usual place); chatLogDir: the older setting (a Chatlogs folder)
   chatLogDir: '',
   chatChannels: [
@@ -102,6 +114,7 @@ export function loadConfig() {
     );
   }
   const cfg = { ...DEFAULT_CONFIG, ...(raw || {}) };
+  if (!cfg.userAgent || isOldDefaultUserAgent(cfg.userAgent)) cfg.userAgent = DEFAULT_USER_AGENT; // follows the version
   cfg.refresh = { ...DEFAULT_CONFIG.refresh };
   for (const [k, v] of Object.entries(raw?.refresh || {}))
     if (v && typeof v === 'object') cfg.refresh[k] = { ...DEFAULT_CONFIG.refresh[k], ...v };

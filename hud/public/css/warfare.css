@@ -100,6 +100,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  container: warfare / inline-size;
 }
 
 .warfare .bar-top {
@@ -115,6 +116,14 @@
 .warfare .bar-top .tab {
   padding: 4px 12px 5px;
   white-space: nowrap;
+}
+
+/* the smallest Warfare module: the four tabs a little closer together, so they always fit */
+@container warfare (max-width: 300px) {
+  .warfare .bar-top .tab {
+    padding-left: 9px;
+    padding-right: 9px;
+  }
 }
 
 .wf-body {

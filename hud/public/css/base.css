@@ -45,7 +45,7 @@
   --void: #000000;
   --panel-rgb: 8, 12, 14;
   --panel-alpha: 0.72;
-  --panel-blur: 0px; /* off by default: see Background blur in the README */
+  --panel-blur: 0px; /* off by default: see Background blur in the documentation */
 
   --gal: #4fb08f;
   --gal-hi: #8fe6c4;

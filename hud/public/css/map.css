@@ -737,3 +737,18 @@
 .map .hud.bl {
   z-index: 2;
 }
+
+/* "Autopilot → Tiberis" under the current system while the game's autopilot flies (game log) */
+.map .hud.tl .autopilot {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--gal-hi);
+}
+
+.map .hud.tl .autopilot .label {
+  font-size: 9.5px;
+  color: var(--gal-hi);
+}

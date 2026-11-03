@@ -634,6 +634,7 @@ export default {
           });
           dirty = true;
           renderRoute();
+          followAutopilot();
         } else requestRoute(route.to); // off the route: a new one from here
       }
     }
@@ -699,6 +700,19 @@ export default {
         ),
         trafficLine(s.id),
         hazardWarning(),
+        autopilotLine(),
+      );
+    }
+
+    // "Autopilot → Tiberis" under the current system while the game's autopilot flies
+    function autopilotLine() {
+      const ap = store.autopilot;
+      if (!ap?.on) return null;
+      return h(
+        'div',
+        { class: 'autopilot' },
+        h('span', { class: 'label' }, 'Autopilot'),
+        ap.next ? ` → ${ap.next}` : ' engaged',
       );
     }
 
@@ -1154,6 +1168,9 @@ export default {
         g.strokeRect(sx - 5.5, sy - 5.5, 11, 11);
       }
       if (marked >= 0 && marked !== current) drawMarked();
+      const apNext = autopilotNext();
+      if (apNext >= 0 && apNext !== current && apNext !== marked)
+        drawMarked(apNext, '143,230,196', 'Autopilot');
       if (route) drawRoute(still ? 0 : now, still);
       if (found) drawFound(still ? 0 : now, still);
     }
@@ -1307,7 +1324,31 @@ export default {
     // ---------------- route ----------------
     // The server asks ESI's route planner (POST /route/{from}/{to}), the same one the game uses;
     // in demo mode it works the route out from the map's stargates.
-    async function requestRoute(to) {
+    // ---------------- the game's autopilot (from the game log) ----------------
+    // The log names only the next jump, not the destination. When the HUD's route goes another way
+    // of the same length, it's worked out again through that next system.
+    function autopilotNext() {
+      const ap = store.autopilot;
+      if (!ap?.on || !ap.next || !data) return -1;
+      const name = String(ap.next).toLowerCase();
+      // a neighbour of yours with that name first (in case two systems share a name)
+      const near =
+        current >= 0 ? data.adj[current].find((j) => data.names[j].toLowerCase() === name) : undefined;
+      const i = near ?? data.byName.get(name);
+      return i === undefined ? -1 : i;
+    }
+    function followAutopilot() {
+      const next = autopilotNext();
+      if (next < 0 || current < 0 || !route?.path || route.loading || route.error) return;
+      const at = route.path.indexOf(current);
+      if (at < 0 || route.path[at + 1] === next) return; // already the same way
+      if (!data.adj[current]?.includes(next)) return; // not a neighbour (yet): wait for the jump
+      requestRoute(route.to, { via: next });
+    }
+
+    // via: a neighbouring system the route has to start with (the next jump the game's autopilot
+    // takes, from the game log), so the route on the map is the one the game flies
+    async function requestRoute(to, { via = -1 } = {}) {
       const pref = mapSettings().routePref || 'shorter';
       const from = current;
       const req = {};
@@ -1335,10 +1376,23 @@ export default {
         return;
       }
       try {
-        const res = await fetch(`/api/route?from=${data.sid[from]}&to=${data.sid[to]}&pref=${pref}`);
-        const body = await res.json();
+        const start = via >= 0 ? via : from;
+        const body =
+          start === to
+            ? { route: [data.sid[to]], jumps: 0, source: route.source || 'esi' }
+            : await fetch(`/api/route?from=${data.sid[start]}&to=${data.sid[to]}&pref=${pref}`).then(
+                async (res) => {
+                  const b = await res.json();
+                  if (!res.ok) throw new Error(b.error || `HTTP ${res.status}`);
+                  return b;
+                },
+              );
         if (route?.req !== req) return; // a newer request replaced this one
-        if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`);
+        if (via >= 0) {
+          // you, then the autopilot's next system, then the rest from there
+          body.route = [data.sid[from], ...body.route];
+          body.jumps += 1;
+        }
         const path = body.route.map((id) => data.ids.get(id)).filter((i) => i !== undefined);
         const firstForThisSearch = !route.shown;
         Object.assign(route, {
@@ -1352,6 +1406,7 @@ export default {
         dirty = true;
         renderRoute(); // first, so the route box has its final size when the zoom measures it
         if (firstForThisSearch) fitRoute(path);
+        followAutopilot();
         return;
       } catch (err) {
         if (route?.req !== req) return;
@@ -1606,6 +1661,12 @@ export default {
         g.lineTo(...pts[n]);
         g.stroke();
       }
+      // the next jump the game's autopilot takes (game log): a dotted border on both sides of that
+      // part of the line, marching towards the next system (standing still with Animations: Off)
+      const apNext = autopilotNext();
+      const at = path.indexOf(current);
+      if (apNext >= 0 && at >= 0 && path[at + 1] === apNext)
+        drawAutopilotHop(pts[at], pts[at + 1], now, still);
       // a light pulse travelling along the route (still when animations are off): about 3.5 jumps a
       // second, but at least 1.8 s for the whole route (a 1-jump route used to flash past), easing
       // out towards the destination, then a short fade before it starts again
@@ -1634,6 +1695,30 @@ export default {
         g.beginPath();
         g.arc(pts[n][0], pts[n][1], 2.6, 0, Math.PI * 2);
         g.fill();
+      }
+      g.restore();
+    }
+
+    function drawAutopilotHop([x1, y1], [x2, y2], now, still) {
+      const len = Math.hypot(x2 - x1, y2 - y1);
+      if (len < 12) return; // too short to see on this zoom
+      // a unit vector across the line, for the two borders 4.5 px either side of it
+      const nx = (-(y2 - y1) / len) * 4.5;
+      const ny = ((x2 - x1) / len) * 4.5;
+      g.save();
+      g.lineCap = 'butt';
+      g.setLineDash([3, 4]);
+      g.lineDashOffset = still ? 0 : -((now / 45) % 7); // about 22 px a second towards the next system
+      for (const side of [1, -1]) {
+        g.strokeStyle = 'rgba(0,0,0,0.6)'; // a dark edge, so the dots read over bright stars
+        g.lineWidth = 2.6;
+        g.beginPath();
+        g.moveTo(x1 + nx * side, y1 + ny * side);
+        g.lineTo(x2 + nx * side, y2 + ny * side);
+        g.stroke();
+        g.strokeStyle = 'rgba(143,230,196,0.9)'; // --gal-hi, like the "Autopilot →" line
+        g.lineWidth = 1.2;
+        g.stroke();
       }
       g.restore();
     }
@@ -1775,11 +1860,13 @@ export default {
     }
 
     // amber corner brackets + name, like a selected item in the game
-    function drawMarked() {
-      const [sx, sy] = toScreen(data.x[marked], data.z[marked]);
+    // corner brackets around a system: amber for a chat link's "Show on map", green for the
+    // autopilot's next jump
+    function drawMarked(i = marked, rgb = '240,169,82', note = '') {
+      const [sx, sy] = toScreen(data.x[i], data.z[i]);
       const r = 9,
         k = 4;
-      g.strokeStyle = 'rgba(240,169,82,0.95)';
+      g.strokeStyle = `rgba(${rgb},0.95)`;
       g.lineWidth = 1.2;
       g.beginPath();
       for (const [dx, dy] of [
@@ -1798,8 +1885,8 @@ export default {
       g.font = '500 12px "Saira Semi Condensed", sans-serif';
       g.textAlign = 'left';
       g.textBaseline = 'middle';
-      g.fillStyle = '#f0a952';
-      g.fillText(data.names[marked], sx + 14, sy - 12);
+      g.fillStyle = `rgb(${rgb})`;
+      g.fillText(note ? `${note} → ${data.names[i]}` : data.names[i], sx + 14, sy - 12);
     }
 
     // "Show on map" from a chat link
@@ -1966,6 +2053,11 @@ export default {
           tryLoad();
         } else if (u.ready) tryLoad();
         else if (!data) status.textContent = u.message;
+      }),
+      store.on('autopilot', () => {
+        dirty = true;
+        renderHud();
+        followAutopilot();
       }),
       store.on('localSystem', ({ name, t }) => {
         const i = data?.byName.get(String(name).toLowerCase());

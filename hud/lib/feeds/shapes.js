@@ -27,11 +27,6 @@ export function dumpDebug(name, value) {
 }
 
 // ---------- helpers for unknown / new response shapes (freelance jobs, campaigns) ----------
-export function firstArray(v) {
-  if (Array.isArray(v)) return v;
-  if (v && typeof v === 'object') for (const val of Object.values(v)) if (Array.isArray(val)) return val;
-  return [];
-}
 export function pick(obj, keys) {
   if (!obj || typeof obj !== 'object') return undefined;
   for (const k of keys) if (obj[k] !== undefined && obj[k] !== null) return obj[k];

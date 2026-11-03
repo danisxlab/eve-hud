@@ -31,7 +31,6 @@
   ],
 
   "compatibilityDate": "2026-08-18",
-  "userAgent": "eve-hud/0.1 (personal second-screen dashboard)",
 
   "_refreshHelp": "Seconds. Only feeds that something on screen shows are polled (a hidden module's feed pauses). A feed refreshes as soon as ESI's cache for it expires, but never sooner than min or later than max. Raise min to poll less often. Going below ESI's own cache time has no effect. Set \"enabled\": false to switch a feed off.",
   "refresh": {

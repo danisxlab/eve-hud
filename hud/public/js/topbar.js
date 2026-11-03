@@ -456,7 +456,7 @@ export function renderTopbar() {
       if (flash && !motionReduced()) {
         void attack.offsetWidth;
         attack.classList.add('starting');
-        redAlert();
+        if (store.settings.appearance.redFlash !== false) redAlert();
       }
     } else if (!attack.hidden) {
       if (motionReduced()) {

@@ -172,6 +172,14 @@ export function renderDrawer() {
         s.appearance.trainingLight = v;
       },
     ),
+    // on by default: the whole HUD flashes red when a fight starts (ATTACK in the top bar shows either way)
+    check(
+      'Flash the whole HUD red when you are attacked',
+      () => s.appearance.redFlash !== false,
+      (v) => {
+        s.appearance.redFlash = v;
+      },
+    ),
 
     h('h3', {}, 'Modules'),
     ...Object.values(REGISTRY).map((m) => {
