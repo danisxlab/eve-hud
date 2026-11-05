@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Star map data from CCP's official Static Data Export (SDE), cached in data/universe.json.
+// Star map data from CCP/Fenris Creations's official Static Data Export (SDE), cached in data/universe.json.
 //   https://developers.eveonline.com/static-data
 // The JSON Lines archive is downloaded once, the three map files are extracted
 // (mapSolarSystems, mapRegions, mapStargates), and the zip is deleted again.
-// On later starts only the tiny latest.jsonl is fetched to see whether CCP published a new build.
+// On later starts only the tiny latest.jsonl is fetched to see whether CCP/Fenris Creations published a new build.
 // Fallback when the SDE can't be downloaded: crawl ESI (slower, and without jump lanes).
 import fs from 'node:fs';
 import { Readable } from 'node:stream';
@@ -90,7 +90,7 @@ async function download(url, file, userAgent, progress) {
     const pct = total ? Math.floor((got / total) * 100) : -1;
     if (pct !== lastPct && pct % 5 === 0) {
       lastPct = pct;
-      progress(`Downloading CCP static data: ${pct}% of ${(total / 1048576).toFixed(0)} MB`);
+      progress(`Downloading CCP/Fenris Creations static data: ${pct}% of ${(total / 1048576).toFixed(0)} MB`);
     }
   });
   await pipeline(body, fs.createWriteStream(file));
@@ -128,7 +128,7 @@ export function fromSde({ systemsRows, regionsRows, stargatesRows, build }) {
 }
 
 async function buildFromSde(userAgent, progress) {
-  progress('Checking the latest CCP static data build');
+  progress('Checking the latest CCP/Fenris Creations static data build');
   let build = null;
   try {
     build = await latestBuild(userAgent);
@@ -263,7 +263,7 @@ export function createUniverse({ esi, userAgent, log = console, onProgress = () 
       built = await buildFromSde(userAgent, progress);
     } catch (err) {
       log.warn?.(
-        `[map] CCP static data download failed (${err.message}); falling back to ESI (takes a few minutes, no jump lanes)`,
+        `[map] CCP/Fenris Creations static data download failed (${err.message}); falling back to ESI (takes a few minutes, no jump lanes)`,
       );
       try {
         built = await buildFromEsi(esi, progress);
@@ -289,7 +289,7 @@ export function createUniverse({ esi, userAgent, log = console, onProgress = () 
     return true;
   }
 
-  // Use the cache; then, in the background, rebuild if CCP has published a newer SDE build.
+  // Use the cache; then, in the background, rebuild if CCP/Fenris Creations has published a newer SDE build.
   async function checkForUpdate() {
     try {
       const latest = await latestBuild(userAgent);
@@ -307,7 +307,7 @@ export function createUniverse({ esi, userAgent, log = console, onProgress = () 
         const keep = data;
         if (!(await build())) index(keep);
       } else if (latest && data && data.source !== 'ccp-sde') {
-        log.info?.('[map] Replacing the fallback star map with CCP static data');
+        log.info?.('[map] Replacing the fallback star map with CCP/Fenris Creations static data');
         const keep = data;
         if (!(await build())) index(keep);
       }

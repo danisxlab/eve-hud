@@ -42,7 +42,7 @@ export function writeJson(file, value) {
 }
 
 // The app's version (package.json "version"; the app passes it in EVE_HUD_VERSION), for the
-// User-Agent that identifies the HUD to CCP. Changing the version changes it too.
+// User-Agent that identifies the HUD to CCP/Fenris Creations. Changing the version changes it too.
 const APP_VERSION =
   process.env.EVE_HUD_VERSION || readJson(path.join(ROOT, '..', 'package.json'), {})?.version || 'dev';
 const DEFAULT_USER_AGENT = `eve-hud/${APP_VERSION} (+https://github.com/danisxlab/eve-hud)`;

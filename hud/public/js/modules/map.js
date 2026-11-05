@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Particle star map of New Eden (k-space). Canvas 2D: a cached static layer (lanes, stars, labels)
 // plus a per-frame overlay (dust, twinkles, location pulse, neighbourhood ring, hover).
-import { h, fill, svg, fmt, secColor, displaySec, motionReduced, onFrame } from '../util.js';
+import { h, fill, svg, fmt, secColor, displaySec, motionReduced, onFrame, hoverPop } from '../util.js';
 import { store } from '../store.js';
 import { ICONS } from '../glyphs.js';
 import { secChip } from './character.js';
@@ -81,9 +81,11 @@ export default {
       searchBox,
     );
     const legend = h('div', { class: 'legend' });
+    // the buttons' names show in the HUD's own hover box (like the top bar's), not the browser's
     const btn = (glyph, title, fn) => {
-      const b = h('button', { class: 'icon-btn', title, 'aria-label': title, onclick: fn });
+      const b = h('button', { class: 'icon-btn', 'aria-label': title, onclick: fn });
       b.append(svg(glyph, 'g'));
+      hoverPop(b, () => b.getAttribute('aria-label') || null);
       return b;
     };
     const lanesBtn = btn(ICONS.lanes, 'Toggle jump lanes', () => {
@@ -123,7 +125,7 @@ export default {
       buildHazards();
     });
     hazardBtn.classList.toggle('active', Boolean(mapSettings().hazards));
-    // Layout: 'schematic' = the in-game 2D map (CCP position2D), 'geographic' = real 3D positions from above.
+    // Layout: 'schematic' = the in-game 2D map (CCP/Fenris Creations position2D), 'geographic' = real 3D positions from above.
     const layoutBtn = btn(ICONS.layout, '', () => {
       if (!data?.has2D) return;
       mapSettings().layout = schematic() ? 'geographic' : 'schematic';
@@ -565,14 +567,13 @@ export default {
         })),
       });
       const label = !data.has2D
-        ? 'Map layout: real 3D positions (the 2D layout needs CCP static data)'
+        ? 'Map layout: real 3D positions (the 2D layout needs CCP/Fenris Creations static data)'
         : schematic()
           ? 'Map layout: in-game 2D map (click for real 3D positions)'
           : 'Map layout: real 3D positions (click for the in-game 2D map)';
-      layoutBtn.title = label;
       layoutBtn.setAttribute('aria-label', label);
       layoutBtn.classList.toggle('active', schematic());
-      layoutBtn.disabled = !data.has2D;
+      layoutBtn.setAttribute('aria-disabled', String(!data.has2D)); // dimmed, but its hover box still says why
       scaleBar.hidden = schematic(); // distances on the schematic map are not to scale
       const keep = current;
       current = -1;
@@ -2042,7 +2043,7 @@ export default {
       store.on('map:show', ({ id }) => showSystem(id)),
       store.on('universe', (u) => {
         if (u.ready && data && u.builtAt && u.builtAt !== data.builtAt) {
-          // the server rebuilt the map (new CCP build or added 2D layout): reload it
+          // the server rebuilt the map (new CCP/Fenris Creations build or added 2D layout): reload it
           data = null;
           view = null;
           current = -1;

@@ -4,7 +4,7 @@
 // 1.0.4), the release notes and its page. Newer than this app's version (package.json) → the top
 // bar shows "Update Ready" and the release notes (update-dialog.js in the page).
 //
-// It is the only request that doesn't go to CCP, and it sends nothing about you: no character, no
+// It is the only request that doesn't go to CCP/Fenris Creations, and it sends nothing about you: no character, no
 // settings (GitHub sees the request like any website visit). Settings → Updates turns it off.
 // Asking with the last answer's ETag means an unchanged release costs GitHub nothing.
 // The app never downloads or installs anything itself: the button opens the release page.

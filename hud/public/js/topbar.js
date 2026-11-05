@@ -151,7 +151,7 @@ export function renderTopbar() {
         : h('span', {}, 'Tranquility: ', h('b', { class: 'faint' }, '–')),
     );
   };
-  // green: Tranquility online and ESI fine · amber: VIP mode (only CCP can log in), or ESI routes the
+  // green: Tranquility online and ESI fine · amber: VIP mode (only CCP/Fenris Creations can log in), or ESI routes the
   // HUD uses are slow or down · red: Tranquility offline or ESI unreachable · grey: not known yet
   const paintConn = () => {
     const statusFeed = store.feed('status');
@@ -170,7 +170,7 @@ export function renderTopbar() {
       rows.push([
         tranquility.vip ? 'warn' : '',
         tranquility.vip ? 'Tranquility in VIP mode' : 'Tranquility online',
-        tranquility.vip ? 'only CCP can log in' : `${fmt.int(tranquility.players)} players`,
+        tranquility.vip ? 'only CCP/Fenris Creations can log in' : `${fmt.int(tranquility.players)} players`,
       ]);
       if (tranquility.version) rows.push(['idle', 'Server version', String(tranquility.version)]);
       if (tranquility.startTime)
@@ -214,26 +214,25 @@ export function renderTopbar() {
   // Medical clone (home station): where you wake up if podded
   const paintClone = () => {
     const f = store.feed('clones');
+    // its hover box: like the mail's (openPop below)
+    const hint = (nodes) => {
+      popContent.clone = nodes ? () => ({ mode: 'hint', nodes }) : null;
+      refreshPop('clone');
+    };
     if (!store.auth?.loggedIn || !f) {
       clone.replaceChildren();
+      hint(null);
       return;
     }
     if (f.error?.scope) {
-      clone.replaceChildren(
-        h(
-          'span',
-          {
-            class: 'faint',
-            title: 'Add esi-clones.read_clones.v1 to "scopes" in config.json, then log in again.',
-          },
-          'Clone: needs scope',
-        ),
-      );
+      clone.replaceChildren(h('span', { class: 'faint' }, 'Clone: needs scope'));
+      hint('Add esi-clones.read_clones.v1 to "scopes" in config.json, then log in again');
       return;
     }
     const home = f.data?.home;
     if (!home) {
       clone.replaceChildren(h('span', { class: 'faint' }, 'Clone: unknown'));
+      hint(null);
       return;
     }
     const rest =
@@ -241,21 +240,20 @@ export function renderTopbar() {
         ? home.name.slice(home.systemName.length).replace(/^\s*-?\s*/, '')
         : home.name;
     const d = f.data;
-    const tip = [
-      `Medical clone (home station): ${home.name}`,
-      d.lastStationChange ? `Home station set ${fmt.date(d.lastStationChange)} EVE` : null,
+    const details = [
+      d.lastStationChange ? `home station set ${fmt.date(d.lastStationChange)} EVE` : null,
       `${d.jumpClones} jump clone${d.jumpClones === 1 ? '' : 's'}`,
-      d.lastCloneJump ? `Last clone jump ${fmt.date(d.lastCloneJump)} EVE` : null,
+      d.lastCloneJump ? `last clone jump ${fmt.date(d.lastCloneJump)} EVE` : null,
     ]
       .filter(Boolean)
-      .join('\n');
+      .join(' · ');
     fill(
       clone,
       h('span', { class: 'lbl' }, 'Clone'),
       home.systemName ? secChip(home.systemName, home.sec) : null,
-      h('span', { class: 'st', title: tip }, rest || home.name),
+      h('span', { class: 'st' }, rest || home.name),
     );
-    clone.title = tip;
+    hint([h('div', {}, h('b', {}, 'Medical clone'), ` ${home.name}`), h('div', { class: 'faint' }, details)]);
   };
   store.on('feed:clones', paintClone);
   store.on('auth', paintClone);
@@ -276,8 +274,8 @@ export function renderTopbar() {
   document.body.append(pop);
   let popAnchor = null;
   let popTimer = null;
-  const popContent = { mail: null, alerts: null, status: null, update: null };
-  const anchors = { mail: mailIcon, alerts: alertIcon, status: hudConn, update: updateBtn };
+  const popContent = { mail: null, alerts: null, status: null, update: null, clone: null };
+  const anchors = { mail: mailIcon, alerts: alertIcon, status: hudConn, update: updateBtn, clone };
   function openPop(which) {
     clearTimeout(popTimer);
     const content = popContent[which]?.();
@@ -324,6 +322,8 @@ export function renderTopbar() {
   hudConn.addEventListener('mouseleave', closePopSoon);
   alerts.addEventListener('mouseenter', () => openPop('alerts'));
   alerts.addEventListener('mouseleave', closePopSoon);
+  clone.addEventListener('mouseenter', () => openPop('clone'));
+  clone.addEventListener('mouseleave', closePopSoon);
   // Update Ready: opens like the notifications box, in orange; a click (button or box) shows the notes
   popContent.update = () =>
     store.update?.available

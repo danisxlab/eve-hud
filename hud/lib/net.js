@@ -48,7 +48,7 @@ export function describeNetError(err, url) {
   return `Cannot reach ${host}: ${hint}${code && !hint.includes(code) ? ` [${code}]` : ''}`;
 }
 
-// The HUD only talks to EVE's own servers: CCP's ESI (esi.evetech.net), EVE SSO (login.eveonline.com)
+// The HUD only talks to EVE's own servers: CCP/Fenris Creations's ESI (esi.evetech.net), EVE SSO (login.eveonline.com)
 // and the static data (developers.eveonline.com). Anything else is refused here, before a connection
 // is made, and so are redirects that lead elsewhere. The one exception is the update check
 // (updates.js), which passes allowHost: 'api.github.com' for its own requests only. (Portraits and icons come from images.evetech.net,

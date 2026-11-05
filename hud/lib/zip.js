@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Minimal ZIP reader (central directory + deflate/store, ZIP64 aware) using only node:zlib.
-// Enough to pull a few files out of CCP's static data export without extra dependencies.
+// Enough to pull a few files out of CCP/Fenris Creations's static data export without extra dependencies.
 import fs from 'node:fs';
 import zlib from 'node:zlib';
 

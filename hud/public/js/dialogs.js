@@ -59,7 +59,11 @@ export function aboutModal() {
         'div',
         { class: 'modal-scroll' },
         h('h2', {}, `EVE HUD${version ? ` ${version}` : ''}`),
-        h('p', {}, 'A live EVE Online HUD for a second screen. Not made, endorsed or supported by CCP hf.'),
+        h(
+          'p',
+          {},
+          'A live EVE Online HUD for a second screen. Not made, endorsed or supported by CCP/Fenris Creations.',
+        ),
         h(
           'p',
           {},
@@ -78,12 +82,12 @@ export function aboutModal() {
         h(
           'p',
           { class: 'legal' },
-          '© 2014 CCP hf. All rights reserved. "EVE", "EVE Online", "CCP", and all related logos and images are trademarks or registered trademarks of CCP hf.',
+          '© CCP/Fenris Creations. All rights reserved. "EVE", "EVE Online", "CCP/Fenris Creations", and all related logos and images are trademarks or registered trademarks of CCP/Fenris Creations.',
         ),
         h(
           'p',
           {},
-          "Portraits, logos, icons, the star map and all game data come from CCP's servers and are used under the ",
+          "Portraits, logos, icons, the star map and all game data come from CCP/Fenris Creations's servers and are used under the ",
           ext('https://developers.eveonline.com/license-agreement', 'EVE Developer License Agreement'),
           ' (non-commercial use).',
         ),

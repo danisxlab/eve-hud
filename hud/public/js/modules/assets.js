@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Ships & assets: where your ships are, and what everything you own is worth, per location.
-// Values: CCP's average market prices (ship value includes its fitting and cargo).
+// Values: CCP/Fenris Creations's average market prices (ship value includes its fitting and cargo).
 import { h, fill, fmt, img, imageUrl } from '../util.js';
 import { store } from '../store.js';
 import { snapshot, animateChanges, switchTab } from '../fx.js';

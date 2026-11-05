@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Recognises EVE item and system names in chat text.
 // EVE's chat log files keep only the plain text of a link ("Medium Core Defense Field Extender II"),
-// not the link itself, so the HUD matches names against CCP's item list instead:
+// not the link itself, so the HUD matches names against CCP/Fenris Creations's item list instead:
 //   - names of two or more words are matched anywhere (exact spelling and case),
 //   - one-word names only when they stand on their own: the whole message, or set apart by the
 //     double space EVE writes around a linked name. A casually typed "water" or "Jita" stays plain.

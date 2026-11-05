@@ -76,7 +76,7 @@ export function createFeeds({
   }
 
   // Average market prices for every item (one public request, cached by ESI for about an hour).
-  // Estimates only: CCP's average over recent trades, as the game's "estimated price".
+  // Estimates only: CCP/Fenris Creations's average over recent trades, as the game's "estimated price".
   let priceCache = { map: null, expires: 0 };
   async function prices() {
     if (priceCache.map && Date.now() < priceCache.expires) return priceCache.map;

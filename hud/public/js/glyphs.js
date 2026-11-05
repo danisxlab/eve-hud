@@ -43,7 +43,7 @@ export const ICONS = {
   unlock: s('<path d="M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 6.8-1.2"/>'),
   plus: s('<path d="M12 5v14M5 12h14"/>'),
   minus: s('<path d="M5 12h14"/>'),
-  center: s('<circle cx="12" cy="12" r="6"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/>'),
+  center: s('<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/>'), // ◎
   lanes: s(
     '<circle cx="5" cy="17" r="1.6"/><circle cx="12" cy="7" r="1.6"/><circle cx="19" cy="15" r="1.6"/><path d="M6 15.5l5-7M13.4 8.2l4.6 5.6"/>',
   ),

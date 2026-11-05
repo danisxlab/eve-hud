@@ -404,7 +404,7 @@ export function economyFeeds({
     },
 
     // Ships & assets: every ship you own and where it is, plus the estimated value of everything,
-    // per location. Values are CCP's average prices; blueprint copies count as 0.
+    // per location. Values are CCP/Fenris Creations's average prices; blueprint copies count as 0.
     assets: {
       uses: ['assets'],
       min: 1800,

@@ -4,7 +4,7 @@
 //   No cookies or site data on disk: the window uses an in-memory session (a partition name without
 //   "persist:"), so nothing it loads leaves cookies, local storage or a disk cache behind. The EVE
 //   login doesn't happen in the app at all: it opens in your default browser (see window.js).
-//   Only EVE servers: the window may load the HUD itself (http://localhost:<port>) and CCP's hosts
+//   Only EVE servers: the window may load the HUD itself (http://localhost:<port>) and CCP/Fenris Creations's hosts
 //   (*.evetech.net for portraits and icons, *.eveonline.com). Every other request is cancelled before
 //   it is made, and logged once per host. Links to other sites open in your browser when you click
 //   them; the app itself doesn't fetch them.

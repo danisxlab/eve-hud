@@ -30,7 +30,7 @@ const isLinux = () => process.platform === 'linux';
 export function setMacMenu({ reload, about = null, settings = null }) {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
-      // the app menu, with our own About: the HUD's About window (version, CCP notice, licenses)
+      // the app menu, with our own About: the HUD's About window (version, CCP/Fenris Creations notice, licenses)
       // instead of Electron's standard panel, which shows Electron's name and icon when run from source
       {
         label: 'EVE HUD',

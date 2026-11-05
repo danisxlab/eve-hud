@@ -22,7 +22,7 @@ export function compactPayload(data) {
     has2D,
     regions: regionIds.map((id) => [id, regionName.get(id) || String(id)]),
     // [id, name, x, z, sec, regionIndex, x2, y2]
-    //   x, z:   real 3D position seen from above (CCP: image x = X, image y = -Z)
+    //   x, z:   real 3D position seen from above (CCP/Fenris Creations: image x = X, image y = -Z)
     //   x2, y2: schematic 2D position of the in-game 2D map (image x = X, image y = -Y); falls back to 3D
     systems: ks.map((s) => {
       const row = [s.id, s.name, r13(s.x), r13(s.z), Math.round(s.sec * 1000) / 1000, rIdx.get(s.regionId)];
