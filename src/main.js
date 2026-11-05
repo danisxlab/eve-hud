@@ -36,6 +36,7 @@ import { findImportSource, importInto } from './importer.js';
 import { createHudWindow } from './window.js';
 import { createControls, setMacMenu } from './tray.js';
 import { createAutostart } from './autostart.js';
+import { buildCommit } from './build-info.js';
 import { setWindowMode } from './config-edit.js';
 import { resolveLocations, checkMove, requestMove, takePendingMove, moveStorage } from './storage.js';
 import { probeHud } from './port-check.js';
@@ -129,6 +130,7 @@ async function start() {
   process.env.EVE_HUD_HOME = home;
   process.env.EVE_HUD_DATA = where.dataDir;
   process.env.EVE_HUD_VERSION = app.getVersion();
+  process.env.EVE_HUD_COMMIT = buildCommit(app.getAppPath()) || '';
   log.info(`HUD code: ${hudDir}`);
   log.info(`HUD folders: config.json in ${home}, data in ${where.dataDir}`);
 

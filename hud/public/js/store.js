@@ -76,6 +76,8 @@ export const DEFAULT_SETTINGS = {
   alerts: { skills: true, industry: true, orders: true },
   map: { colorBy: 'security', lanes: true, labels: true, layout: 'schematic', view: null },
   chat: { tab: 'local' },
+  // new versions on GitHub (server: lib/updates.js); seen: the version whose notes opened by themselves
+  updates: { check: true, seen: null },
 };
 
 function merge(base, over) {
@@ -140,6 +142,7 @@ export function connect() {
     store.combat = s.combat || { active: false };
     store.autopilot = s.autopilot || { on: false, next: null };
     store.logs = s.logs || null;
+    store.update = s.update || { available: false };
     store.config = s.config || {};
     if (!store.settings) initSettings(s.settings);
     store.connected = true;
@@ -185,6 +188,11 @@ export function connect() {
   es.addEventListener('chatStatus', (e) => {
     store.chat.status = JSON.parse(e.data);
     store.emit('chatStatus', store.chat.status);
+  });
+  // a newer EVE HUD on GitHub, or none (server: lib/updates.js; the page: update-dialog.js)
+  es.addEventListener('update', (e) => {
+    store.update = JSON.parse(e.data);
+    store.emit('update', store.update);
   });
   es.addEventListener('localSystem', (e) => store.emit('localSystem', JSON.parse(e.data)));
   es.onerror = () => {

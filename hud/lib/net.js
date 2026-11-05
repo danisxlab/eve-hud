@@ -50,7 +50,8 @@ export function describeNetError(err, url) {
 
 // The HUD only talks to EVE's own servers: CCP's ESI (esi.evetech.net), EVE SSO (login.eveonline.com)
 // and the static data (developers.eveonline.com). Anything else is refused here, before a connection
-// is made, and so are redirects that lead elsewhere. (Portraits and icons come from images.evetech.net,
+// is made, and so are redirects that lead elsewhere. The one exception is the update check
+// (updates.js), which passes allowHost: 'api.github.com' for its own requests only. (Portraits and icons come from images.evetech.net,
 // loaded by the page; the app window enforces the same rule there.)
 export const EVE_HOSTS = ['evetech.net', 'eveonline.com'];
 export function isEveHost(hostname) {
@@ -67,8 +68,12 @@ function refuse(url, why) {
   return e;
 }
 
-export async function netFetch(url, opts = {}) {
-  if (!isEveHost(new URL(url).hostname)) throw refuse(url, 'not an EVE server');
+export async function netFetch(url, { allowHost = null, ...opts } = {}) {
+  const allowed = (u) => {
+    const h = new URL(u).hostname.toLowerCase();
+    return isEveHost(h) || (allowHost != null && h === allowHost);
+  };
+  if (!allowed(url)) throw refuse(url, 'not an EVE server');
   const timeout = AbortSignal.timeout(opts.timeoutMs ?? 30_000);
   try {
     // Follow redirects here (max 5), so each hop is checked against EVE's hosts too.
@@ -79,7 +84,7 @@ export async function netFetch(url, opts = {}) {
       if (res.status < 300 || res.status > 399 || !res.headers.get('location')) return res;
       if (hop >= 5) throw new Error('too many redirects');
       const next = new URL(res.headers.get('location'), current).href;
-      if (!isEveHost(new URL(next).hostname))
+      if (!allowed(next))
         throw refuse(next, `${new URL(current).host} redirected there, and it is not an EVE server`);
       res.body?.cancel?.();
       if (

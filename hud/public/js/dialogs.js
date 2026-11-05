@@ -4,6 +4,7 @@
 
 import { h } from './util.js';
 import { store } from './store.js';
+import { versionLabel } from './update-dialog.js';
 
 // About EVE HUD: version, credits and licenses, in a window in the middle of the screen
 // (the (i) button in the top bar). Closes with Close, Esc or a click outside.
@@ -106,6 +107,8 @@ export function aboutModal() {
         ),
       ),
       h('div', { class: 'modal-actions' }, closeBtn),
+      // this app's version and the commit it was built from, as on GitHub: v1.0.3_8f2c1d0
+      version ? h('span', { class: 'build' }, versionLabel(version, store.config?.commit)) : null,
     ),
   );
   document.body.append(overlay);

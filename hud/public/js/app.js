@@ -18,6 +18,7 @@ import { toggleDrawer } from './settings-drawer.js';
 import { watchServer } from './dialogs.js';
 import { checkLogs } from './logs-dialog.js';
 import { renderGate } from './login-gate.js';
+import { watchUpdate } from './update-dialog.js';
 
 // ---------------- update blink ----------------
 // Which modules show which feed. A module blinks when one of its feeds brings changed data.
@@ -146,6 +147,7 @@ async function main() {
       watchHealth();
       watchServer();
       watchUpdates();
+      watchUpdate(); // a newer EVE HUD on GitHub: its release notes open once by themselves
       hud.grid.sync();
       onFrame((t) => hud.grid.tick(t)); // the modules' own animations, on the shared clock
     }

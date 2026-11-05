@@ -102,6 +102,7 @@ function snapshot() {
     combat: { active: false, t: 0 },
     autopilot: { on: false, next: null },
     logs: null,
+    update: { available: false }, // nothing to update on the website
     settings: loadSettings(),
     config: {
       port: 4747,
@@ -112,6 +113,7 @@ function snapshot() {
       files: null,
       app: false,
       version: document.documentElement.dataset.version || null,
+      commit: null,
       scopes: [],
       knownScopes: [],
     },

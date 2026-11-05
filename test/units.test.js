@@ -16,6 +16,7 @@ import { chatDirFor, logsRootFor, configuredLogsDir } from '../hud/lib/chatlogs.
 import { configFiles, findDamaged, resetConfig, recoveryPage } from '../src/recovery.js';
 import { buildSite } from '../scripts/build-site.js';
 import { createAutostart, autostartDesktopFile } from '../src/autostart.js';
+import { readGitCommit, buildCommit } from '../src/build-info.js';
 
 const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HUD = path.join(APP, 'hud');
@@ -512,4 +513,24 @@ test('start at login on Linux: an autostart .desktop file for the AppImage, remo
   assert.equal(w.isOn(), true);
   w.set(false);
   assert.deepEqual(calls, [{ openAtLogin: false }]);
+});
+
+test('About: the commit the app was built from, from its package.json or the .git folder', () => {
+  const sha = '7f18d078b7102cd4612c7ba2ebf4ae170199637a';
+  const repo = fs.mkdtempSync(path.join(tmp, 'git-'));
+  fs.mkdirSync(path.join(repo, '.git', 'refs', 'heads'), { recursive: true });
+  fs.writeFileSync(path.join(repo, '.git', 'HEAD'), 'ref: refs/heads/main\n');
+  fs.writeFileSync(path.join(repo, '.git', 'packed-refs'), `# pack-refs\n${sha} refs/heads/main\n`);
+  assert.equal(readGitCommit(repo), '7f18d07', 'packed refs');
+  fs.writeFileSync(
+    path.join(repo, '.git', 'refs', 'heads', 'main'),
+    '83fa76bc55ef78bf36848dab7b6c3ffc4f51c75d\n',
+  );
+  assert.equal(readGitCommit(repo), '83fa76b', 'a loose ref');
+  fs.writeFileSync(path.join(repo, '.git', 'HEAD'), `${sha}\n`);
+  assert.equal(readGitCommit(repo), '7f18d07', 'a detached HEAD');
+  assert.equal(readGitCommit(path.join(tmp, 'nowhere')), null);
+  // the installed app: package.json's gitCommit (electron-builder.config.cjs) wins
+  fs.writeFileSync(path.join(repo, 'package.json'), JSON.stringify({ gitCommit: 'abcdef1' }));
+  assert.equal(buildCommit(repo), 'abcdef1');
 });

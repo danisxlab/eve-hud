@@ -50,6 +50,7 @@ function run({ options = {}, args = [], steps = [], env = {} }) {
       {
         env: {
           ...process.env,
+          EVE_HUD_UPDATE_CHECK: 'off', // no requests to GitHub from the tests
           ...env,
           FAKE_OPTIONS: JSON.stringify(fakeOptions),
           FAKE_ARGS: JSON.stringify(args),

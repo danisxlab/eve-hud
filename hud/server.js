@@ -37,6 +37,7 @@ import { createGameLogs, idleSecondsOf } from './lib/gamelogs.js';
 import { createDemo, demoUniverse, demoShowInfo, DEMO_ITEM_NAMES } from './lib/demo.js';
 import { createShowInfo } from './lib/showinfo.js';
 import { createRouter } from './lib/route.js';
+import { createUpdateCheck } from './lib/updates.js';
 
 const defaultLog = {
   info: (...a) => console.log(new Date().toISOString().slice(11, 19), ...a),
@@ -164,6 +165,17 @@ export async function startServer({
     broadcast('feed', { name, ...payload });
   }
 
+  // New versions on GitHub (lib/updates.js): "Update Ready" in the top bar. Only with a version to
+  // compare (the app passes it); Settings → Updates turns it off. EVE_HUD_UPDATE_CHECK=off: never.
+  const updatesOn = () => loadSettings()?.updates?.check !== false;
+  const updates = createUpdateCheck({
+    version: process.env.EVE_HUD_UPDATE_CHECK === 'off' ? null : process.env.EVE_HUD_VERSION || null,
+    userAgent: config.userAgent,
+    enabled: updatesOn,
+    onChange: (u) => broadcast('update', u),
+    log,
+  });
+
   // the character and permissions the feeds were started for
   const feedsKey = (s) => (s?.loggedIn ? `${s.characterId}|${[...(s.scopes || [])].sort().join(' ')}` : '');
   let feedsCharacter = null;
@@ -260,6 +272,7 @@ export async function startServer({
       combat,
       autopilot,
       logs: logsHealth,
+      update: updates.state(),
       settings: loadSettings(),
       // files + app: for the help texts in the page, which say where config.json and data/ are
       config: {
@@ -270,6 +283,7 @@ export async function startServer({
         files: { configFile: CONFIG_FILE, dataDir: DATA_DIR },
         app: true,
         version: process.env.EVE_HUD_VERSION || null,
+        commit: process.env.EVE_HUD_COMMIT || null, // the commit it was built from (About: v1.0.3_8f2c1d0)
         scopes: config.scopes, // for the setup form: what to enable on the EVE application
         knownScopes: knownScopes(), // everything the HUD can use (Settings → Account: "16 of 22 permissions")
       },
@@ -464,7 +478,9 @@ export async function startServer({
       if (p === '/api/settings') {
         if (req.method === 'GET') return json(res, 200, loadSettings());
         if (req.method === 'PUT' || req.method === 'POST') {
+          const wasOn = updatesOn();
           saveSettings(JSON.parse(await readBody(req)));
+          if (updatesOn() !== wasOn) updates.check(); // Settings → Updates switched: ask now, or hide it
           return json(res, 200, { ok: true });
         }
       }
@@ -713,6 +729,8 @@ export async function startServer({
         server.closeAllConnections?.(); // Node 18.2+: don't wait for keep-alive sockets
       }),
   };
+
+  updates.start(); // also in demo mode: it's about the app, not the character
 
   if (DEMO) {
     // Not awaited: loading (or downloading) the star map must not hold up the caller. The page

@@ -37,6 +37,20 @@
 'use strict';
 
 const env = process.env;
+const { execFileSync } = require('node:child_process');
+
+// The commit you build from goes into the app's package.json as "gitCommit", for About
+// (v1.0.3_8f2c1d0). Build from the commit your GitHub release (its tag) points to, and the two match.
+function gitCommit() {
+  try {
+    return execFileSync('git', ['rev-parse', '--short=7', 'HEAD'], {
+      cwd: __dirname,
+      encoding: 'utf8',
+    }).trim();
+  } catch {
+    return undefined; // no git: About shows just the version
+  }
+}
 const macDev = env.MAC_SIGN === 'development';
 
 function windowsSigning() {
@@ -68,6 +82,7 @@ module.exports = {
   // otherwise make them for the GitHub repository it finds) and no .blockmap files next to the
   // installers (the pieces an updater downloads). dist/ then holds just what you share.
   publish: null,
+  extraMetadata: { gitCommit: gitCommit() },
 
   win: {
     target: [{ target: 'nsis', arch: ['x64'] }],

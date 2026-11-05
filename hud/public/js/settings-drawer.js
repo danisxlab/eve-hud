@@ -281,6 +281,25 @@ export function renderDrawer() {
       'Replay boot animation',
     ),
 
+    // new versions (server: lib/updates.js); the demo website has nothing to update
+    store.config?.web
+      ? null
+      : [
+          h('h3', {}, 'Updates'),
+          check(
+            'Check GitHub for new versions (once an hour)',
+            () => s.updates?.check !== false,
+            (v) => {
+              s.updates = { ...s.updates, check: v };
+            },
+          ),
+          h(
+            'p',
+            { class: 'note' },
+            'A newer version shows "Update Ready" in the top bar, with its release notes.',
+          ),
+        ],
+
     h('h3', {}, 'Storage'),
     storageBlock(),
     chatLogsBlock(),

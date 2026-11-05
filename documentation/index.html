@@ -511,6 +511,7 @@
               <li><a href="#star-map-routes">Star map routes</a></li>
               <li><a href="#star-map-hazard-overlay">Star map hazard overlay</a></li>
               <li><a href="#warfare-module">Warfare module</a></li>
+              <li><a href="#updates">Updates</a></li>
               <li><a href="#chat-logs">Chat logs</a></li>
             </ul>
           </li>
@@ -871,6 +872,33 @@
                 hand works too; run <code>npm install</code> afterwards so
                 <code>package-lock.json</code> matches.
               </p>
+              <h4 id="publishing-a-release">Publishing a release</h4>
+              <p>
+                The installed apps check GitHub for a newer release once an hour and then show
+                <strong>Update Ready</strong> in the top bar, with your release notes (see
+                <a href="#updates">Updates</a>). For that:
+              </p>
+              <ol>
+                <li>
+                  Raise the version, commit and push, and build from that commit. The build writes the commit
+                  into the app: <em>About</em> (the <strong>i</strong> button) shows it in its corner, like
+                  <code>v1.0.4_7f18d07</code>.
+                </li>
+                <li>
+                  On GitHub: <strong>Releases → Draft a new release</strong>. The tag is the version from
+                  <code>package.json</code> (<code>1.0.4</code>; <code>v1.0.4</code> works too), on that same
+                  commit. Attach the files from <code>dist/</code>.
+                </li>
+                <li>
+                  Write the release notes in Markdown, as usual on GitHub: they appear as they are in the
+                  app's update window (headings, lists, tasks, bold and italic, links, code, quotes, tables;
+                  images show as links, HTML as plain text). <strong>Publish release</strong>.
+                </li>
+              </ol>
+              <p>
+                Drafts and pre-releases don't count: the app only looks at the latest published release, and
+                only a higher version number than its own shows <em>Update Ready</em>.
+              </p>
             </div>
             <div class="section">
               <h3 id="signing">Signing</h3>
@@ -1223,6 +1251,10 @@
                     <li>
                       <strong>Grid:</strong> columns, rows, gap. <em>Reset layout</em> restores the default
                       arrangement. <em>Replay boot animation</em> does what it says.
+                    </li>
+                    <li>
+                      <strong>Updates:</strong> <em>Check GitHub for new versions (once an hour)</em>, on by
+                      default (see <a href="#updates">Updates</a>).
                     </li>
                     <li>
                       <strong>Combat:</strong> seconds without combat before a new attack alert (see
@@ -1835,6 +1867,32 @@
                 <strong>Wars caveat:</strong> ESI has no &quot;wars of my corporation&quot; route, so the HUD
                 only checks the 15 most recent wars. A war declared longer ago won't be flagged.
               </p>
+            </div>
+            <div class="section">
+              <h3 id="updates">Updates</h3>
+              <p>
+                When a newer EVE HUD is on GitHub, an orange <strong>Update Ready</strong> button appears in
+                the top bar, next to your character's name. It opens a window over the (blurred) HUD with the
+                new version's release notes and <strong>Get EVE HUD &lt;version&gt;</strong>, which opens the
+                release page in your browser, where you download it like the first time. The window also opens
+                by itself once for each new version; <em>Later</em> or <kbd>Esc</kbd> closes it, and the
+                button stays until you've updated.
+              </p>
+              <ul>
+                <li>
+                  The HUD asks GitHub at start and then once an hour. It never downloads or installs anything
+                  itself, and sends nothing about you (see
+                  <a href="#privacy-login-cookies-network">Privacy</a>).
+                </li>
+                <li>
+                  Settings → <strong>Updates</strong> → <em>Check GitHub for new versions</em> turns it off.
+                </li>
+                <li>
+                  <em>About</em> (the <strong>i</strong> button) shows your version and the commit it was
+                  built from in its bottom right corner, e.g. <code>v1.0.3_83fa76b</code>; the update window
+                  shows the new one the same way, as on GitHub's release page.
+                </li>
+              </ul>
             </div>
             <div class="section">
               <h3 id="chat-logs">Chat logs</h3>
@@ -2972,6 +3030,13 @@
                   like are refused; only the Copy buttons' clipboard writes are allowed.
                 </li>
                 <li>
+                  <strong>One exception, for updates:</strong> once an hour the HUD server asks GitHub
+                  (<code>api.github.com</code>) for the newest release of EVE HUD. Nothing about you is sent:
+                  no character, no settings; GitHub sees the request like any website visit. Nothing is
+                  downloaded or installed either. Settings → <strong>Updates</strong> turns it off (see
+                  <a href="#updates">Updates</a>).
+                </li>
+                <li>
                   <strong>Secrets encrypted:</strong> the Client ID and Secret Key in
                   <code>config.json</code> (<code>&quot;enc:…&quot;</code>) and the EVE login in
                   <code>data/tokens.json</code> are encrypted with Electron's safeStorage: the macOS Keychain
@@ -2999,12 +3064,11 @@
               <h3 id="network-access">Network access</h3>
               <p>
                 The app only talks to EVE's own servers (<code>*.evetech.net</code>,
-                <code>*.eveonline.com</code>): the server (<code>hud/lib/net.js</code>) refuses every other
-                host, also when a redirect points elsewhere, the window blocks everything else (<a
-                  href="#privacy-login-cookies-network"
-                  >Privacy</a
-                >), and the page has a Content Security Policy with the same rule. The font is a local file.
-                In detail:
+                <code>*.eveonline.com</code>), and to GitHub for the update check: the server
+                (<code>hud/lib/net.js</code>) refuses every other host, also when a redirect points elsewhere,
+                the window blocks everything else (<a href="#privacy-login-cookies-network">Privacy</a>), and
+                the page has a Content Security Policy with the same rule. The font is a local file. In
+                detail:
               </p>
               <div class="table">
                 <table>
@@ -3030,6 +3094,13 @@
                     <tr>
                       <td><code>images.evetech.net</code></td>
                       <td>Portraits, logos, ship renders (loaded by the window)</td>
+                    </tr>
+                    <tr>
+                      <td><code>api.github.com</code></td>
+                      <td>
+                        The newest release of EVE HUD, once an hour (Settings → Updates turns it off;
+                        <code>hud/lib/updates.js</code>)
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -3468,7 +3539,9 @@
   importer.js          copies config.json + data files from an older HUD folder
   window.js            the window: normal / full-screen, monitors, remembered position, keys, links, login
   privacy.js           in-memory session, EVE-only request filter, permissions
-  tray.js              tray icon and menu (Windows), Settings menu (Mac)
+  tray.js              tray icon and menu (Windows, Linux), Settings menu (Mac)
+  autostart.js         start at login (Linux: ~/.config/autostart)
+  build-info.js        the commit the app was built from (About: v1.0.3_83fa76b)
   gpu.js               &quot;Use the graphics card&quot; (app-options.json)
   config-edit.js       saves &quot;window.mode&quot; into config.json without reformatting it
   port-check.js        another EVE HUD on the port, or something else?
@@ -3483,6 +3556,7 @@ hud/                   the HUD (server and page; no dependencies)
   lib/esi.js           ESI client: caching, ETags, error limit, name resolution
   lib/ratelimit.js     X-Ratelimit tracking and request holding
   lib/net.js           fetch wrapper: EVE servers only, readable network errors (prefers IPv4)
+  lib/updates.js       the hourly check for a newer release on GitHub (Update Ready)
   lib/feeds.js         feed scheduling: which feeds run, when they refresh, what they publish
   lib/feeds/           the feeds themselves: public-feeds.js, character-feeds.js, economy-feeds.js,
                        plus health.js (ESI's route health), summaries.js (wallet sources, killmails),
@@ -3502,6 +3576,7 @@ hud/                   the HUD (server and page; no dependencies)
     js/settings-drawer.js   the settings drawer (gear icon)
     js/dialogs.js      About, graphics-card restart, confirmations, &quot;EVE HUD stopped working&quot;
     js/logs-dialog.js  &quot;EVE's log files can't be read&quot;
+    js/update-dialog.js  Update Ready: the release notes window; js/markdown.js shows the notes
     js/login-gate.js   setup form and &quot;Log in with EVE Online&quot;
     js/appearance.js   Settings → Appearance applied to the page
     js/backdrop.js     the starfield; js/plexus.js the low-poly background
@@ -3518,7 +3593,7 @@ hud/                   the HUD (server and page; no dependencies)
                        modules; map/: the star map's tables and sprites)
     css/hud.css        imports the stylesheets below, in order (colours are CSS variables in base.css)
     css/*.css          base, grid, modules-common, topbar, one per module, settings, dialogs,
-                       animations, motion (Animations: Limited / Off, last on purpose)
+                       update, animations, motion (Animations: Limited / Off, last on purpose)
     fonts/             Saira Semi Condensed + OFL.txt
 assets/                icon.ico (window, tray and installer on Windows), icon.png
 build/icon.png         1024 px icon for the Mac build; build/src/*.svg are the sources

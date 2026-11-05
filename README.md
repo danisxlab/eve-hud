@@ -16,7 +16,8 @@ A live EVE Online HUD for a second screen, as a desktop app for Windows, macOS a
 - **Combat alert:** ATTACK in the top bar and a short red flash when a fight starts, from EVE's game log. The game's autopilot shows on the map too.
 - **Top bar:** alerts (skill queue, industry jobs, expiring orders), EVE notifications, mail, Tranquility status, EVE time, and ESI health.
 - **Light on ESI:** only what's on screen is polled, at ESI's own cache times, within its rate limits.
-- **Private:** your login and EVE application keys stay on your computer, encrypted, and the app connects only to CCP's servers.
+- **Update Ready:** a new release on GitHub shows in the top bar, with its release notes (checked once an hour; can be turned off).
+- **Private:** your login and EVE application keys stay on your computer, encrypted, and the app connects only to CCP's servers, plus GitHub for the hourly update check (nothing about you is sent).
 - **EVE on another computer:** works through a shared logs folder.
 
 ## Quick start

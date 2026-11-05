@@ -11,6 +11,7 @@ import { toast } from './toast.js';
 import { applyAppearance } from './appearance.js';
 import { toggleDrawer } from './settings-drawer.js';
 import { aboutModal } from './dialogs.js';
+import { updateModal } from './update-dialog.js';
 
 // ---------------- top bar ----------------
 // the whole HUD turns red for a moment: a blink, a quick fade to red, 0.5 s red, a fade back
@@ -101,6 +102,14 @@ export function renderTopbar() {
     infoBtn,
   );
 
+  // "Update Ready" (update-dialog.js): one button, so its hover box stays put when the name repaints
+  const updateBtn = h(
+    'button',
+    { type: 'button', class: 'get-app update-ready', 'aria-label': 'Update Ready' },
+    'Update Ready',
+    ['tl', 'tr', 'bl', 'br'].map((c) => h('i', { class: `tick ${c}` })),
+  );
+
   const paintWho = () => {
     const c = store.feed('character')?.data;
     const a = store.auth;
@@ -128,6 +137,8 @@ export function renderTopbar() {
               : '',
           )
         : '',
+      // a newer EVE HUD on GitHub (update-dialog.js): opens its release notes
+      store.update?.available ? updateBtn : '',
     );
   };
 
@@ -250,6 +261,7 @@ export function renderTopbar() {
   store.on('auth', paintClone);
   store.on('feed:character', paintWho);
   store.on('auth', paintWho);
+  store.on('update', paintWho);
   // ---- mail + notifications: icons always visible, count badges appear when unread ----
   const blinkOnce = (el) => {
     el.classList.remove('blink');
@@ -264,8 +276,8 @@ export function renderTopbar() {
   document.body.append(pop);
   let popAnchor = null;
   let popTimer = null;
-  const popContent = { mail: null, alerts: null, status: null };
-  const anchors = { mail: mailIcon, alerts: alertIcon, status: hudConn };
+  const popContent = { mail: null, alerts: null, status: null, update: null };
+  const anchors = { mail: mailIcon, alerts: alertIcon, status: hudConn, update: updateBtn };
   function openPop(which) {
     clearTimeout(popTimer);
     const content = popContent[which]?.();
@@ -275,7 +287,7 @@ export function renderTopbar() {
     const top = bar.getBoundingClientRect().bottom + 5;
     const wasOpen = !pop.hidden && popAnchor === which && pop.dataset.mode === content.mode;
     pop.dataset.mode = content.mode;
-    pop.className = `tb-pop ${content.mode}${content.right ? ' from-right' : ''}${wasOpen ? '' : ' opening'}`;
+    pop.className = `tb-pop ${content.mode}${content.cls ? ` ${content.cls}` : ''}${content.right ? ' from-right' : ''}${wasOpen ? '' : ' opening'}`;
     pop.style.top = `${top}px`;
     if (content.right) {
       // near the right edge: the box's right side lines up with the icon and it opens to the left
@@ -288,7 +300,7 @@ export function renderTopbar() {
     }
     if (content.right) {
       /* width: as wide as its rows */
-    } else if (content.mode === 'list') {
+    } else if (content.mode === 'list' && !content.fit) {
       const right = conn.getBoundingClientRect().right;
       pop.style.width = `${Math.round(right - a.left + 4)}px`;
     } else pop.style.width = '';
@@ -312,6 +324,37 @@ export function renderTopbar() {
   hudConn.addEventListener('mouseleave', closePopSoon);
   alerts.addEventListener('mouseenter', () => openPop('alerts'));
   alerts.addEventListener('mouseleave', closePopSoon);
+  // Update Ready: opens like the notifications box, in orange; a click (button or box) shows the notes
+  popContent.update = () =>
+    store.update?.available
+      ? {
+          mode: 'list',
+          cls: 'update-pop',
+          fit: true, // as wide as its text
+          nodes: h(
+            'div',
+            { class: 'pop-row update', style: { animationDelay: '120ms' } },
+            svg(ICONS.refresh),
+            h(
+              'span',
+              { class: 'txt' },
+              `New version ${store.update.version} available. `,
+              h('span', { class: 'ago' }, 'Click for more details'),
+            ),
+          ),
+        }
+      : null;
+  const showUpdate = () => {
+    pop.hidden = true;
+    popAnchor = null;
+    updateModal();
+  };
+  updateBtn.addEventListener('click', showUpdate);
+  updateBtn.addEventListener('mouseenter', () => openPop('update'));
+  updateBtn.addEventListener('mouseleave', closePopSoon);
+  pop.addEventListener('click', () => {
+    if (popAnchor === 'update') showUpdate();
+  });
   const refreshPop = (which) => {
     if (!pop.hidden && popAnchor === which && pop.dataset.mode !== 'list') openPop(which);
   };

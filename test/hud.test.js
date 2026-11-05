@@ -649,9 +649,103 @@ test('network: the HUD server only connects to EVE servers, redirects included',
     );
     await assert.rejects(netFetch('https://esi.evetech.net/away'), /Refused to connect to example\.com/);
     assert.ok(!asked.some((u) => u.includes('example.com')), 'the redirect target is never contacted');
+    // the update check's one exception: api.github.com, only when it asks for it
+    await assert.rejects(
+      netFetch('https://api.github.com/repos/x'),
+      /Refused to connect to api\.github\.com/,
+    );
+    assert.equal(
+      await (await netFetch('https://api.github.com/repos/x', { allowHost: 'api.github.com' })).text(),
+      'fine',
+    );
+    await assert.rejects(netFetch('https://github.com/x', { allowHost: 'api.github.com' }), /Refused/);
   } finally {
     globalThis.fetch = real;
   }
+});
+
+test('updates: a newer release on GitHub, its notes and commit; unchanged answers cost nothing; off means no requests', async () => {
+  const { createUpdateCheck, isNewer, parseVersion, versionLabel } = await import('../hud/lib/updates.js');
+  assert.deepEqual(parseVersion('v1.0.4'), [1, 0, 4]);
+  assert.deepEqual(parseVersion('1.0'), [1, 0, 0]);
+  assert.equal(parseVersion('latest'), null);
+  assert.ok(isNewer('1.0.10', '1.0.9'));
+  assert.ok(isNewer('1.1', '1.0.9'));
+  assert.ok(!isNewer('1.0.3', '1.0.3'));
+  assert.ok(!isNewer('1.0.2', '1.0.3'));
+  assert.ok(!isNewer('nonsense', '1.0.3'));
+  assert.equal(versionLabel('1.0.3', '8f2c1d0aa'), 'v1.0.3_8f2c1d0');
+  assert.equal(versionLabel('1.0.3', null), 'v1.0.3');
+
+  const asked = [];
+  let release = {
+    tag_name: '1.0.4',
+    name: '1.0.4',
+    body: '## New\n- one',
+    html_url: 'https://github.com/danisxlab/eve-hud/releases/tag/1.0.4',
+  };
+  const fetchImpl = async (url, opts) => {
+    asked.push({ url, etag: opts.headers['If-None-Match'], allowHost: opts.allowHost });
+    if (url.includes('/commits/')) return new Response('7f18d078b7102cd4612c7ba2ebf4ae170199637a');
+    if (opts.headers['If-None-Match'] === '"v1"') return new Response(null, { status: 304 });
+    if (!release) return new Response('{}', { status: 404 });
+    return new Response(JSON.stringify(release), { headers: { etag: '"v1"' } });
+  };
+  const changes = [];
+  let on = true;
+  const u = createUpdateCheck({
+    version: '1.0.3',
+    enabled: () => on,
+    fetchImpl,
+    onChange: (s) => changes.push(s),
+    log: {},
+  });
+  let s = await u.check();
+  assert.equal(s.available, true);
+  assert.equal(s.version, '1.0.4');
+  assert.equal(s.current, '1.0.3');
+  assert.equal(s.commit, '7f18d07');
+  assert.equal(s.notes, '## New\n- one');
+  assert.ok(asked.every((a) => a.allowHost === 'api.github.com'));
+  // the next hour: the same release (304), nothing new to tell the page
+  await u.check();
+  assert.equal(asked.at(-1).etag, '"v1"');
+  assert.equal(changes.length, 1);
+  // a release page somewhere else is never linked
+  release = { ...release, html_url: 'https://evil.example/x' };
+  const other = createUpdateCheck({
+    version: '1.0.3',
+    fetchImpl: async (url) =>
+      url.includes('/commits/') ? new Response('x', { status: 404 }) : new Response(JSON.stringify(release)),
+    log: {},
+  });
+  s = await other.check();
+  assert.equal(s.url, 'https://github.com/danisxlab/eve-hud/releases/latest');
+  assert.equal(s.commit, null, 'no commit: just the version');
+  // this version or newer installed: nothing to show
+  const same = createUpdateCheck({ version: '1.0.4', fetchImpl, log: {} });
+  assert.equal((await same.check()).available, false);
+  // switched off (Settings → Updates): no request, and the button goes away
+  on = false;
+  const before = asked.length;
+  assert.equal((await u.check()).available, false);
+  assert.equal(asked.length, before, 'no request while switched off');
+  assert.equal(changes.at(-1).available, false);
+  // no version to compare (plain node, tests): never asks
+  const none = createUpdateCheck({ version: null, fetchImpl, log: {} });
+  await none.check();
+  assert.equal(asked.length, before);
+  // offline: logged, nothing breaks
+  const warned = [];
+  const offline = createUpdateCheck({
+    version: '1.0.3',
+    fetchImpl: async () => {
+      throw new Error('Cannot reach api.github.com');
+    },
+    log: { warn: (m) => warned.push(m) },
+  });
+  assert.equal((await offline.check()).available, false);
+  assert.match(warned[0], /Cannot reach api\.github\.com/);
 });
 
 test('secrets: Client ID, Secret Key and login are stored encrypted; values from another computer are not used', async () => {
