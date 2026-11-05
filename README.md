@@ -6,7 +6,7 @@ A live EVE Online HUD for a second screen, as a desktop app for Windows, macOS a
 
 **▶ Try it in your browser: [danisxlab.github.io/eve-hud/demo](https://danisxlab.github.io/eve-hud/demo/)** (sample data, no download or login).
 
-**📖 Documentation: [danisxlab.github.io/eve-hud/documentation](https://danisxlab.github.io/eve-hud/documentation/)** It covers installing, every module and setting, `config.json`, privacy, building and troubleshooting.
+**📖 Documentation: [danisxlab.github.io/eve-hud/documentation](https://danisxlab.github.io/eve-hud/documentation/)**. It covers installing, every module and setting, `config.json`, privacy, building and troubleshooting.
 
 ## Features
 
@@ -21,11 +21,24 @@ A live EVE Online HUD for a second screen, as a desktop app for Windows, macOS a
 - **EVE on another computer:** works through a shared logs folder.
 
 ## Quick start
+
+Download the installer for your system from [Releases](https://github.com/danisxlab/eve-hud/releases/latest).
+
 You need an application on the [EVE developers site](https://developers.eveonline.com) with the callback URL `http://localhost:4747/callback` for EVE HUD to function.
 
 On the first start EVE HUD asks for your application's **Client ID** and **Secret Key** and lists the scopes to enable, each with a *Copy* button. Then log in with EVE Online in your browser. Details: [Getting started](https://danisxlab.github.io/eve-hud/documentation/#getting-started).
 
 ## Development
+
+You need [Node.js](https://nodejs.org) 20 or later. In the project folder:
+
+```sh
+npm install    # Electron and electron-builder (dev dependencies only)
+npm run demo   # sample data, no login
+npm start      # your own character
+```
+
+All commands: [Commands](https://danisxlab.github.io/eve-hud/documentation/#commands).
 
 - `npm test` runs all tests, without Electron, network or login.
 - No build step and no frameworks: the page is plain JavaScript modules, the server and app are plain Node.js.
