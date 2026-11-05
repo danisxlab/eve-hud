@@ -15,6 +15,7 @@ import { createGameLogs, gamelogDirFor } from '../hud/lib/gamelogs.js';
 import { chatDirFor, logsRootFor, configuredLogsDir } from '../hud/lib/chatlogs.js';
 import { configFiles, findDamaged, resetConfig, recoveryPage } from '../src/recovery.js';
 import { buildSite } from '../scripts/build-site.js';
+import { createAutostart, autostartDesktopFile } from '../src/autostart.js';
 
 const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HUD = path.join(APP, 'hud');
@@ -481,4 +482,34 @@ test('website: the documentation and the demo, with only browser code in the dem
   fs.writeFileSync(path.join(other, 'keep.txt'), 'x');
   assert.throws(() => buildSite(other), /wasn't made by this script/);
   assert.ok(fs.existsSync(path.join(other, 'keep.txt')));
+});
+
+test('start at login on Linux: an autostart .desktop file for the AppImage, removed again', () => {
+  const config = fs.mkdtempSync(path.join(tmp, 'xdg-'));
+  const a = createAutostart({
+    app: { getPath: () => '/opt/EVE HUD/eve-hud' },
+    platform: 'linux',
+    env: { XDG_CONFIG_HOME: config, APPIMAGE: '/home/me/Apps/EVE HUD-1.0.3-x86_64.AppImage' },
+  });
+  assert.equal(a.file, path.join(config, 'autostart', 'eve-hud.desktop'));
+  assert.equal(a.isOn(), false);
+  a.set(true);
+  assert.equal(a.isOn(), true);
+  assert.match(
+    fs.readFileSync(a.file, 'utf8'),
+    /^Exec="\/home\/me\/Apps\/EVE HUD-1\.0\.3-x86_64\.AppImage"$/m,
+  );
+  a.set(false);
+  assert.equal(a.isOn(), false);
+  // the .deb: the installed program; quotes and $ escaped the freedesktop.org way
+  assert.match(autostartDesktopFile('/opt/a "b" $c'), /^Exec="\/opt\/a \\"b\\" \\\$c"$/m);
+  // Windows and macOS: Electron's login items
+  const calls = [];
+  const w = createAutostart({
+    app: { getLoginItemSettings: () => ({ openAtLogin: true }), setLoginItemSettings: (x) => calls.push(x) },
+    platform: 'win32',
+  });
+  assert.equal(w.isOn(), true);
+  w.set(false);
+  assert.deepEqual(calls, [{ openAtLogin: false }]);
 });

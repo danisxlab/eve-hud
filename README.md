@@ -1,6 +1,6 @@
 # EVE HUD
 
-A live EVE Online HUD for a second screen, as a desktop app for Windows and macOS. It shows your character, skill training, industry, market orders, chat, a star map with routes and hazards, Faction Warfare and more, from CCP's ESI and EVE's own log files. Laid out for a portrait monitor such as 1200×1920, but any window size works.
+A live EVE Online HUD for a second screen, as a desktop app for Windows, macOS and Linux. It shows your character, skill training, industry, market orders, chat, a star map with routes and hazards, Faction Warfare and more, from CCP's ESI and EVE's own log files. Laid out for a portrait monitor such as 1200×1920, but any window size works.
 
 ![EVE HUD in demo mode: character, training queue, star map, chat, industry, market orders and warfare](documentation/images/hud.webp)
 
@@ -31,9 +31,10 @@ npm run dist:win       # Windows installer: dist/EVE HUD Setup <version>.exe
 npm run dist:win-zip   # Windows, no installer: dist/EVE HUD-<version>-win.zip
 npm run dist:mac       # macOS (Apple silicon + Intel): dist/EVE HUD-<version>-universal.dmg
 npm run dist:mac-dev   # the same, signed with your own Apple Development certificate
+npm run dist:linux     # Linux: dist/EVE HUD-<version>-x86_64.AppImage and dist/eve-hud_<version>_amd64.deb
 ```
 
-Windows builds also work on a Mac. To raise the version number: `npm run version:patch` (or `version:minor`, `version:major`, `version:set -- 1.2.3`). See [Build the installer](https://danisxlab.github.io/eve-hud/documentation/#build-the-installer) and [Signing](https://danisxlab.github.io/eve-hud/documentation/#signing).
+Windows and Linux builds also work on a Mac. To raise the version number: `npm run version:patch` (or `version:minor`, `version:major`, `version:set -- 1.2.3`). See [Build the installer](https://danisxlab.github.io/eve-hud/documentation/#build-the-installer) and [Signing](https://danisxlab.github.io/eve-hud/documentation/#signing).
 
 ## Development
 

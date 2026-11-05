@@ -6,7 +6,9 @@
 // Prints one line "RESULT <json>" with what happened, then exits.
 
 const options = JSON.parse(process.env.FAKE_OPTIONS || '{}');
-if (options.platform) Object.defineProperty(process, 'platform', { value: options.platform }); // e.g. 'darwin' for the Mac menu
+// the tests describe Windows unless they say otherwise ('darwin' for the Mac menu, 'linux'), on
+// whatever computer runs them
+Object.defineProperty(process, 'platform', { value: options.platform || 'win32' });
 globalThis.fakeElectron = { options };
 process.argv = [process.argv[0], '.', ...JSON.parse(process.env.FAKE_ARGS || '[]')];
 const steps = JSON.parse(process.env.FAKE_STEPS || '[]');
@@ -203,6 +205,7 @@ if (win && result.url) {
       ]);
       result.steps.menu = items;
       result.steps.trayIcon = Boolean(f.tray);
+      result.steps.trayImage = f.tray?.image || null;
       const settings = f.appMenu?.template.find((m) => m.label === 'Settings');
       if (settings) result.steps.settings = settings.submenu.map((x) => x.label || x.type);
     } else if (step === 'f12') {

@@ -1,13 +1,14 @@
 {
   "name": "eve-hud-app",
   "productName": "EVE HUD",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "EVE HUD: a live EVE Online second-screen HUD, powered by ESI, as a desktop app.",
   "type": "module",
   "main": "src/main.js",
   "private": true,
   "author": "danisxlab",
   "homepage": "https://github.com/danisxlab/eve-hud",
+  "desktopName": "eve-hud.desktop",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/danisxlab/eve-hud.git"
@@ -32,7 +33,8 @@
     "dist:win": "electron-builder --win --config electron-builder.config.cjs",
     "dist:win-zip": "electron-builder --win zip --x64 --config electron-builder.config.cjs",
     "dist:mac": "electron-builder --mac --config electron-builder.config.cjs",
-    "dist:mac-dev": "MAC_SIGN=development electron-builder --mac --config electron-builder.config.cjs"
+    "dist:mac-dev": "MAC_SIGN=development electron-builder --mac --config electron-builder.config.cjs",
+    "dist:linux": "electron-builder --linux --config electron-builder.config.cjs"
   },
   "devDependencies": {
     "electron": "^44.0.0",

@@ -310,7 +310,13 @@ export class Tray extends EventEmitter {
   destroy() {}
 }
 export const nativeImage = {
-  createFromPath: (p) => ({ path: p, setTemplateImage() {} }),
+  createFromPath: (p) => ({
+    path: p,
+    setTemplateImage() {},
+    resize(size) {
+      return { ...this, size };
+    },
+  }),
 };
 
 // ---------- dialogs + shell ----------

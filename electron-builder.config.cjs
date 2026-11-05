@@ -4,6 +4,8 @@
 //
 //   npm run dist:win   -> dist/EVE HUD Setup <version>.exe          (build on Windows)
 //   npm run dist:mac   -> dist/EVE HUD-<version>-universal.dmg      (build on a Mac)
+//   npm run dist:linux -> dist/EVE HUD-<version>-x86_64.AppImage and dist/eve-hud_<version>_amd64.deb
+//                                                                   (build on Linux or a Mac)
 //
 // The HUD itself is the hud/ folder (server.js, lib/, public/, config.example.json). Your
 // config.json and data/ (Client ID, Secret Key, EVE login) live in the app's own folder, never here,
@@ -123,5 +125,30 @@ module.exports = {
       { x: 160, y: 200 }, // the app
       { x: 440, y: 200, type: 'link', path: '/Applications' },
     ],
+  },
+
+  // Linux: an AppImage (one file that runs on most distributions: make it executable and start it)
+  // and a .deb for Ubuntu, Debian, Mint… (a normal install with a menu entry, in /opt/EVE HUD).
+  // syncDesktopName + desktopName in package.json: the window and the menu entry belong together, so
+  // the desktop shows the HUD's icon for the running window.
+  linux: {
+    target: [
+      { target: 'AppImage', arch: ['x64'] },
+      { target: 'deb', arch: ['x64'] },
+    ],
+    icon: 'build/icon.png',
+    executableName: 'eve-hud',
+    syncDesktopName: true,
+    category: 'Game',
+    synopsis: 'Live EVE Online HUD for a second screen',
+    // a .deb needs a maintainer; package.json's author has no e-mail address, so this is it
+    maintainer: 'danisxlab (https://github.com/danisxlab/eve-hud)',
+  },
+  appImage: {
+    artifactName: '${productName}-${version}-${arch}.${ext}', // EVE HUD-1.0.3-x86_64.AppImage
+  },
+  deb: {
+    packageName: 'eve-hud', // sudo apt remove eve-hud
+    artifactName: 'eve-hud_${version}_${arch}.${ext}', // eve-hud_1.0.3_amd64.deb
   },
 };

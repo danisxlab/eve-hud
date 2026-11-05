@@ -451,6 +451,23 @@ function waitForPort(port, ms = 8000) {
   });
 }
 
+test('Linux: the tray menu from a PNG status icon, and the same menu in the window behind Alt', async () => {
+  const r = await run({
+    options: { platform: 'linux' },
+    args: ['--demo', '--port=4798'],
+    steps: ['menu', 'trayLabels', 'quit'],
+  });
+  assert.equal(r.steps.trayIcon, true, r.output);
+  assert.match(r.steps.trayImage.path, /icon\.png$/, "Linux can't read the .ico");
+  assert.deepEqual(r.steps.trayImage.size, { width: 32, height: 32 });
+  assert.ok(r.steps.trayLabels.includes('Start at login'), JSON.stringify(r.steps.trayLabels));
+  // the window's menu bar: one "EVE HUD" menu with the tray's items
+  const menu = r.steps.menu;
+  assert.equal(menu[0], 'EVE HUD');
+  assert.deepEqual(menu.slice(1), r.steps.trayLabels);
+  assert.equal(r.steps.quit.quit, true);
+});
+
 test('Mac: no menu bar icon but a Settings menu; no developer tools, no second full-screen item; F12 only from source', async () => {
   const mac = await run({
     options: { platform: 'darwin' },

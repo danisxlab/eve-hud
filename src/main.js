@@ -35,6 +35,7 @@ import { hudSourceDir, hudHomeDir } from './paths.js';
 import { findImportSource, importInto } from './importer.js';
 import { createHudWindow } from './window.js';
 import { createControls, setMacMenu } from './tray.js';
+import { createAutostart } from './autostart.js';
 import { setWindowMode } from './config-edit.js';
 import { resolveLocations, checkMove, requestMove, takePendingMove, moveStorage } from './storage.js';
 import { probeHud } from './port-check.js';
@@ -268,8 +269,10 @@ async function start() {
     onLoadFailed: (desc) => serverGone(desc, openFile),
   });
 
+  const autostart = createAutostart({ app });
   tray = createControls({
     icoFile,
+    pngFile: path.join(assetsDir, 'icon.png'),
     status: () => ({
       demo: DEMO,
       port: new URL(url).port,
@@ -294,9 +297,15 @@ async function start() {
       openLog: () => openFile(log.file),
       importFolder: () => importLater(home, where.dataDir),
       setUseGpu,
+      startsAtLogin: () => autostart.isOn(),
       setStartAtLogin: (on) => {
-        app.setLoginItemSettings({ openAtLogin: on });
-        log.info(`Start at login: ${on ? 'on' : 'off'}`);
+        try {
+          autostart.set(on);
+          log.info(`Start at login: ${on ? 'on' : 'off'}`);
+        } catch (err) {
+          log.warn(`Start at login: ${err.message}`);
+        }
+        tray.update();
       },
       restart,
       quit: () => app.quit(),
@@ -655,7 +664,8 @@ function showAbout() {
 
 // The menu bar: on a Mac the app, Edit, View and Window menus (so Cmd+Q, copy and paste work), plus
 // Settings once the HUD runs (tray.js); on Windows none: the tray menu and the keys in window.js
-// cover everything.
+// cover everything. On Linux the tray menu also becomes the window's menu bar once the HUD runs,
+// hidden until Alt (tray.js), for desktops without status icons.
 function setAppMenu() {
   if (process.platform === 'darwin') setMacMenu({ reload: () => hud?.reload(), about: showAbout });
   else Menu.setApplicationMenu(null);

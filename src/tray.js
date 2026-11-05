@@ -10,6 +10,10 @@
 //   Start with Windows (only in the installed app)
 //   Restart · Quit EVE HUD
 //
+// Linux: the same tray menu, as a status icon (KDE, Cinnamon, Xfce…; on GNOME with the AppIndicator
+//   extension, which Ubuntu has built in). The window also has it as a menu bar, hidden until you
+//   press Alt, for desktops without status icons. "Start at login" instead of "Start with Windows".
+//
 // macOS: no menu bar icon. The menu bar has a "Settings" menu with the same options instead, next
 // to the usual EVE HUD, Edit, View and Window menus. Show HUD, Reload, full-screen and Quit are
 // where a Mac has them already: the Dock icon, View → Reload, View → Enter Full Screen (or F11, or
@@ -19,6 +23,7 @@ import { Tray, Menu, nativeImage, app, screen } from 'electron';
 import { displayLabel } from './window.js';
 
 const isMac = () => process.platform === 'darwin';
+const isLinux = () => process.platform === 'linux';
 
 // The Mac menu bar. settings: the items of the Settings menu, or null before the HUD has started
 // (during the first-start questions and port messages).
@@ -60,12 +65,17 @@ export function setMacMenu({ reload, about = null, settings = null }) {
   );
 }
 
-export function createControls({ icoFile, status, actions }) {
+export function createControls({ icoFile, pngFile, status, actions }) {
   const mac = isMac();
+  const linux = isLinux();
   let tray = null;
   if (!mac) {
-    tray = new Tray(nativeImage.createFromPath(icoFile)); // the .ico has the small sizes Windows needs
-    tray.on('click', () => actions.show());
+    tray = new Tray(
+      linux
+        ? nativeImage.createFromPath(pngFile).resize({ width: 32, height: 32 }) // Linux can't read .ico
+        : nativeImage.createFromPath(icoFile), // the .ico has the small sizes Windows needs
+    );
+    tray.on('click', () => actions.show()); // Windows; on Linux a click opens the menu
   }
 
   function update() {
@@ -91,9 +101,9 @@ export function createControls({ icoFile, status, actions }) {
       click: (item) => actions.setUseGpu(item.checked),
     };
     const startAtLogin = {
-      label: mac ? 'Open at login' : 'Start with Windows',
+      label: mac ? 'Open at login' : linux ? 'Start at login' : 'Start with Windows',
       type: 'checkbox',
-      checked: app.getLoginItemSettings().openAtLogin,
+      checked: actions.startsAtLogin(),
       enabled: app.isPackaged, // in development it would register the Electron binary instead
       click: (item) => actions.setStartAtLogin(item.checked),
     };
@@ -119,36 +129,37 @@ export function createControls({ icoFile, status, actions }) {
     }
 
     tray.setToolTip(`EVE HUD${s.demo ? ' (demo)' : ''} · ${s.url}`);
-    tray.setContextMenu(
-      Menu.buildFromTemplate([
-        { label: `EVE HUD · ${where}`, enabled: false },
-        { type: 'separator' },
-        { label: 'Show HUD', click: actions.show },
-        { label: 'Reload', click: actions.reload },
-        { type: 'separator' },
-        {
-          label: 'Normal window',
-          type: 'radio',
-          checked: s.mode !== 'fullscreen',
-          click: () => actions.setMode('normal'),
-        },
-        {
-          label: 'Full-screen (F11)',
-          type: 'radio',
-          checked: s.mode === 'fullscreen',
-          click: () => actions.setMode('fullscreen'),
-        },
-        { label: 'Move to monitor', submenu: displays },
-        { type: 'separator' },
-        ...files,
-        { type: 'separator' },
-        useGpu,
-        startAtLogin,
-        { type: 'separator' },
-        { label: 'Restart', click: actions.restart },
-        { label: 'Quit EVE HUD', click: actions.quit },
-      ]),
-    );
+    const items = [
+      { label: `EVE HUD · ${where}`, enabled: false },
+      { type: 'separator' },
+      { label: 'Show HUD', click: actions.show },
+      { label: 'Reload', click: actions.reload },
+      { type: 'separator' },
+      {
+        label: 'Normal window',
+        type: 'radio',
+        checked: s.mode !== 'fullscreen',
+        click: () => actions.setMode('normal'),
+      },
+      {
+        label: 'Full-screen (F11)',
+        type: 'radio',
+        checked: s.mode === 'fullscreen',
+        click: () => actions.setMode('fullscreen'),
+      },
+      { label: 'Move to monitor', submenu: displays },
+      { type: 'separator' },
+      ...files,
+      { type: 'separator' },
+      useGpu,
+      startAtLogin,
+      { type: 'separator' },
+      { label: 'Restart', click: actions.restart },
+      { label: 'Quit EVE HUD', click: actions.quit },
+    ];
+    tray.setContextMenu(Menu.buildFromTemplate(items));
+    // Linux: also in the window, behind Alt (autoHideMenuBar), for desktops without status icons
+    if (linux) Menu.setApplicationMenu(Menu.buildFromTemplate([{ label: 'EVE HUD', submenu: items }]));
   }
 
   update();

@@ -504,7 +504,7 @@
               <li><a href="#window">Window</a></li>
               <li>
                 <a href="#tray-menu-windows-and-settings-menu-mac"
-                  >Tray menu (Windows) and Settings menu (Mac)</a
+                  >Tray menu (Windows, Linux) and Settings menu (Mac)</a
                 >
               </li>
               <li><a href="#optional-modules">Optional modules</a></li>
@@ -565,8 +565,8 @@
           <div class="label">Documentation</div>
           <h1>EVE HUD</h1>
           <p>
-            A live EVE Online HUD for a second screen, as a desktop app for Windows and macOS. It shows your
-            character, skill training, industry, market orders, chat, a star map with routes and hazards,
+            A live EVE Online HUD for a second screen, as a desktop app for Windows, macOS and Linux. It shows
+            your character, skill training, industry, market orders, chat, a star map with routes and hazards,
             Faction Warfare and more, from CCP's ESI and EVE's own log files. Laid out for a portrait monitor
             such as 1200×1920, but any window size works.
           </p>
@@ -743,6 +743,14 @@
                       </td>
                       <td>a Mac</td>
                     </tr>
+                    <tr>
+                      <td><code>npm run dist:linux</code></td>
+                      <td>
+                        <code>dist/EVE HUD-&lt;version&gt;-x86_64.AppImage</code> (any distribution) and
+                        <code>dist/eve-hud_&lt;version&gt;_amd64.deb</code> (Ubuntu, Debian, Mint…), x64
+                      </td>
+                      <td>Linux or a Mac</td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -769,6 +777,21 @@
                   </ul>
                 </li>
                 <li>Mac apps can only be built on a Mac.</li>
+                <li>
+                  <strong>Linux:</strong> the <strong>AppImage</strong> is one file that runs on most
+                  distributions and desktops: make it executable (right click → Properties →
+                  <em>Allow executing</em>, or <code>chmod +x</code>) and start it. Some distributions need
+                  <code>libfuse2</code> for AppImages (Ubuntu 24.04 and later:
+                  <code>sudo apt install libfuse2t64</code>, on 22.04 <code>libfuse2</code>); without it,
+                  starting it with <code>--appimage-extract-and-run</code> works too. The
+                  <strong>.deb</strong> installs it like any other program, with a menu entry:
+                  <code>sudo apt install ./eve-hud_&lt;version&gt;_amd64.deb</code>; uninstall with
+                  <code>sudo apt remove eve-hud</code> (your settings and data in
+                  <code>~/.config/EVE HUD</code> stay). EVE itself runs on Linux through Steam (Proton); the
+                  HUD finds its logs there by itself (see <a href="#chat-logs">Chat logs</a>). Unsigned, like
+                  most Linux apps; nothing asks. The Linux settings are under <code>linux</code>,
+                  <code>appImage</code> and <code>deb</code> in <code>electron-builder.config.cjs</code>.
+                </li>
                 <li>
                   <strong>The Mac .dmg</strong> opens in a window in the HUD's style: the plexus background,
                   the app on the left, an arrow, and the Applications folder on the right to drag it onto. The
@@ -1410,15 +1433,18 @@
             </div>
             <div class="section">
               <h3 id="tray-menu-windows-and-settings-menu-mac">
-                Tray menu (Windows) and Settings menu (Mac)
+                Tray menu (Windows, Linux) and Settings menu (Mac)
               </h3>
               <p>
                 <strong>Windows:</strong> an icon in the notification area. Left click shows the HUD, right
-                click opens the menu. <strong>Mac:</strong> no menu bar icon. The menu bar has a
-                <strong>Settings</strong> menu with the same options, next to EVE HUD, Edit, View and Window.
-                What a Mac has elsewhere already isn't repeated there: Show HUD is the Dock icon, Reload is
-                View → Reload (Cmd+R), full screen is View → Enter Full Screen (or F11, or the green button;
-                the mode is saved either way), and Quit is EVE HUD → Quit (Cmd+Q).
+                click opens the menu. <strong>Linux:</strong> the same menu from a status icon (a click opens
+                it) on KDE, Cinnamon, Xfce and others, and on GNOME with the AppIndicator extension (Ubuntu
+                has it built in). The HUD window has it too, as a menu bar that appears when you press
+                <kbd>Alt</kbd>, for desktops without status icons. <strong>Mac:</strong> no menu bar icon. The
+                menu bar has a <strong>Settings</strong> menu with the same options, next to EVE HUD, Edit,
+                View and Window. What a Mac has elsewhere already isn't repeated there: Show HUD is the Dock
+                icon, Reload is View → Reload (Cmd+R), full screen is View → Enter Full Screen (or F11, or the
+                green button; the mode is saved either way), and Quit is EVE HUD → Quit (Cmd+Q).
               </p>
               <div class="table">
                 <table>
@@ -1431,15 +1457,15 @@
                   <tbody>
                     <tr>
                       <td>Show HUD</td>
-                      <td>Brings the window to the front. (Windows)</td>
+                      <td>Brings the window to the front. (Windows, Linux)</td>
                     </tr>
                     <tr>
                       <td>Reload</td>
-                      <td>Reloads the page. (Windows)</td>
+                      <td>Reloads the page. (Windows, Linux)</td>
                     </tr>
                     <tr>
                       <td>Normal window / Full-screen (F11)</td>
-                      <td>Switches the window mode (saved in <code>config.json</code>). (Windows)</td>
+                      <td>Switches the window mode (saved in <code>config.json</code>). (Windows, Linux)</td>
                     </tr>
                     <tr>
                       <td>Move to monitor</td>
@@ -1467,10 +1493,11 @@
                       </td>
                     </tr>
                     <tr>
-                      <td>Start with Windows (Open at login on a Mac)</td>
+                      <td>Start with Windows (Open at login on a Mac, Start at login on Linux)</td>
                       <td>
                         Off by default. Only in the installed app; run from source it would register Electron
-                        itself.
+                        itself. On Linux it adds <code>~/.config/autostart/eve-hud.desktop</code> (for the
+                        AppImage: the AppImage file where it is, so start it from its final place first).
                       </td>
                     </tr>
                     <tr>
@@ -1479,7 +1506,7 @@
                     </tr>
                     <tr>
                       <td>Quit EVE HUD</td>
-                      <td>Stops the server and quits. (Windows)</td>
+                      <td>Stops the server and quits. (Windows, Linux)</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1828,7 +1855,8 @@
               <ul>
                 <li>
                   <strong>macOS / Linux:</strong> <code>~/Documents/EVE/logs/Chatlogs</code>, detected
-                  automatically. Steam/Proton paths on Linux are checked too.
+                  automatically. On Linux the Steam (Proton) folders are checked too, for Steam installed
+                  normally or as a Flatpak.
                 </li>
                 <li>
                   <strong>Windows:</strong> <code>Documents\EVE\logs\Chatlogs</code>, including OneDrive
@@ -2279,6 +2307,7 @@
                       <th></th>
                       <th>Windows</th>
                       <th>macOS</th>
+                      <th>Linux</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2286,11 +2315,13 @@
                       <td><code>config.json</code> and <code>data/</code> (default)</td>
                       <td><code>%APPDATA%\EVE HUD</code></td>
                       <td><code>~/Library/Application Support/EVE HUD</code></td>
+                      <td><code>~/.config/EVE HUD</code></td>
                     </tr>
                     <tr>
                       <td>Log file</td>
                       <td><code>%APPDATA%\EVE HUD\logs\eve-hud.log</code></td>
                       <td><code>~/Library/Logs/EVE HUD/eve-hud.log</code></td>
+                      <td><code>~/.config/EVE HUD/logs/eve-hud.log</code></td>
                     </tr>
                     <tr>
                       <td>The app</td>
@@ -2300,6 +2331,10 @@
                         <code>C:\Program Files\EVE HUD</code> for everyone)
                       </td>
                       <td>wherever you put <code>EVE HUD.app</code></td>
+                      <td>
+                        the <code>.AppImage</code> file wherever you put it, or <code>/opt/EVE HUD</code> from
+                        the <code>.deb</code>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
