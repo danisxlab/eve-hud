@@ -6,8 +6,8 @@ A live EVE Online HUD for a second screen, as a desktop app for Windows, macOS a
 
 **▶ Try it in your browser: [danisxlab.github.io/eve-hud/demo](https://danisxlab.github.io/eve-hud/demo/)** (sample data, no download or login).
 
-**📖 Documentation: [danisxlab.github.io/eve-hud/documentation](https://danisxlab.github.io/eve-hud/documentation/)
-**. It covers installing, every module and setting, `config.json`, privacy, building and troubleshooting.
+**📖 Documentation: [danisxlab.github.io/eve-hud/documentation](https://danisxlab.github.io/eve-hud/documentation/)**.
+It covers installing, every module and setting, `config.json`, privacy, building and troubleshooting.
 
 ## Features
 
