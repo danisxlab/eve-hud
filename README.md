@@ -6,7 +6,8 @@ A live EVE Online HUD for a second screen, as a desktop app for Windows, macOS a
 
 **▶ Try it in your browser: [danisxlab.github.io/eve-hud/demo](https://danisxlab.github.io/eve-hud/demo/)** (sample data, no download or login).
 
-**📖 Documentation: [danisxlab.github.io/eve-hud/documentation](https://danisxlab.github.io/eve-hud/documentation/)**. It covers installing, every module and setting, `config.json`, privacy, building and troubleshooting.
+**📖 Documentation: [danisxlab.github.io/eve-hud/documentation](https://danisxlab.github.io/eve-hud/documentation/)
+**. It covers installing, every module and setting, `config.json`, privacy, building and troubleshooting.
 
 ## Features
 
@@ -22,9 +23,9 @@ A live EVE Online HUD for a second screen, as a desktop app for Windows, macOS a
 
 ## Quick start
 
-Download the installer for your system from [Releases](https://github.com/danisxlab/eve-hud/releases/latest).
-
 You need an application on the [EVE developers site](https://developers.eveonline.com) with the callback URL `http://localhost:4747/callback` for EVE HUD to function.
+
+Download the installer for your system from [Releases](https://github.com/danisxlab/eve-hud/releases/latest).
 
 On the first start EVE HUD asks for your application's **Client ID** and **Secret Key** and lists the scopes to enable, each with a *Copy* button. Then log in with EVE Online in your browser. Details: [Getting started](https://danisxlab.github.io/eve-hud/documentation/#getting-started).
 
@@ -44,7 +45,6 @@ All commands: [Commands](https://danisxlab.github.io/eve-hud/documentation/#comm
 - No build step and no frameworks: the page is plain JavaScript modules, the server and app are plain Node.js.
 - Formatting: [Prettier](https://prettier.io) (`npx prettier --write .`).
 - How the code is laid out: [Development](https://danisxlab.github.io/eve-hud/documentation/#development).
-- The documentation is one page, [`documentation/index.html`](documentation/index.html); a GitHub Actions workflow (`.github/workflows/docs.yml`) publishes it on GitHub Pages, together with the demo website (`demo/`). `npm run site:preview` shows both locally first.
 
 ## Build the app yourself
 
@@ -55,8 +55,6 @@ npm run dist:mac       # macOS (Apple silicon + Intel): dist/EVE HUD-<version>-u
 npm run dist:mac-dev   # the same, signed with your own Apple Development certificate
 npm run dist:linux     # Linux: dist/EVE HUD-<version>-x86_64.AppImage and dist/eve-hud_<version>_amd64.deb
 ```
-
-Windows and Linux builds can also be made on a Mac. To raise the version number: `npm run version:patch` (or `version:minor`, `version:major`, `version:set -- 1.2.3`). See [Build the installer](https://danisxlab.github.io/eve-hud/documentation/#build-the-installer) and [Signing](https://danisxlab.github.io/eve-hud/documentation/#signing).
 
 ## License
 

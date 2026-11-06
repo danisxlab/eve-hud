@@ -3688,16 +3688,6 @@
                     </tr>
                     <tr>
                       <td>
-                        <code>npm run version:patch</code> (or <code>:minor</code>, <code>:major</code>,
-                        <code>:set -- 1.2.3</code>)
-                      </td>
-                      <td>
-                        Raises the version number (see
-                        <a href="#changing-the-version">Changing the version</a>).
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
                         <code>npm run dist:win</code> / <code>dist:win-zip</code> / <code>dist:mac</code> /
                         <code>dist:mac-dev</code>
                       </td>
@@ -3835,14 +3825,6 @@ demo/fake-server.js    the demo website: answers the HUD page in the browser, in
                 <li>
                   <strong>Tests:</strong> <code>npm test</code> (see <a href="#tests">Tests</a>). Every file
                   starts with a comment that says what it is for.
-                </li>
-                <li>
-                  <strong>This documentation</strong> is one hand-written page,
-                  <code>documentation/index.html</code>, with its screenshots in
-                  <code>documentation/images/</code>. Open it in a browser straight from the folder. Pushed to
-                  <code>main</code>, the <em>Documentation</em> workflow
-                  (<code>.github/workflows/docs.yml</code>) publishes it on GitHub Pages; once, in the
-                  repository's Settings → Pages, set <em>Source</em> to <em>GitHub Actions</em>.
                 </li>
                 <li>
                   <strong>The demo website</strong> is the HUD page itself with the sample data of
@@ -4018,82 +4000,7 @@ demo/fake-server.js    the demo website: answers the HUD page in the browser, in
                   <a href="#where-the-files-are">Where the files are</a>), never in the project folder, so
                   they can't end up in the installer.
                 </li>
-                <li>Version number: see <a href="#changing-the-version">Changing the version</a>.</li>
               </ul>
-              <h4 id="changing-the-version">Changing the version</h4>
-              <p>
-                The version lives in one place, <code>&quot;version&quot;</code> in <code>package.json</code>.
-                Everything else follows it: the About window, the log file, the build file names, and the
-                User-Agent the HUD sends to CCP/Fenris Creations. Change it with one command in the project folder:
-              </p>
-              <div class="table">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Command</th>
-                      <th>1.0.0 becomes</th>
-                      <th>Use it for</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td><code>npm run version:patch</code></td>
-                      <td>1.0.1</td>
-                      <td>bug fixes</td>
-                    </tr>
-                    <tr>
-                      <td><code>npm run version:minor</code></td>
-                      <td>1.1.0</td>
-                      <td>new features</td>
-                    </tr>
-                    <tr>
-                      <td><code>npm run version:major</code></td>
-                      <td>2.0.0</td>
-                      <td>big changes</td>
-                    </tr>
-                    <tr>
-                      <td><code>npm run version:set -- 1.2.3</code></td>
-                      <td>1.2.3</td>
-                      <td>any number you choose</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <p>
-                These update <code>package.json</code> and <code>package-lock.json</code> together (npm's own
-                <code>npm version</code>, without a git commit or tag). Then build as usual (<code
-                  >npm run dist:win</code
-                >, <code>npm run dist:mac-dev</code>…). Editing the number in <code>package.json</code> by
-                hand works too; run <code>npm install</code> afterwards so
-                <code>package-lock.json</code> matches.
-              </p>
-              <h4 id="publishing-a-release">Publishing a release</h4>
-              <p>
-                The installed apps check GitHub for a newer release once an hour and then show
-                <strong>Update Ready</strong> in the top bar, with your release notes (see
-                <a href="#updates">Updates</a>). For that:
-              </p>
-              <ol>
-                <li>
-                  Raise the version, commit and push, and build from that commit. The build writes the commit
-                  into the app: <em>About</em> (the <strong>i</strong> button) shows it in its corner, like
-                  <code>v1.0.4_7f18d07</code>.
-                </li>
-                <li>
-                  On GitHub: <strong>Releases → Draft a new release</strong>. The tag is the version from
-                  <code>package.json</code> (<code>1.0.4</code>; <code>v1.0.4</code> works too), on that same
-                  commit. Attach the files from <code>dist/</code>.
-                </li>
-                <li>
-                  Write the release notes in Markdown, as usual on GitHub: they appear as they are in the
-                  app's update window (headings, lists, tasks, bold and italic, links, code, quotes, tables;
-                  images show as links, HTML as plain text). <strong>Publish release</strong>.
-                </li>
-              </ol>
-              <p>
-                Drafts and pre-releases don't count: the app only looks at the latest published release, and
-                only a higher version number than its own shows <em>Update Ready</em>.
-              </p>
             </div>
             <div class="section">
               <h3 id="signing">Signing</h3>
