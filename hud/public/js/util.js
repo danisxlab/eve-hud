@@ -242,9 +242,33 @@ export function onFrame(fn, opts = {}) {
 // Rows with a coloured dot: hoverRow(dot, title, detail), dot '' (green), 'warn', 'bad', 'idle'.
 let hoverBox = null;
 let hoverTimer = 0;
-// opts.above: show it above the element instead of below. opts.alignRight: an element (or a function
-// returning one) whose right side the box lines up with, e.g. the module's border.
+const resolve = (x) => (typeof x === 'function' ? x() : x);
+// an element's inside: without its border and scroll bar, so a box never covers the scroll bar
+// (also the Mac's overlay scroll bar, which takes no room: 10 px are kept free when it can scroll)
+export function insideOf(el) {
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  const left = r.left + el.clientLeft;
+  let right = left + el.clientWidth;
+  const scrolls = /auto|scroll/.test(getComputedStyle(el).overflowY) && el.scrollHeight > el.clientHeight + 1;
+  if (scrolls) right = Math.min(right, r.right - 10);
+  return { left, right, width: right - left };
+}
+// opts (elements may also be given as functions that return one):
+//   above       show it above the element instead of below
+//   within      an element the box stays inside, normally the module (or the list in it, so it stops
+//               before the scroll bar): it starts at the element's left and only moves left as far
+//               as it must to stay inside within's right border (and wraps when it's wider)
+//   alignLeft   an element whose left side the box starts at, e.g. the module's border
+//   alignRight  an element whose right side the box lines up with, e.g. the module's border
+//   mode        'list': opens like the top bar's notification box (drops down, slides open)
+//   cls         an extra class, e.g. 'link' for the chat links' orange
+// The box always stays inside the window. A click on the element hides it.
 export function hoverPop(anchor, content, opts = {}) {
+  const hide = () => {
+    clearTimeout(hoverTimer);
+    if (hoverBox) hoverBox.hidden = true;
+  };
   anchor.addEventListener('mouseenter', () => {
     const nodes = typeof content === 'function' ? content() : content;
     if (!nodes) return;
@@ -254,25 +278,37 @@ export function hoverPop(anchor, content, opts = {}) {
       document.body.append(hoverBox);
     }
     const wasHidden = hoverBox.hidden;
+    const within = insideOf(resolve(opts.within));
     fill(hoverBox, nodes);
     hoverBox.hidden = false;
-    hoverBox.className = `tb-pop hint hover-pop${wasHidden ? ' opening' : ''}`;
+    hoverBox.className = [
+      'tb-pop',
+      opts.mode === 'list' ? 'list' : 'hint',
+      'hover-pop',
+      within ? 'fit' : '',
+      opts.cls || '',
+      wasHidden ? 'opening' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+    // measured at the window's left edge, so its width isn't squeezed by where it was last
+    Object.assign(hoverBox.style, {
+      left: '0px',
+      right: '',
+      maxWidth: within ? `${Math.floor(within.width)}px` : '',
+    });
     const a = anchor.getBoundingClientRect();
-    hoverBox.style.top = `${Math.round(a.bottom + 6)}px`;
-    hoverBox.style.right = '';
-    const edge = typeof opts.alignRight === 'function' ? opts.alignRight() : opts.alignRight;
-    if (opts.above) hoverBox.style.top = `${Math.round(Math.max(4, a.top - 6 - hoverBox.offsetHeight))}px`;
-    if (edge) {
-      hoverBox.style.left = '';
-      hoverBox.style.right = `${Math.round(innerWidth - edge.getBoundingClientRect().right)}px`;
-      return;
-    }
-    hoverBox.style.left = `${Math.round(a.left - 4)}px`;
-    // near the right edge: line its right side up with the element instead
-    if (a.left - 4 + hoverBox.offsetWidth > innerWidth - 8) {
-      hoverBox.style.left = '';
-      hoverBox.style.right = `${Math.round(innerWidth - a.right - 4)}px`;
-    }
+    const w = hoverBox.offsetWidth;
+    hoverBox.style.top = `${Math.round(opts.above ? Math.max(4, a.top - 6 - hoverBox.offsetHeight) : a.bottom + 6)}px`;
+    const edge = resolve(opts.alignRight);
+    let left;
+    if (edge) left = edge.getBoundingClientRect().right - w;
+    else left = resolve(opts.alignLeft)?.getBoundingClientRect().left ?? a.left - 4;
+    const start = left;
+    if (within) left = Math.max(within.left, Math.min(left, within.right - w));
+    left = Math.max(4, Math.min(left, innerWidth - 4 - w)); // never past the window's edges
+    hoverBox.style.left = `${Math.round(left)}px`;
+    hoverBox.classList.toggle('from-right', left < start - 1); // moved left: it opens leftwards
   });
   anchor.addEventListener('mouseleave', () => {
     clearTimeout(hoverTimer);
@@ -280,6 +316,7 @@ export function hoverPop(anchor, content, opts = {}) {
       if (hoverBox) hoverBox.hidden = true;
     }, 80);
   });
+  anchor.addEventListener('mousedown', hide);
 }
 export const hoverRow = (dot, title, detail) =>
   h(

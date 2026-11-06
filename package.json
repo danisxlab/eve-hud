@@ -1,7 +1,7 @@
 {
   "name": "eve-hud-app",
   "productName": "EVE HUD",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "EVE HUD: a live EVE Online second-screen HUD, powered by ESI, as a desktop app.",
   "type": "module",
   "main": "src/main.js",

@@ -338,6 +338,15 @@
   padding-right: 4px;
 }
 
+/* a long description scrolls with the window's orange scrollbar, not the modules' green one */
+.si-desc.scroll {
+  scrollbar-color: rgba(var(--amber-rgb), 0.35) transparent;
+}
+
+.si-desc.scroll::-webkit-scrollbar-thumb {
+  background: rgba(var(--amber-rgb), 0.35);
+}
+
 .si-actions {
   display: flex;
   flex-wrap: wrap;

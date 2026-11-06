@@ -33,6 +33,13 @@
   height: 16px;
 }
 
+/* the app's own icon (img/eve-hud-icon.png, from assets/icon.png) */
+#topbar .brand .app-icon {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+
 #topbar .who {
   color: var(--ink-2);
   white-space: nowrap;
@@ -640,6 +647,22 @@
 .tb-pop.hover-pop {
   z-index: 70;
   pointer-events: none;
+}
+
+/* kept inside a module (hoverPop's within): wraps onto more lines rather than leaving it */
+.tb-pop.hover-pop.fit {
+  white-space: normal;
+}
+
+/* chat links (showinfo.js): the item window's orange */
+.tb-pop.hover-pop.link {
+  border-color: rgba(var(--amber-rgb), 0.42);
+  color: #ffc27a;
+}
+
+.tb-pop.hover-pop.link::before,
+.tb-pop.hover-pop.link::after {
+  border-color: var(--amber-hi);
 }
 
 .tb-pop.hover-pop .pop-row + .pop-row {

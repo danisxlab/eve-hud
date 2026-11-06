@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 
 const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -259,6 +260,22 @@ test('server (demo): demand endpoint, route, waypoint, cross-site requests refus
       200,
       'same origin is fine',
     );
+    // a website that points its own name at 127.0.0.1 (DNS rebinding) gets nothing, not even a GET
+    const withHost = (host, p) =>
+      new Promise((resolve, reject) => {
+        const r = http.request({ host: '127.0.0.1', port, path: p, headers: { Host: host } }, (res) => {
+          res.resume();
+          res.on('end', () => resolve(res));
+        });
+        r.on('error', reject);
+        r.end();
+      });
+    assert.equal((await withHost(`evil.example:${port}`, '/api/state')).statusCode, 421);
+    assert.equal((await withHost('evil.example', '/')).statusCode, 421);
+    assert.equal((await withHost(`127.0.0.1:${port}`, '/api/state')).statusCode, 200);
+    const page = await fetch(`${base}/`);
+    assert.equal(page.headers.get('x-frame-options'), 'DENY', 'no other website may frame the HUD');
+    assert.equal(page.headers.get('x-content-type-options'), 'nosniff');
     const r = await fetch(`${base}/api/route?from=30000001&to=30000001`).then((x) => x.json());
     assert.equal(r.jumps, 0);
     const w = await post('/api/waypoint', { to: 30000001 }).then((x) => x.json());

@@ -79,10 +79,32 @@ function readBody(req, limit = 300 * 1024) {
   });
 }
 
+// Text in the small HTML pages the server writes itself (login done, login failed): never markup.
+const esc = (v) =>
+  String(v ?? '').replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
+  );
+
+// Sent with every page and file: no other website may show the HUD in a frame, files are only
+// read as what they are, and no address leaks to the sites the HUD links to.
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Content-Security-Policy': "frame-ancestors 'none'; object-src 'none'; base-uri 'none'",
+  'Referrer-Policy': 'no-referrer',
+};
+
+// The HUD only answers to this computer's own names. A website that points its own name at
+// 127.0.0.1 ("DNS rebinding") arrives with that name in Host, and gets nothing.
+export function isLocalHost(host) {
+  return /^(localhost|127\.0\.0\.1|\[::1\])(:\d{1,5})?$/i.test(String(host || ''));
+}
+
 function serveStatic(req, res, pathname) {
   const rel = pathname === '/' ? 'index.html' : decodeURIComponent(pathname.slice(1));
   const file = path.normalize(path.join(PUBLIC, rel));
-  if (!file.startsWith(PUBLIC)) {
+  if (!file.startsWith(PUBLIC + path.sep)) {
     res.writeHead(403);
     return res.end();
   }
@@ -94,6 +116,7 @@ function serveStatic(req, res, pathname) {
     res.writeHead(200, {
       'Content-Type': MIME[path.extname(file)] || 'application/octet-stream',
       'Cache-Control': 'no-cache',
+      ...SECURITY_HEADERS,
     });
     res.end(buf);
   });
@@ -101,18 +124,18 @@ function serveStatic(req, res, pathname) {
 
 // Shown in your browser after a login started from the app: the app has the login now.
 function donePage(res, name) {
-  res.writeHead(200, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-store' });
+  res.writeHead(200, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-store', ...SECURITY_HEADERS });
   res.end(`<!doctype html><meta charset="utf-8"><title>Logged in to EVE HUD</title>
 <body style="background:#000;color:#c9d3d6;font:16px system-ui;padding:40px">
-<h1 style="color:#8fe6c4;font-weight:500">Logged in${name ? ` as ${String(name).replace(/[<&]/g, '')}` : ''}</h1>
+<h1 style="color:#8fe6c4;font-weight:500">Logged in${name ? ` as ${esc(name)}` : ''}</h1>
 <p>EVE HUD has your login now. You can close this tab and go back to the app.</p>`);
 }
 
 function errorPage(res, title, detail) {
-  res.writeHead(400, { 'Content-Type': MIME['.html'] });
-  res.end(`<!doctype html><meta charset="utf-8"><title>${title}</title>
+  res.writeHead(400, { 'Content-Type': MIME['.html'], ...SECURITY_HEADERS });
+  res.end(`<!doctype html><meta charset="utf-8"><title>${esc(title)}</title>
 <body style="background:#000;color:#c9d3d6;font:16px system-ui;padding:40px">
-<h1 style="color:#d9493a;font-weight:500">${title}</h1><p>${String(detail).replace(/</g, '&lt;')}</p><p><a style="color:#6fe0c4" href="/">Back to the HUD</a></p>`);
+<h1 style="color:#d9493a;font-weight:500">${esc(title)}</h1><p>${esc(detail)}</p><p><a style="color:#6fe0c4" href="/">Back to the HUD</a></p>`);
 }
 
 // ---------------- start ----------------
@@ -292,7 +315,11 @@ export async function startServer({
 
   // One request handler, so the HUD can move to another port (setup form) without a restart.
   const onRequest = async (req, res) => {
-    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    if (!isLocalHost(req.headers.host)) {
+      res.writeHead(421, { 'Content-Type': 'text/plain', ...SECURITY_HEADERS });
+      return res.end('EVE HUD only answers on localhost.');
+    }
+    const url = new URL(req.url, `http://${req.headers.host}`);
     const p = url.pathname;
     // Requests that change something (settings, logout, autopilot…) must come from the HUD page
     // itself, not from another website open in the same browser.

@@ -1,0 +1,252 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Compact modules: one row high on a grid with many rows (e.g. 5 rows on a laptop screen, where a
+   module's body is only about 100 px high). Everything gets a little tighter, lists fade out at
+   the edge they scroll on, and the Character and Industry modules switch to a shorter layout.
+   The module body is a size container named "mod" (modules-common.css). */
+
+@container mod (max-height: 120px) {
+  /* lists fade out where there's more to scroll to */
+  .scroll {
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 16px), transparent);
+  }
+
+  /* list modules (Activity & Income, Mining Ledger, Ships & Assets, Standings, Kills & Losses) */
+  .lm-head {
+    padding: 5px 12px 4px;
+  }
+  .lm-body {
+    padding-top: 0;
+  }
+  .lm-total {
+    padding: 5px 14px 2px;
+    gap: 4px 8px;
+  }
+  .lm-total b {
+    font-size: 16px;
+    line-height: 1.2;
+  }
+  .lm-sec {
+    padding-top: 6px;
+  }
+
+  /* tab bars and footers (Chat, Warfare) */
+  .chat .bar-top,
+  .warfare .bar-top {
+    padding-top: 4px;
+  }
+  .chat .bar-top .tabs .tab,
+  .warfare .bar-top .tab {
+    padding: 3px 12px 4px;
+  }
+  .chat .foot,
+  .wf-foot {
+    padding: 3px 12px 4px;
+  }
+  .chat .msgs {
+    padding: 2px 12px;
+    /* the chat scrolls from the bottom: the older messages fade out at the top */
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 14px);
+    mask-image: linear-gradient(to bottom, transparent, #000 14px);
+  }
+  .msg {
+    padding: 1px 0;
+  }
+  .wf-body {
+    padding-top: 2px;
+  }
+
+  /* Market Orders */
+  .mk-sum {
+    padding: 6px 14px 5px;
+    gap: 2px 12px;
+  }
+  .mk-sum .v {
+    font-size: 16px;
+  }
+  .ord {
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+
+  /* Industry: a smaller ring and no facility line, so two jobs fit */
+  .jobs {
+    padding: 2px 0;
+  }
+  .job {
+    grid-template-columns: 32px 1fr;
+    padding: 5px 14px;
+  }
+  .dial {
+    width: 32px;
+    height: 32px;
+  }
+  .dial .ic svg {
+    width: 13px;
+    height: 13px;
+  }
+  .job .fac {
+    display: none;
+  }
+
+  /* Character: no portrait, wallet or ship picture.
+       name ............ docked / in space + system
+       corporation ................... ship's name
+       security · skill points · age · implants          */
+  .char {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-rows: auto auto auto;
+    grid-auto-rows: auto;
+    gap: 3px 12px;
+    padding: 9px 14px 6px;
+    align-content: start;
+    align-items: center;
+  }
+  .char .portrait,
+  .char .wallet,
+  .char .ship img,
+  .char .ship .dim,
+  .char .ident > .label:first-child,
+  .char .ident > .corp + .corp,
+  .char .whereabouts .loc .dim,
+  .char .whereabouts .docked {
+    display: none;
+  }
+  .char .ident {
+    display: contents;
+  }
+  .char .ident > h3 {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+    margin: 0;
+    font-size: 18px;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .char .ident > .corp {
+    grid-column: 1;
+    grid-row: 2;
+    margin: 0;
+    gap: 6px;
+    font-size: 12.5px;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .char .ident > .corp img {
+    width: 16px;
+    height: 16px;
+  }
+  .char .ident > .corp span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .char .ident > .meta {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    margin-top: 5px;
+    gap: 4px 14px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+  .char .ident .meta .v {
+    font-size: 13px;
+  }
+  .char .whereabouts .where-txt {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+    gap: 8px;
+  }
+  .char .ship {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: center;
+    justify-self: end;
+    max-width: 160px;
+    min-width: 0;
+  }
+  .char .ship-in,
+  .char .ship-in > div {
+    min-width: 0;
+  }
+  .char .ship .nm {
+    font-size: 12.5px;
+    color: var(--ink-2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* …and in a narrow one, the corporation gets the whole line instead of sharing it with the ship */
+@container mod (max-height: 120px) and (max-width: 480px) {
+  .char .ship {
+    display: none;
+  }
+  .char .ident > .corp {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Very narrow modules (e.g. 6 columns on a 1080-wide screen, about 170 px): nothing overlaps or
+   runs past the edge; numbers move under each other and the small extras step aside. */
+@container mod (max-width: 220px) {
+  /* list modules: two numbers next to each other, the third under them */
+  .lm-total {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 10px;
+  }
+  .lm-total b {
+    font-size: 15px;
+  }
+  .lm-chart-head .faint {
+    display: none; /* the colour legend: the graph's label keeps one line */
+  }
+
+  /* Industry: no ring; the time under the activity */
+  .job {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .job .dial {
+    display: none;
+  }
+  .job .sub2 {
+    flex-wrap: wrap;
+    gap: 0 8px;
+  }
+
+  /* Market Orders: no price graphs or expiry times, so the quantities have room */
+  .ord .exp {
+    display: none;
+  }
+
+  /* Warfare: the tabs on two lines instead of off the edge */
+  .warfare .bar-top,
+  .warfare .bar-top .tabs {
+    flex-wrap: wrap;
+  }
+  .warfare .bar-top {
+    padding: 6px 8px 0;
+  }
+  .warfare .bar-top .tab {
+    padding: 3px 8px 4px;
+  }
+
+  /* Character: no portrait; the location may wrap */
+  .char .portrait {
+    display: none;
+  }
+  .char .ident > h3,
+  .char .ident > .corp {
+    grid-column: 1 / -1;
+  }
+  .char .whereabouts .where-txt,
+  .char .whereabouts .wt-in {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+}

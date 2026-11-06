@@ -225,7 +225,7 @@ export function renderDrawer() {
       () => s.grid.cols,
       (v) => {
         s.grid.cols = v;
-        hud.grid.sync();
+        hud.grid.sync({ animate: true });
       },
     ),
     range(
@@ -236,7 +236,7 @@ export function renderDrawer() {
       () => s.grid.rows,
       (v) => {
         s.grid.rows = v;
-        hud.grid.sync();
+        hud.grid.sync({ animate: true });
       },
     ),
     range(
@@ -247,7 +247,7 @@ export function renderDrawer() {
       () => s.grid.gap,
       (v) => {
         s.grid.gap = v;
-        hud.grid.layout();
+        hud.grid.layout({ animate: true });
       },
       'px',
     ),

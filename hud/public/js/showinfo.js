@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The link window: a compact, animated card that opens at a clicked chat link and floats above
 // everything. Clicking anywhere outside it (or pressing Escape) closes it, so it has no close button.
-import { h, fill, fmt, img, imageUrl, displaySec, secColor } from './util.js';
+import { h, fill, fmt, img, imageUrl, displaySec, secColor, hoverPop } from './util.js';
 import { store } from './store.js';
 import { secChip } from './modules/character.js';
 
@@ -81,7 +81,9 @@ export function renderParts(parts) {
     const t = parseHref(p.href);
     if (t.kind === 'web')
       return h('a', { class: 'evelink', href: t.url, target: '_blank', rel: 'noopener noreferrer' }, p.text);
-    const b = h('button', { type: 'button', class: 'evelink', title: 'Show info' }, p.text);
+    const b = h('button', { type: 'button', class: 'evelink' }, p.text);
+    // the HUD's hover box in the item window's orange, inside the module (the chat)
+    hoverPop(b, 'Show info', { cls: 'link', within: () => b.closest('.scroll') || b.closest('.mod') });
     b.addEventListener('click', (e) => {
       e.stopPropagation();
       if (openFor === b && !pop.hidden) {

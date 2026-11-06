@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Snap-to-grid window manager: modules occupy whole cells, can be dragged by their header
 // and resized from the left or right edge, the bottom edge or the bottom corners. Layout persists via settings.
-import { h, svg, fill, hoverPop, hoverRow } from './util.js';
+import { h, svg, fill, hoverPop, hoverRow, motionFull, motionReduced } from './util.js';
 import { store, saveSettings } from './store.js';
 
 const overlaps = (a, b) => a.c < b.c + b.w && b.c < a.c + a.w && a.r < b.r + b.h && b.r < a.r + a.h;
@@ -172,20 +172,56 @@ export function createGrid(root, registry, { toast }) {
     mounted.delete(id);
   }
 
-  function layout() {
+  // animate: the grid itself changed (Settings → Columns, Rows, Gap). The content fades out, the
+  // windows glide to their new size and place, and the content fades back in, already laid out
+  // for the new size. With Animations: Limited only the fade, with Off neither.
+  function layout({ animate = false } = {}) {
+    const fade = animate && !motionReduced();
+    const from = new Map();
+    if (fade)
+      for (const [id, m] of mounted) {
+        const cs = getComputedStyle(m.el); // where it is now, also halfway through a glide
+        from.set(id, { left: cs.left, top: cs.top, width: cs.width, height: cs.height });
+      }
     computeGeom();
     for (const [id, m] of mounted) apply(m.el, placement(id));
+    if (fade) for (const [id, m] of mounted) if (from.has(id)) resizeFx(m, from.get(id), motionFull());
     for (const m of mounted.values()) m.api.resize?.();
   }
 
-  function sync() {
+  const GLIDE_MS = 300;
+  function resizeFx(m, from, glide) {
+    const s = m.el.style;
+    const to = { left: s.left, top: s.top, width: s.width, height: s.height };
+    if (!Object.keys(to).some((k) => Math.abs(parseFloat(from[k]) - parseFloat(to[k])) > 0.5)) return;
+    const body = m.chrome.body;
+    // a slider being dragged: carry on from where the last fade is, instead of flashing back in
+    const op = m.fadeFx?.playState === 'running' ? Number(getComputedStyle(body).opacity) : 1;
+    m.glideFx?.cancel();
+    m.fadeFx?.cancel();
+    const ease = 'cubic-bezier(0.4, 0, 0.2, 1)';
+    if (glide) {
+      m.glideFx = m.el.animate([from, to], { duration: GLIDE_MS, easing: ease });
+      m.glideFx.onfinish = () => m.api.resize?.(); // measured again at its final size
+    }
+    // the content: out quickly, hidden while the window moves, then back in
+    const d = glide ? GLIDE_MS + 220 : 360;
+    const out = 90 / d;
+    const back = glide ? GLIDE_MS / d : out;
+    m.fadeFx = body.animate(
+      [{ opacity: op }, { opacity: 0, offset: out }, { opacity: 0, offset: back }, { opacity: 1 }],
+      { duration: d, easing: 'ease-out' },
+    );
+  }
+
+  function sync({ animate = false } = {}) {
     normalize();
     for (const id of Object.keys(registry)) {
       const p = placement(id);
       if (p?.visible && !mounted.has(id)) mount(id);
       if ((!p || !p.visible) && mounted.has(id)) unmount(id);
     }
-    layout();
+    layout({ animate });
   }
 
   // Returns true when done, 'replace' when the grid is full and the user now picks a module to replace.

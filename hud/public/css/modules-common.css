@@ -86,7 +86,12 @@
   height: var(--head-h);
   display: flex;
   align-items: center;
-  gap: 10px;
+  /* a narrow module: the status on the right moves to a second line, which is out of sight, so
+     the title keeps its room */
+  flex-wrap: wrap;
+  align-content: flex-start;
+  overflow: hidden;
+  gap: 0 10px;
   padding: 0 12px 0 14px;
   cursor: default;
   position: relative;
@@ -112,6 +117,9 @@ body:not(.locked) .mod.dragging .mod-head {
 
 .mod-head h2 {
   margin: 0;
+  min-width: 0;
+  max-width: calc(100% - 26px); /* next to the icon, also when there's no room for the status */
+  line-height: var(--head-h);
   font-size: 16px;
   font-weight: 400;
   letter-spacing: 0.02em;
@@ -152,6 +160,7 @@ body:not(.locked) .mod.dragging .mod-head {
   min-height: 0;
   position: relative;
   overflow: hidden;
+  container: mod / size; /* compact.css: modules one row high when the grid has many rows */
 }
 
 .scroll {

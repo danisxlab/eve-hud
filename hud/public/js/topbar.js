@@ -2,7 +2,7 @@
 // The top bar: character, clone and location, alerts and mail, Tranquility, EVE time, the
 // CLUSTER light, and the ATTACK indicator. Its hover boxes list the details.
 
-import { $, h, svg, fmt, fill, motionReduced } from './util.js';
+import { $, h, svg, fmt, fill, motionReduced, hoverPop } from './util.js';
 import { store, saveSettings } from './store.js';
 import { ICONS } from './glyphs.js';
 import { secChip } from './modules/character.js';
@@ -30,8 +30,20 @@ export function redAlert() {
 
 export function renderTopbar() {
   const bar = $('#topbar');
-  const brand = h('div', { class: 'brand' }, svg(ICONS.brand, 'g'), h('span', {}, 'Capsuleer HUD'));
-  brand.querySelector('svg').style.color = 'var(--gal)';
+  // the app's own icon and name
+  const brand = h(
+    'div',
+    { class: 'brand' },
+    // the path from this file, so it also works on the demo website
+    h('img', {
+      class: 'app-icon',
+      src: new URL('../img/eve-hud-icon.png', import.meta.url).href,
+      alt: '',
+      width: 20,
+      height: 20,
+    }),
+    h('span', {}, 'EVE HUD'),
+  );
   const who = h('div', { class: 'who' });
   const clone = h('div', { class: 'clone' });
   const tq = h('div', { class: 'stat' });
@@ -51,20 +63,25 @@ export function renderTopbar() {
   const alerts = h('div', { class: 'tb-alerts', role: 'status', hidden: true }, alertIcon);
   // CLUSTER: the EVE cluster (ESI /status) and ESI's own health (/meta/status) in one light
   const conn = h('span', { class: 'led' });
-  const lockBtn = h('button', { class: 'icon-btn', title: 'Lock layout', 'aria-label': 'Lock layout' });
-  const setBtn = h('button', { class: 'icon-btn', title: 'Settings', 'aria-label': 'Settings' });
+  const lockBtn = h('button', { class: 'icon-btn', 'aria-label': 'Lock layout' });
+  const setBtn = h('button', { class: 'icon-btn', 'aria-label': 'Settings' });
   setBtn.append(svg(ICONS.settings, 'g'));
   const infoBtn = h('button', {
     class: 'icon-btn',
-    title: 'About EVE HUD',
     'aria-label': 'About EVE HUD',
     onclick: aboutModal,
   });
   infoBtn.append(svg(ICONS.info, 'g'));
+  // their names: the notification box's hover style; near the window's right edge it opens leftwards
+  for (const b of [lockBtn, setBtn, infoBtn])
+    hoverPop(b, () => b.getAttribute('aria-label'), { mode: 'list' });
   const paintLock = () => {
     lockBtn.replaceChildren(svg(store.settings.locked ? ICONS.lock : ICONS.unlock, 'g'));
     lockBtn.classList.toggle('active', store.settings.locked);
-    lockBtn.title = store.settings.locked ? 'Layout locked. Click to rearrange modules' : 'Lock layout';
+    lockBtn.setAttribute(
+      'aria-label',
+      store.settings.locked ? 'Layout locked. Click to rearrange modules' : 'Lock layout',
+    );
   };
   lockBtn.onclick = () => {
     store.settings.locked = !store.settings.locked;
@@ -78,10 +95,11 @@ export function renderTopbar() {
   const hudConn = h('div', { class: 'stat hud-conn', role: 'status' }, h('span', {}, 'CLUSTER'), conn);
   const attack = h(
     'div',
-    { class: 'tb-attack', role: 'status', hidden: true, title: 'In combat (from the EVE game log)' },
+    { class: 'tb-attack', role: 'status', hidden: true, 'aria-label': 'In combat (from the EVE game log)' },
     svg(ICONS.attack, 'g'),
     h('span', {}, 'ATTACK'),
   );
+  hoverPop(attack, () => attack.getAttribute('aria-label'), { mode: 'list' });
   bar.replaceChildren(
     brand,
     who,

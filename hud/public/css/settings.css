@@ -426,50 +426,6 @@
   }
 }
 
-@container (max-height: 330px) {
-  .char {
-    grid-template-rows: auto minmax(0, 1fr);
-    gap: 6px 18px;
-    padding: 10px 14px;
-    align-items: start;
-  }
-  .char .portrait {
-    width: 110px;
-    height: 110px;
-  }
-  .char .portrait img {
-    inset: 12px;
-    width: 86px;
-    height: 86px;
-  }
-  .char .ident .meta {
-    margin-top: 6px;
-  }
-  .char .ship {
-    grid-row: 1;
-  }
-  .char .ship img {
-    width: 48px;
-    height: 48px;
-  }
-  /* the wallet under the ship, without its graph, last entries and 30-day change */
-  .char .wallet {
-    grid-column: 3;
-    grid-row: 2;
-    align-self: end;
-    padding-top: 0;
-    border-top: 0;
-  }
-  .char .wallet .row {
-    justify-content: flex-end;
-  }
-  .char .wallet .row > div:last-child,
-  .char .wallet .chart,
-  .char .journal {
-    display: none;
-  }
-}
-
 .ord {
   contain-intrinsic-size: auto 52px;
 }

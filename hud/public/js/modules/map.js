@@ -29,6 +29,13 @@ export default {
       Boolean,
     ),
   mount(ctx) {
+    // hover boxes in the HUD's style (util.js hoverPop), kept inside this module; above the element,
+    // as most controls sit along the bottom
+    const mapMod = () => ctx.body.closest('.mod');
+    const hint = (el, text, opts = {}) => {
+      if (text) hoverPop(el, () => text, { above: true, within: mapMod, ...opts });
+      return el;
+    };
     const mapSettings = () => ctx.settings().map; // this module's part of the saved settings
     const canvas = h('canvas', {
       'aria-label': 'Star map. Scroll to zoom, drag to pan, double-click to center on your location.',
@@ -47,7 +54,6 @@ export default {
       spellcheck: 'false',
       autocomplete: 'off',
       'aria-label': 'Search a system or region on the map',
-      title: 'Search a system or region (press / to jump here)',
     });
     const searchList = h('div', { class: 'map-search-list', role: 'listbox', hidden: true });
     // our own ✕: the browser's built-in one only shows while the box is focused (and not at all in Firefox)
@@ -56,7 +62,6 @@ export default {
       {
         type: 'button',
         class: 'map-search-clear',
-        title: 'Clear search',
         'aria-label': 'Clear search',
         hidden: true,
         onmousedown: (e) => e.preventDefault(), // keep the focus where it is
@@ -71,6 +76,12 @@ export default {
       searchClear,
       searchList,
     );
+    // the search box: opens like the notification box, from the module's left border
+    hint(searchInput, 'Search a system or region (press / to jump here)', {
+      mode: 'list',
+      alignLeft: mapMod,
+    });
+    hint(searchClear, 'Clear search');
     // Route from your location to the searched system (shown while a system is searched)
     const routeBox = h('div', { class: 'map-route', hidden: true });
     const bl = h(
@@ -85,7 +96,7 @@ export default {
     const btn = (glyph, title, fn) => {
       const b = h('button', { class: 'icon-btn', 'aria-label': title, onclick: fn });
       b.append(svg(glyph, 'g'));
-      hoverPop(b, () => b.getAttribute('aria-label') || null);
+      hoverPop(b, () => b.getAttribute('aria-label') || null, { within: mapMod });
       return b;
     };
     const lanesBtn = btn(ICONS.lanes, 'Toggle jump lanes', () => {
@@ -105,7 +116,7 @@ export default {
             type: 'button',
             role: 'radio',
             'data-mode': mode,
-            title: `Colour systems by ${label.toLowerCase()}`,
+            'data-tip': `Colour systems by ${label.toLowerCase()}`,
             onclick: () => {
               mapSettings().colorBy = mode;
               ctx.save();
@@ -117,6 +128,7 @@ export default {
         ),
       ),
     );
+    for (const b of modeSwitch.children) hint(b, b.dataset.tip);
     mapSettings().hazardTypes ||= Object.fromEntries(Object.keys(HAZARDS).map((k) => [k, true]));
     const hazardBtn = btn(ICONS.hazard, 'Show hazards: incursions, kills, sovereignty and FW fights', () => {
       mapSettings().hazards = !mapSettings().hazards;
@@ -194,20 +206,22 @@ export default {
         h('div', { class: 'label' }, 'Hazards'),
         ...Object.entries(HAZARDS).map(([type, m]) => {
           const enabled = mapSettings().hazardTypes[type] !== false;
-          return h(
-            'button',
-            {
-              class: `hz-row${enabled ? '' : ' off'}`,
-              title: `${m.help}. Click to ${enabled ? 'hide' : 'show'}.`,
-              onclick: () => {
-                mapSettings().hazardTypes[type] = !enabled;
-                ctx.save();
-                buildHazards();
+          return hint(
+            h(
+              'button',
+              {
+                class: `hz-row${enabled ? '' : ' off'}`,
+                onclick: () => {
+                  mapSettings().hazardTypes[type] = !enabled;
+                  ctx.save();
+                  buildHazards();
+                },
               },
-            },
-            h('i', { class: 'hz-dia', style: { borderColor: m.color } }),
-            h('span', {}, m.label),
-            h('b', {}, String(counts[type] || 0)),
+              h('i', { class: 'hz-dia', style: { borderColor: m.color } }),
+              h('span', {}, m.label),
+              h('b', {}, String(counts[type] || 0)),
+            ),
+            `${m.help}. Click to ${enabled ? 'hide' : 'show'}.`,
           );
         }),
         h(
@@ -303,16 +317,15 @@ export default {
         const counts = factionInfo?.counts || {};
         legend.replaceChildren(
           ...FACTION_GROUPS.filter((g) => counts[g.key]).map((g) =>
-            h(
-              'div',
-              {
-                class: 'fac-row',
-                title:
-                  g.key === 'alliance' ? 'Each alliance has its own shade; hover a star for its name' : '',
-              },
-              h('i', { style: { background: g.color } }),
-              h('span', {}, g.label),
-              h('b', {}, fmt.int(counts[g.key])),
+            hint(
+              h(
+                'div',
+                { class: 'fac-row' },
+                h('i', { style: { background: g.color } }),
+                h('span', {}, g.label),
+                h('b', {}, fmt.int(counts[g.key])),
+              ),
+              g.key === 'alliance' ? 'Each alliance has its own shade; hover a star for its name' : null,
             ),
           ),
         );
@@ -591,6 +604,7 @@ export default {
 
     function setCurrent(i) {
       if (i === current) return;
+      const prev = current;
       current = i;
       neighbours = { set: new Set(), radius: 0 };
       if (i >= 0) {
@@ -622,6 +636,9 @@ export default {
         focusCurrent(true, 25);
         return;
       }
+      // jumped to a system outside the view (zoomed in too far to see it): centre on it, at the zoom
+      // you have
+      if (prev >= 0 && i >= 0 && view && !inView(i)) animateTo({ cx: data.x[i], cz: data.z[i], s: view.s });
       if (route && i >= 0 && route.from !== i) {
         // you jumped along the route: keep the rest of it, so it doesn't switch to another route of
         // the same length (ESI picks one of them each time; the game keeps the one it chose)
@@ -791,6 +808,11 @@ export default {
     // ---------------- view ----------------
     const toScreen = (x, z) => [W / 2 + (x - view.cx) * view.s, H / 2 - (z - view.cz) * view.s];
     const toWorld = (sx, sy) => [view.cx + (sx - W / 2) / view.s, view.cz - (sy - H / 2) / view.s];
+    // is this system on screen, a little away from the edges?
+    function inView(i, margin = 30) {
+      const [sx, sy] = toScreen(data.x[i], data.z[i]);
+      return sx >= margin && sx <= W - margin && sy >= margin && sy <= H - margin;
+    }
 
     function clampScale(s) {
       return Math.min(Math.max(s, fitScale * 0.6), fitScale * 400);
@@ -1569,10 +1591,9 @@ export default {
                 )
               : null,
             route.source === 'local'
-              ? h(
-                  'span',
-                  { class: 'faint', title: "Worked out from the star map, not by the game's route planner" },
-                  ' · estimate',
+              ? hint(
+                  h('span', { class: 'faint' }, ' · estimate'),
+                  "Worked out from the star map, not by the game's route planner",
                 )
               : null,
           ),
@@ -1580,12 +1601,14 @@ export default {
           h(
             'div',
             { class: 'mr-squares' },
-            route.path.slice(1, 61).map((i) =>
-              h('i', {
-                style: { background: secColor(data.sec[i]) },
-                title: `${data.names[i]} ${displaySec(data.sec[i])?.toFixed(1)}`,
-              }),
-            ),
+            route.path
+              .slice(1, 61)
+              .map((i) =>
+                hint(
+                  h('i', { style: { background: secColor(data.sec[i]) } }),
+                  `${data.names[i]} ${displaySec(data.sec[i])?.toFixed(1)}`,
+                ),
+              ),
             route.path.length > 61 ? h('span', { class: 'faint' }, `+${route.path.length - 61}`) : null,
           ),
         ];
@@ -1597,11 +1620,13 @@ export default {
           type: 'button',
           class: `mr-set${set?.state === 'ok' ? ' done' : ''}`,
           disabled: !route.path?.length || route.jumps === 0 || set?.state === 'busy',
-          title:
-            'Set this system as your in-game autopilot destination (clears your other waypoints). EVE must be running and logged in.',
           onclick: setDestination,
         },
         set?.state === 'busy' ? 'Setting…' : set?.state === 'ok' ? 'Destination set' : 'Set destination',
+      );
+      hint(
+        setBtn,
+        'Set this system as your in-game autopilot destination (clears your other waypoints). EVE must be running and logged in.',
       );
       fill(
         routeBox,
@@ -1624,15 +1649,9 @@ export default {
           'div',
           { class: 'mr-buttons' },
           setBtn,
-          h(
-            'button',
-            {
-              type: 'button',
-              class: 'mr-cancel',
-              title: 'Close the route and clear the search',
-              onclick: cancelSearch,
-            },
-            'Cancel',
+          hint(
+            h('button', { type: 'button', class: 'mr-cancel', onclick: cancelSearch }, 'Cancel'),
+            'Close the route and clear the search',
           ),
         ),
         set?.state === 'error' ? h('div', { class: 'mr-info warn' }, set.message) : null,

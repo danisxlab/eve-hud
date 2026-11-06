@@ -162,6 +162,15 @@
   padding-right: 12px;
 }
 
+/* the release notes, and code blocks or wide tables in them, scroll with an orange scrollbar,
+   like the window's frame */
+.modal.update .modal-scroll,
+.modal.update .md pre,
+.modal.update .md .md-table {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--amber-rgb), 0.45) transparent;
+}
+
 .modal.update .release-name {
   margin: 12px 0 2px;
   font-size: 15px;

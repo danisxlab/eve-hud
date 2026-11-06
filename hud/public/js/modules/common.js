@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Building blocks shared by the list-style modules (Activity, Mining, Assets, Standings, Kills).
-import { h, fill, fmt, emptyState, scopeNeeded, hoverPop } from '../util.js';
+import { h, fill, fmt, emptyState, scopeNeeded, hoverPop, insideOf } from '../util.js';
 
 export const PERIODS = [
   ['day', 'Today'],
@@ -79,9 +79,11 @@ export function barRow({
       )
     : h('div', { class: `lm-row${lead ? ' has-lead' : ''}` }, ...inner);
   if (key !== null) row.dataset.k = key;
-  // above the row, its right side on the module's border (out of the way of the row's values)
-  if (title)
-    hoverPop(row, () => h('span', {}, title), pop || { above: true, alignRight: () => row.closest('.mod') }); // the top bar's hover style, not the browser's tooltip
+  // above the row, from the module's left border, and never out of the module (the top bar's hover
+  // style, not the browser's tooltip)
+  const mod = () => row.closest('.mod');
+  const area = () => row.closest('.scroll') || mod(); // the list: the box stops before its scroll bar
+  if (title) hoverPop(row, () => h('span', {}, title), pop || { above: true, alignLeft: mod, within: area });
   return row;
 }
 
@@ -168,15 +170,15 @@ export function netLine(points, { height = 54 } = {}) {
       }),
     ),
   );
-  // Centred over the hovered day, but never past the module's border: near an edge, its side lines
-  // up with the border.
+  // Centred over the hovered day, but never past the module's border, nor under the scroll bar of
+  // the list it's in: near an edge, its side lines up with the border or stops before the scroll bar.
   function placeTip(i) {
     const box = wrap.getBoundingClientRect();
-    const mod = (wrap.closest('.mod') || wrap).getBoundingClientRect();
+    const r = insideOf(wrap.closest('.scroll') || wrap.closest('.mod') || wrap); // without the scroll bar
     const w = tip.offsetWidth;
     let left = ((i + 0.5) / n) * box.width - w / 2;
-    left = Math.min(left, mod.right - box.left - w);
-    left = Math.max(left, mod.left - box.left);
+    left = Math.min(left, r.right - box.left - w);
+    left = Math.max(left, r.left - box.left);
     tip.style.left = `${Math.round(left)}px`;
   }
   hit.addEventListener('mouseleave', () => {
