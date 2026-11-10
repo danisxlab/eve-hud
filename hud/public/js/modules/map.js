@@ -662,6 +662,7 @@ export default {
     // first view you choose yourself (scroll, drag, search…), which is then remembered.
     const DEFAULT_ZOOM = 29;
     let autoFocus = false;
+    let loggedInAs = store.auth?.loggedIn ? store.auth.characterId : null; // see store.on('auth') below
 
     function applyPresence(focus = false) {
       if (!data) return;
@@ -1138,7 +1139,7 @@ export default {
           mapSettings().view && Number.isFinite(mapSettings().view.s)
             ? { ...mapSettings().view }
             : { cx: (b.minX + b.maxX) / 2, cz: (b.minZ + b.maxZ) / 2, s: fitScale };
-        autoFocus = !mapSettings().view;
+        autoFocus = autoFocus || !mapSettings().view; // (a login while the map was loading counts too)
         applyPresence(autoFocus);
         if (found) focusFound(false); // after a layout switch, keep the search result in view
       }
@@ -2059,6 +2060,17 @@ export default {
       }),
       store.on('feed:traffic', () => renderHud()),
       store.on('feed:presence', () => applyPresence(autoFocus)),
+      // Logged in (another character, or the same one again): the next location from ESI centres
+      // the map on where that character is, at the first-view zoom, instead of the remembered view.
+      store.on('auth', (a) => {
+        const id = a?.loggedIn ? a.characterId : null;
+        if (id && id !== loggedInAs) {
+          autoFocus = true;
+          current = -1; // that character's system, not the previous one's
+          dirty = true;
+        }
+        loggedInAs = id;
+      }),
       store.on('map:show', ({ id }) => showSystem(id)),
       store.on('universe', (u) => {
         if (u.ready && data && u.builtAt && u.builtAt !== data.builtAt) {

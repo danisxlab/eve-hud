@@ -350,6 +350,40 @@
   gap: 0;
 }
 
+/* the own-application form's port, inside the callback URL */
+.gate input.port {
+  font: inherit;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--gal-hi);
+  width: 6ch;
+  text-align: center;
+  padding: 1px 3px;
+  margin: 0 1px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 1px solid var(--line-2);
+  outline: none;
+}
+
+.gate input.port:focus {
+  border-color: var(--gal-hi);
+  box-shadow: 0 0 0 1px rgba(var(--gal-rgb), 0.35);
+}
+
+.gate .port-state {
+  margin-left: 8px;
+  font-size: 11px;
+  font-family: var(--font);
+}
+
+.gate .port-state.ok {
+  color: var(--gal-hi);
+}
+
+.gate .port-state.bad {
+  color: #ff7a6c;
+}
+
 .gate .fine.tight {
   margin: 0 0 8px;
   font-size: 11px;

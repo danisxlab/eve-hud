@@ -170,8 +170,19 @@ export function loadConfig() {
       /* stays plain until the next start */
     }
   }
+  // A Client ID that can't be one (typed by hand into config.json): the login would only fail at
+  // EVE, so the EVE HUD application is used instead, and the login screen says why. The file itself
+  // stays as it is (encrypted, above).
+  if (cfg.ownApp && !CLIENT_ID_RE.test(cfg.clientId)) {
+    cfg.secretProblem =
+      "The Client ID in config.json doesn't look like one from developers.eveonline.com (usually 32 letters and digits), so EVE HUD logs in through the EVE HUD application. Correct it in config.json (or remove it) and restart EVE HUD.";
+    Object.assign(cfg, { clientId: '', clientSecret: '', ownApp: false });
+  }
   return cfg;
 }
+
+// What a Client ID from developers.eveonline.com looks like (usually 32 letters and digits)
+export const CLIENT_ID_RE = /^[0-9a-z-]{20,64}$/i;
 
 const CREDENTIALS = ['clientId', 'clientSecret'];
 // EVE's Faction Warfare channel; its log files are named Militia_<date>_<time>[_<character>].txt

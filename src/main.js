@@ -171,6 +171,12 @@ async function start() {
         port: PORT,
         log,
         rebuildMap: argv.includes('--rebuild-map'),
+        // the setup form (or Reset) moved the HUD to another port: the window and tray follow
+        onPortChange: (next) => {
+          url = next;
+          hud?.setUrl(next);
+          tray?.update();
+        },
         // logged in through the browser: bring the app back to the front
         onLogin: () => hud?.show(),
         storage: {

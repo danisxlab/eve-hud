@@ -319,7 +319,7 @@ export function renderDrawer() {
                 h(
                   'p',
                   { class: 'note' },
-                  `Logged in as ${auth.characterName}, through ${auth.ownApp ? 'your own EVE application' : 'the EVE HUD application'}.`,
+                  `Logged in as ${auth.characterName}, through ${(auth.loginOwnApp ?? auth.ownApp) ? 'your own EVE application' : 'the EVE HUD application'}.`,
                 ),
                 permissionsBlock(auth),
                 h(
@@ -717,7 +717,10 @@ export async function resetHud() {
   if (!ok) return;
   try {
     const r = await fetch('/api/reset', { method: 'POST' });
-    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
+    const body = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(body.error || `HTTP ${r.status}`);
+    // back on port 4747 (the EVE HUD application only works there): the app window follows by itself
+    if (body.url && new URL(body.url).port !== location.port && !store.config?.app) location.href = body.url;
     toast('EVE HUD reset. Log in with EVE Online to continue.');
   } catch (err) {
     toast(`Reset failed: ${err.message}`);

@@ -2,7 +2,7 @@
 // Before the HUD can show anything: the "Log in with EVE Online" button (the built-in EVE HUD
 // application, or your own), or the form for your own application's Client ID and Secret Key.
 
-import { h } from './util.js';
+import { h, fill } from './util.js';
 import { store } from './store.js';
 
 // ---------------- login gate ----------------
@@ -46,7 +46,7 @@ export function renderGate() {
             ? h(
                 'p',
                 { class: 'fine center' },
-                "Opens in your default browser. When it says you're logged in, close the tab: the HUD updates by itself.",
+                "Opens in your default browser. When it says you're logged in, close the tab: EVE HUD updates by itself.",
               )
             : null,
           a.secretProblem ? h('p', { class: 'form-error' }, a.secretProblem) : null,
@@ -94,6 +94,7 @@ export function setupForm() {
   const cfg = store.config || {};
   // every scope the HUD can use (config.json's list plus any new ones); saving adds the new ones to config.json
   const scopes = [...new Set([...(cfg.scopes || []), ...(cfg.knownScopes || [])])];
+  // text: a string, or a function giving the current text (the callback URL follows the port field)
   const copyBtn = (text, label) =>
     h(
       'button',
@@ -102,7 +103,7 @@ export function setupForm() {
         class: 'copy',
         title: `Copy ${label}`,
         onclick: (e) =>
-          navigator.clipboard?.writeText(text).then(() => {
+          navigator.clipboard?.writeText(typeof text === 'function' ? text() : text).then(() => {
             e.target.textContent = 'Copied';
             setTimeout(() => {
               e.target.textContent = 'Copy';
@@ -111,9 +112,43 @@ export function setupForm() {
       },
       'Copy',
     );
-  // The Callback URL to register: it uses EVE HUD's port (4747; another port only by hand in
-  // config.json, with your own application). It must match developers.eveonline.com exactly.
-  const callbackUrl = `http://localhost:${Number(cfg.port) || 4747}/callback`;
+  // Callback URL with an editable port (your own application only; the EVE HUD application only
+  // works on 4747): EVE HUD moves to that port when you save, so pick a free one if 4747 is taken.
+  // It must match the Callback URL on developers.eveonline.com exactly.
+  const currentPort = Number(cfg.port) || 4747;
+  const port = h('input', {
+    type: 'text',
+    inputmode: 'numeric',
+    class: 'port',
+    name: 'port',
+    value: String(currentPort),
+    maxlength: 5,
+    'aria-label': 'Port',
+    title: 'Port of EVE HUD (1024–65535)',
+  });
+  const portState = h('span', { class: 'port-state' });
+  const callbackUrl = () => `http://localhost:${port.value.trim() || currentPort}/callback`;
+  let checkTimer = null;
+  port.addEventListener('input', () => {
+    port.value = port.value.replace(/\D/g, '').slice(0, 5);
+    clearTimeout(checkTimer);
+    fill(portState);
+    portState.className = 'port-state';
+    checkTimer = setTimeout(async () => {
+      const n = Number(port.value);
+      if (!(n >= 1024 && n <= 65535)) {
+        portState.className = 'port-state bad';
+        fill(portState, '1024–65535');
+        return;
+      }
+      const r = await fetch(`/api/portcheck?port=${n}`)
+        .then((x) => x.json())
+        .catch(() => null);
+      if (!r || String(r.port) !== port.value) return; // typed on meanwhile
+      portState.className = `port-state ${r.free ? 'ok' : 'bad'}`;
+      fill(portState, r.current ? 'in use by EVE HUD' : r.free ? 'free' : 'in use');
+    }, 350);
+  });
   const id = h('input', {
     type: 'text',
     name: 'clientId',
@@ -142,17 +177,22 @@ export function setupForm() {
           const r = await fetch('/api/credentials', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ clientId: id.value, clientSecret: secret.value }),
+            body: JSON.stringify({ clientId: id.value, clientSecret: secret.value, port: port.value }),
           });
           const body = await r.json().catch(() => ({}));
           if (!r.ok) {
             err.textContent = body.error || `Saving failed (HTTP ${r.status})`;
             err.hidden = false;
-            (body.field === 'clientSecret' ? secret : id).focus();
+            (({ clientSecret: secret, port })[body.field] || id).focus();
             return;
           }
           secret.value = '';
-          // the next screen ("Connect your capsuleer") arrives over the live connection
+          // Moved to another port: the app window follows by itself.
+          if (body.url && new URL(body.url).port !== location.port) {
+            if (!store.config.app) location.href = body.url;
+            return;
+          }
+          // otherwise the next screen ("Connect your capsuleer") arrives over the live connection
         } catch (e2) {
           err.textContent = `Saving failed: ${e2.message}`;
           err.hidden = false;
@@ -187,8 +227,13 @@ export function setupForm() {
       'div',
       { class: 'setup-row' },
       h('span', { class: 'label' }, 'Callback URL'),
-      h('code', { class: 'cb' }, callbackUrl),
+      h('code', { class: 'cb' }, 'http://localhost:', port, '/callback', portState),
       copyBtn(callbackUrl, 'the callback URL'),
+    ),
+    h(
+      'p',
+      { class: 'fine tight' },
+      `Port ${currentPort} taken by something else on this computer? Type another one; EVE HUD moves there when you save. The Callback URL on the developer site must match.`,
     ),
     h(
       'div',

@@ -558,9 +558,10 @@ test('setup: Client ID / Secret from the page, Reset EVE HUD, config.json keeps 
   }
 });
 
-test('another port: only with your own application (otherwise auth.portProblem: the red window); the setup form never moves the port; Grant access adds scopes', async () => {
+test('another port: only with your own application (otherwise auth.portProblem: the red window); the own-application form moves EVE HUD there; Grant access adds scopes', async () => {
   const liveHome = fs.mkdtempSync(path.join(os.tmpdir(), 'eve-hud-port-'));
   const port = 4785;
+  const next = 4784;
   // "port" changed by hand in config.json (callbackUrl too, as for your own application)
   fs.writeFileSync(
     path.join(liveHome, 'config.json'),
@@ -599,7 +600,13 @@ test('another port: only with your own application (otherwise auth.portProblem: 
     const refused = await fetch(`${base}/login`, { redirect: 'manual' });
     assert.equal(refused.status, 400);
     assert.match(await refused.text(), /The login needs port 4747/);
-    assert.equal((await fetch(`${base}/api/portcheck?port=4784`)).status, 404, 'no port check any more');
+    // the own-application form says whether a port is free
+    assert.deepEqual(await fetch(`${base}/api/portcheck?port=${next}`).then((r) => r.json()), {
+      port: next,
+      free: true,
+    });
+    assert.equal((await fetch(`${base}/api/portcheck?port=${port}`).then((r) => r.json())).current, true);
+    assert.equal((await fetch(`${base}/api/portcheck?port=80`).then((r) => r.json())).invalid, true);
     // the EVE HUD application's own Client ID is no "own application" (not in the form, not in config.json)
     const { BUILTIN_CLIENT_ID, hasOwnApp, builtinPortProblem } = await import('../hud/lib/store.js');
     const builtinRefused = await post(base, '/api/credentials', { clientId: BUILTIN_CLIENT_ID });
@@ -613,23 +620,28 @@ test('another port: only with your own application (otherwise auth.portProblem: 
     assert.equal(builtinPortProblem({ clientId: 'c'.repeat(32), port: port }), false);
     assert.equal(builtinPortProblem({ clientId: '', port: 4747 }), false);
 
-    // your own application: the port stays as it is (a port in the request is ignored)
+    // your own application with another port: EVE HUD moves there, config.json keeps port and
+    // callbackUrl in step, and the old port closes
     const creds = { clientId: 'b'.repeat(32), clientSecret: 'eat_PortTestSecretPortTestSecret' };
-    const r = await post(base, '/api/credentials', { ...creds, port: 4784 }).then((x) => x.json());
-    assert.deepEqual(r, { ok: true });
+    assert.equal((await post(base, '/api/credentials', { ...creds, port: 'abc' })).status, 400);
+    const r = await post(base, '/api/credentials', { ...creds, port: next }).then((x) => x.json());
+    assert.equal(r.url, `http://localhost:${next}/`);
     const cfg = JSON.parse(fs.readFileSync(path.join(liveHome, 'config.json'), 'utf8'));
-    assert.equal(cfg.port, port);
-    const after = (await fetch(`${base}/api/state`).then((x) => x.json())).auth;
+    assert.equal(cfg.port, next);
+    assert.equal(cfg.callbackUrl, `http://localhost:${next}/callback`);
+    const nb = `http://localhost:${next}`;
+    const after = (await fetch(`${nb}/api/state`).then((x) => x.json())).auth;
     assert.equal(after.ownApp, true);
     assert.equal(after.portProblem, undefined, 'no red window with your own application');
-    const login = await fetch(`${base}/login`, { redirect: 'manual' });
+    await sleep(1800);
+    await assert.rejects(fetch(`${base}/api/state`), 'old port closed');
+    const login = await fetch(`${nb}/login`, { redirect: 'manual' });
     assert.equal(
       new URL(login.headers.get('location')).searchParams.get('redirect_uri'),
-      `http://localhost:${port}/callback`,
+      `http://localhost:${next}/callback`,
     );
 
     // Grant access: known scopes are added to config.json in place, unknown ones refused
-    const nb = base;
     fs.writeFileSync(
       path.join(liveHome, 'config.json'),
       fs
@@ -807,6 +819,51 @@ test('security: other websites in the browser get nothing from the API; pending 
     store.makePrivate(f);
     assert.equal(fs.statSync(f).mode & 0o777, 0o600, 'older files are made private');
     fs.rmSync(f);
+  }
+});
+
+test('a Client ID that cannot be one (typed into config.json): the EVE HUD application, and the login screen says why', async () => {
+  const store = await import('../hud/lib/store.js');
+  const { createAuth } = await import('../hud/lib/auth.js');
+  const before = fs.existsSync(store.CONFIG_FILE) ? fs.readFileSync(store.CONFIG_FILE) : null;
+  try {
+    const example = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.example.json'), 'utf8'));
+    fs.writeFileSync(
+      store.CONFIG_FILE,
+      JSON.stringify({ ...example, clientId: 'test12345', clientSecret: 'test12345' }, null, 2),
+    );
+    const cfg = store.loadConfig();
+    assert.equal(cfg.ownApp, false);
+    assert.equal(cfg.clientId, '');
+    assert.match(cfg.secretProblem, /doesn't look like one/);
+    assert.equal(store.loginApp(cfg).builtin, true);
+    // a real-looking one is your own application
+    fs.writeFileSync(store.CONFIG_FILE, JSON.stringify({ ...example, clientId: 'd'.repeat(32) }, null, 2));
+    const own = store.loadConfig();
+    assert.equal(own.ownApp, true);
+    assert.equal(own.secretProblem, null);
+
+    // Settings → Account names the application the login was made with, not the one in config.json
+    const quiet = { info() {}, warn() {} };
+    const write = (t) => fs.writeFileSync(store.dataPath('tokens.json'), JSON.stringify(t));
+    const t = {
+      characterId: 1,
+      characterName: 'P',
+      refreshToken: 'r',
+      accessToken: 'a',
+      expiresAt: Date.now() + 9e5,
+      scopes: [],
+    };
+    write({ ...t, clientId: store.BUILTIN_CLIENT_ID });
+    assert.equal(createAuth(own, { log: quiet }).status().loginOwnApp, false);
+    write({ ...t, clientId: 'd'.repeat(32) });
+    assert.equal(createAuth(own, { log: quiet }).status().loginOwnApp, true);
+    write(t); // older logins: your own application, the only kind there was
+    assert.equal(createAuth(own, { log: quiet }).status().loginOwnApp, true);
+    fs.rmSync(store.dataPath('tokens.json'));
+  } finally {
+    if (before) fs.writeFileSync(store.CONFIG_FILE, before);
+    else fs.rmSync(store.CONFIG_FILE, { force: true });
   }
 });
 

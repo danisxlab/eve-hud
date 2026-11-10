@@ -3,7 +3,7 @@
 // Without a Secret Key (the built-in EVE HUD application, or your own without one) it uses PKCE,
 // EVE's flow for desktop apps: a one-time code_verifier per login instead of the secret.
 import crypto from 'node:crypto';
-import { builtinPortProblem, dataPath, loginApp, readJson, writeJson } from './store.js';
+import { BUILTIN_CLIENT_ID, builtinPortProblem, dataPath, loginApp, readJson, writeJson } from './store.js';
 import { canEncrypt, seal, unseal } from './secrets.js';
 import { netFetch } from './net.js';
 
@@ -52,6 +52,8 @@ export function createAuth(config, { onChange = () => {}, log = console } = {}) 
     return {
       loggedIn: true,
       ...base,
+      // the application this login was made with (older logins: your own, the only kind there was)
+      loginOwnApp: tokens.clientId ? tokens.clientId !== BUILTIN_CLIENT_ID : true,
       characterId: tokens.characterId,
       characterName: tokens.characterName,
       scopes: tokens.scopes,

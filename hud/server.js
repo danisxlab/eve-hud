@@ -25,6 +25,7 @@ import {
   addConfigScopes,
   builtinPortProblem,
   BUILTIN_CLIENT_ID,
+  CLIENT_ID_RE,
   BUILTIN_PORT,
 } from './lib/store.js';
 import { createAuth } from './lib/auth.js';
@@ -141,13 +142,13 @@ function serveStatic(req, res, pathname) {
   });
 }
 
-// Shown in your browser after a login started from the app: the app has the login now.
+// Shown in your browser after a login started from the app: logged in, back to the app.
 function donePage(res, name) {
   res.writeHead(200, { 'Content-Type': MIME['.html'], 'Cache-Control': 'no-store', ...SECURITY_HEADERS });
   res.end(`<!doctype html><meta charset="utf-8"><title>Logged in to EVE HUD</title>
 <body style="background:#000;color:#c9d3d6;font:16px system-ui;padding:40px">
 <h1 style="color:#8fe6c4;font-weight:500">Logged in${name ? ` as ${esc(name)}` : ''}</h1>
-<p>EVE HUD has your login now. You can close this tab and go back to the app.</p>`);
+<p>EVE HUD has logged you in successfully. You can close this tab and go back to the app.</p>`);
 }
 
 function errorPage(res, title, detail) {
@@ -164,6 +165,7 @@ function errorPage(res, title, detail) {
 //   rebuildMap  force a fresh star map download
 //   host        listen address, 127.0.0.1 by default: the HUD is never reachable from the network
 //   log         { info, warn } for log lines; the app passes its log file writer
+//   onPortChange(url)  called when the setup form (or Reset) moved the HUD to another port (the app window follows)
 //   onLogin(name)      called after a successful EVE login (the app comes to the front)
 // Rejects with err.code 'EADDRINUSE' (port taken) or 'EACCES' (port not allowed) and a readable
 // message when the port can't be used; calling it again after such a failure is fine (the desktop
@@ -177,6 +179,7 @@ export async function startServer({
   rebuildMap = false,
   host = '127.0.0.1',
   log = defaultLog,
+  onPortChange = () => {},
   onLogin = () => {},
   storage = null,
 } = {}) {
@@ -186,6 +189,7 @@ export async function startServer({
   // port: e.g. 4748 for a demo next to your live HUD.
   // (Live login only works on the port in callbackUrl, so use this mainly with demo mode.)
   if (port) config.port = Number(port) || config.port;
+  const portFromOption = Boolean(port); // --port=N: chosen for this start, so Reset leaves it alone
   // where EVE sends the login back: your own application's callback URL, or the built-in one's
   const isCallbackPath = (p) => p === new URL(loginApp(config).callbackUrl).pathname;
 
@@ -578,7 +582,7 @@ export async function startServer({
         const body = JSON.parse((await readBody(req, 4096)) || '{}');
         const clientId = String(body.clientId || '').trim();
         const clientSecret = String(body.clientSecret || '').trim();
-        if (!/^[0-9a-z-]{20,64}$/i.test(clientId))
+        if (!CLIENT_ID_RE.test(clientId))
           return json(res, 400, {
             error:
               "That doesn't look like a Client ID (usually 32 letters and digits). Copy it from your application on developers.eveonline.com.",
@@ -599,7 +603,25 @@ export async function startServer({
               "That doesn't look like a Secret Key. Copy it from your application on developers.eveonline.com.",
             field: 'clientSecret',
           });
-        // The port isn't set here: it stays as it is (another port only by hand, in config.json).
+        // Another port for the HUD (and so for the callback URL)? Only with your own application (this
+        // form): the EVE HUD application only works on 4747. Opened first: if that fails, nothing is saved.
+        const newPort = body.port === undefined || body.port === '' ? config.port : Number(body.port);
+        if (!Number.isInteger(newPort) || newPort < 1024 || newPort > 65535)
+          return json(res, 400, { error: 'The port must be a number from 1024 to 65535.', field: 'port' });
+        let moved = null;
+        if (newPort !== config.port) {
+          try {
+            moved = await openPort(newPort);
+          } catch (err) {
+            return json(res, 409, {
+              error:
+                err.code === 'EADDRINUSE'
+                  ? `Port ${newPort} is already in use on this computer. Pick another one.`
+                  : err.message,
+              field: 'port',
+            });
+          }
+        }
         setCredentials({ clientId, clientSecret });
         config.scopes = addConfigScopes(knownScopes()); // the setup form listed all of them to enable
         Object.assign(config, { clientId, clientSecret });
@@ -607,6 +629,10 @@ export async function startServer({
         config.configured = isConfigured(config);
         auth.logout(); // a login of the built-in application can't be refreshed by this one
         log.info(`EVE application set up (Client ID ${clientId.slice(0, 6)}…) in ${CONFIG_FILE}`);
+        if (moved) {
+          movePort(moved, newPort); // the reply below still goes out on the old port
+          return json(res, 200, { ok: true, url: handle.url });
+        }
         broadcast('auth', authStatus());
         return json(res, 200, { ok: true });
       }
@@ -631,8 +657,32 @@ export async function startServer({
         Object.assign(config, { clientId: '', clientSecret: '', ownApp: false, secretProblem: null });
         config.configured = isConfigured(config);
         log.info('EVE HUD reset: logged out, Client ID and Secret removed from config.json');
+        // the EVE HUD application only works on 4747: go back there (if it's free; otherwise the
+        // page's red window says what to do)
+        if (config.port !== BUILTIN_PORT && !portFromOption) {
+          try {
+            movePort(await openPort(BUILTIN_PORT), BUILTIN_PORT);
+            return json(res, 200, { ok: true, url: handle.url });
+          } catch (err) {
+            log.warn(`Could not go back to port ${BUILTIN_PORT}: ${err.message}`);
+          }
+        }
         broadcast('auth', authStatus());
         return json(res, 200, { ok: true });
+      }
+      // Own-application form: is this port free? /api/portcheck?port=4750 -> { port, free, current }
+      if (p === '/api/portcheck') {
+        const want = Number(url.searchParams.get('port'));
+        if (!Number.isInteger(want) || want < 1024 || want > 65535)
+          return json(res, 200, { port: want, free: false, invalid: true });
+        if (want === config.port) return json(res, 200, { port: want, free: true, current: true });
+        try {
+          const s2 = await openPort(want);
+          s2.close();
+          return json(res, 200, { port: want, free: true });
+        } catch {
+          return json(res, 200, { port: want, free: false });
+        }
       }
       // { client, consumers: ['topbar', 'mail', 'skills', 'map', 'map:hazards', 'alert:skills', …] }
       if (p === '/api/demand' && req.method === 'POST') {
@@ -683,7 +733,7 @@ export async function startServer({
       json(res, 500, { error: err.message });
     }
   };
-  const server = http.createServer(onRequest);
+  let server = http.createServer(onRequest);
 
   // ---------------- boot ----------------
   // Listen first, so a port that is already taken fails fast (before any ESI traffic starts).
@@ -702,12 +752,46 @@ export async function startServer({
   });
   server.on('error', (err) => log.warn(`[http] ${err.message}`));
   log.info(`EVE HUD running at http://localhost:${config.port}${DEMO ? '  (demo mode)' : ''}`);
+  if (!DEMO && config.secretProblem) log.warn(config.secretProblem);
   if (!DEMO && builtinPortProblem(config))
     log.warn(
       `"port" is ${config.port} in config.json, but the EVE HUD application only works on port ${BUILTIN_PORT}: change it back to ${BUILTIN_PORT}, or use your own EVE developer application.`,
     );
   else if (!DEMO && !auth.status().loggedIn)
     log.info(`Open http://localhost:${config.port} and click "Log in with EVE Online".`);
+
+  // Opens the HUD on another port (resolves with the listening server, or rejects like listen()).
+  function openPort(newPort) {
+    return new Promise((resolve, reject) => {
+      const next = http.createServer(onRequest);
+      next.once('error', (err) => reject(listenError(err, newPort)));
+      next.listen(newPort, host, () => resolve(next));
+    });
+  }
+  // Switches to the already open `next` server: saves port + callbackUrl in config.json, tells the
+  // app (its window follows), and closes the old port a moment later.
+  function movePort(next, newPort) {
+    const old = server;
+    server = next;
+    server.on('error', (err) => log.warn(`[http] ${err.message}`));
+    config.port = newPort;
+    config.callbackUrl = `http://localhost:${newPort}/callback`;
+    setConfigValues({ port: newPort, callbackUrl: config.callbackUrl });
+    handle.port = newPort;
+    handle.url = `http://localhost:${newPort}/`;
+    log.info(`EVE HUD moved to ${handle.url} (port and callbackUrl saved in config.json)`);
+    try {
+      onPortChange(handle.url);
+    } catch (err) {
+      log.warn(`[http] onPortChange: ${err.message}`);
+    }
+    setTimeout(() => {
+      for (const res of clients) res.end(); // pages still on the old port reconnect to nothing: they move with the reply
+      clients.clear();
+      old.close();
+      old.closeAllConnections?.();
+    }, 1500);
+  }
 
   // What the caller gets back. stop() closes the HTTP server and the live connections; the feed
   // and chat timers keep running until the process exits, which is what quitting does anyway.

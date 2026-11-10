@@ -661,8 +661,9 @@
                     <li>
                       The application's Callback URL must be exactly the one shown
                       (<code>http://localhost:4747/callback</code>), because EVE only returns to that exact
-                      URL. The port can't be changed in EVE HUD itself; see
-                      <a href="#port-4747-and-the-login">Port 4747 callback</a>.
+                      URL. If 4747 is taken on that computer, type another port in the form (it says whether a
+                      port is free); EVE HUD moves there when you save, and <em>Copy</em> copies the URL with
+                      that port. See <a href="#port-4747-and-the-login">Port 4747 callback</a>.
                     </li>
                     <li>
                       Every scope in <code>config.json</code> must also be enabled on the application,
@@ -1082,7 +1083,7 @@
                       removes your own application's Client ID and Secret Key from <code>config.json</code>,
                       if any (to switch to another EVE application, or before handing EVE HUD on). Layout,
                       settings and the star map stay; EVE HUD then shows the login again, through the EVE HUD
-                      application.
+                      application, and goes back to port 4747 if it ran on another one.
                     </li>
                     <li>
                       <strong>ESI API rate limits:</strong> the live token balance of each ESI route group EVE
@@ -1464,7 +1465,8 @@
                 </li>
                 <li>
                   At first it shows your own surroundings at 29× zoom, centred on your system (as soon as
-                  your location is known). After that it remembers the view you leave it at.
+                  your location is known). After that it remembers the view you leave it at. Every login, with
+                  a new or an existing character, centres it on that character's system again.
                 </li>
                 <li>Scroll to zoom, and drag to pan.</li>
                 <li>
@@ -2843,9 +2845,11 @@
                   <em>The login needs port 4747</em>.
                 </li>
                 <li>
-                  <strong>The port can't be changed in EVE HUD itself</strong>, only by hand in
-                  <code>config.json</code>. When <code>port</code> isn't 4747 and you don't use your own
-                  EVE application, a red window over EVE HUD says <em>The port can only be changed with your
+                  <strong>Another port only with your own EVE application:</strong> the form for your own
+                  developer client credentials has the port in its Callback URL, and EVE HUD moves there when
+                  you save. <em>Reset EVE HUD</em> brings it back to 4747. When <code>port</code> isn't 4747
+                  and you don't use your own EVE application (for example after editing
+                  <code>config.json</code> by hand), a red window over EVE HUD says <em>The port can only be changed with your
                   own EVE application</em>, with <strong>Open config file</strong> and
                   <strong>Restart</strong>: change <code>port</code> back to <code>4747</code> and restart.
                 </li>
