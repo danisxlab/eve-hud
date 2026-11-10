@@ -69,9 +69,11 @@ function refuse(url, why) {
 }
 
 export async function netFetch(url, { allowHost = null, ...opts } = {}) {
+  // https only (also after a redirect), and only EVE's hosts (or the one allowHost)
   const allowed = (u) => {
-    const h = new URL(u).hostname.toLowerCase();
-    return isEveHost(h) || (allowHost != null && h === allowHost);
+    const { protocol, hostname } = new URL(u);
+    const h = hostname.toLowerCase();
+    return protocol === 'https:' && (isEveHost(h) || (allowHost != null && h === allowHost));
   };
   if (!allowed(url)) throw refuse(url, 'not an EVE server');
   const timeout = AbortSignal.timeout(opts.timeoutMs ?? 30_000);
@@ -87,6 +89,12 @@ export async function netFetch(url, { allowHost = null, ...opts } = {}) {
       if (!allowed(next))
         throw refuse(next, `${new URL(current).host} redirected there, and it is not an EVE server`);
       res.body?.cancel?.();
+      // a login token or Secret Key only goes to the host it was meant for
+      if (new URL(next).host !== new URL(current).host && options.headers) {
+        const headers = { ...options.headers };
+        for (const k of Object.keys(headers)) if (k.toLowerCase() === 'authorization') delete headers[k];
+        options = { ...options, headers };
+      }
       if (
         res.status === 303 ||
         ((res.status === 301 || res.status === 302) && (options.method || 'GET') !== 'GET')

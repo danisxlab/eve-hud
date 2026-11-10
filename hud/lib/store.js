@@ -20,7 +20,23 @@ export const CONFIG_FILE = path.join(HOME, 'config.json');
 export const DATA_DIR = process.env.EVE_HUD_DATA
   ? path.resolve(process.env.EVE_HUD_DATA)
   : path.join(HOME, 'data');
-fs.mkdirSync(DATA_DIR, { recursive: true });
+fs.mkdirSync(DATA_DIR, { recursive: true, mode: 0o700 });
+
+// config.json and data/ are written readable for your user account only (on a Mac and Linux; on
+// Windows %APPDATA% is private already), so other accounts on the computer can't read your login,
+// even where the system has no encryption (some Linux desktops). Files from older versions or an
+// imported folder are made private when they're loaded.
+export const PRIVATE = { mode: 0o600 };
+export function makePrivate(file) {
+  if (process.platform === 'win32') return;
+  try {
+    fs.chmodSync(file, 0o600);
+  } catch {
+    /* not there (yet) */
+  }
+}
+makePrivate(CONFIG_FILE);
+makePrivate(path.join(DATA_DIR, 'tokens.json'));
 
 export function dataPath(name) {
   return path.join(DATA_DIR, name);
@@ -37,7 +53,7 @@ export function readJson(file, fallback = null) {
 // Atomic write: write to a temp file, then rename over the original.
 export function writeJson(file, value) {
   const tmp = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(value, null, 2));
+  fs.writeFileSync(tmp, JSON.stringify(value, null, 2), PRIVATE);
   fs.renameSync(tmp, file);
 }
 
@@ -105,7 +121,7 @@ export function loadConfig() {
   if (!fs.existsSync(file)) {
     const example = path.join(ROOT, 'config.example.json');
     // read + write instead of copyFileSync: the example sits inside app.asar in the installed app
-    if (fs.existsSync(example)) fs.writeFileSync(file, fs.readFileSync(example));
+    if (fs.existsSync(example)) fs.writeFileSync(file, fs.readFileSync(example), PRIVATE);
   }
   const raw = readJson(file, null);
   if (raw === null && fs.existsSync(file)) {
@@ -139,12 +155,15 @@ export function loadConfig() {
     } catch {
       cfg[k] = '';
       cfg.secretProblem =
-        'The saved Client ID and Secret Key could not be decrypted: they were saved on another computer or user account. Enter them again.';
+        'The saved Client ID and Secret Key of your own EVE application could not be decrypted: they were saved on another computer or user account. Log in with the built-in EVE HUD application, or enter them again.';
     }
   }
+  for (const k of CREDENTIALS) if (String(cfg[k] || '').startsWith('PASTE_')) cfg[k] = ''; // config.example.json's placeholders
+  cfg.ownApp = hasOwnApp(cfg);
   cfg.configured = isConfigured(cfg);
   // Still plain text in the file (older version or imported): encrypt them now.
-  if (cfg.configured && canEncrypt() && CREDENTIALS.some((k) => !isSealed(raw?.[k]))) {
+  const plain = (k) => raw?.[k] && !String(raw[k]).startsWith('PASTE_') && !isSealed(raw[k]);
+  if (cfg.ownApp && canEncrypt() && CREDENTIALS.some(plain)) {
     try {
       setCredentials(cfg);
     } catch {
@@ -190,7 +209,7 @@ export function setConfigValues(values) {
   }
   if (!ok) text = `${JSON.stringify({ ...parsed, ...values }, null, 2)}\n`;
   const tmp = `${CONFIG_FILE}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, text);
+  fs.writeFileSync(tmp, text, PRIVATE);
   fs.renameSync(tmp, CONFIG_FILE);
 }
 
@@ -231,18 +250,43 @@ export function addConfigScopes(add) {
   }
   if (!next) next = `${JSON.stringify({ ...parsed, scopes: want }, null, 2)}\n`;
   const tmp = `${CONFIG_FILE}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, next);
+  fs.writeFileSync(tmp, next, PRIVATE);
   fs.renameSync(tmp, CONFIG_FILE);
   return want;
 }
 
-export const isConfigured = (cfg) =>
-  Boolean(
-    cfg.clientId &&
-    cfg.clientSecret &&
-    !cfg.clientId.startsWith('PASTE_') &&
-    !cfg.clientSecret.startsWith('PASTE_'),
-  );
+// The EVE HUD application on developers.eveonline.com, registered by the author for everyone: a
+// public Client ID without a Secret Key (EVE SSO's PKCE flow for desktop apps), so players don't
+// need an application of their own. Its Callback URL is fixed, so the built-in login needs port 4747.
+// Your own application (Client ID, and optionally its Secret Key, in config.json) replaces it.
+export const BUILTIN_CLIENT_ID = 'a4168fa5545f4bc290966721eb4574b7';
+export const BUILTIN_PORT = 4747;
+export const BUILTIN_CALLBACK_URL = `http://localhost:${BUILTIN_PORT}/callback`;
+
+// "port" in config.json was changed, but the login goes through the EVE HUD application, whose
+// Callback URL only comes back to port 4747: the page shows a red window asking to change it back.
+export const builtinPortProblem = (cfg) => !hasOwnApp(cfg) && Number(cfg.port) !== BUILTIN_PORT;
+
+// Your own EVE application is set (Client ID in config.json; the Secret Key is optional). The EVE HUD
+// application's own Client ID, copied into config.json by hand, still counts as the built-in one: it
+// only works on port 4747 and without a Secret Key.
+export const hasOwnApp = (cfg) =>
+  Boolean(cfg.clientId && !String(cfg.clientId).startsWith('PASTE_') && cfg.clientId !== BUILTIN_CLIENT_ID);
+
+// Ready to log in: always, with your own application or the built-in one.
+export const isConfigured = () => true;
+
+// The application the login uses: { clientId, clientSecret ('' = PKCE), callbackUrl, builtin }.
+export function loginApp(cfg) {
+  if (hasOwnApp(cfg))
+    return {
+      clientId: cfg.clientId,
+      clientSecret: String(cfg.clientSecret || '').startsWith('PASTE_') ? '' : cfg.clientSecret || '',
+      callbackUrl: cfg.callbackUrl,
+      builtin: false,
+    };
+  return { clientId: BUILTIN_CLIENT_ID, clientSecret: '', callbackUrl: BUILTIN_CALLBACK_URL, builtin: true };
+}
 
 // Settings are owned by the browser UI; the server only validates size and shape.
 let SETTINGS_FILE = dataPath('settings.json');

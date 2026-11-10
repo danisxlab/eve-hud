@@ -93,6 +93,27 @@
   color: var(--gal-hi);
 }
 
+/* CCP's official SSO button image */
+.gate a.sso {
+  display: block;
+  line-height: 0;
+}
+
+.gate a.sso img {
+  display: block;
+  width: 270px;
+  height: 45px;
+}
+
+.gate a.sso:hover img {
+  filter: brightness(1.12);
+}
+
+.gate a.sso:focus-visible {
+  outline: 1px solid var(--gal-hi);
+  outline-offset: 3px;
+}
+
 .gate button.cta:disabled {
   opacity: 0.5;
   cursor: default;
@@ -329,39 +350,6 @@
   gap: 0;
 }
 
-.gate input.port {
-  font: inherit;
-  font-family: inherit;
-  font-size: 12px;
-  color: var(--gal-hi);
-  width: 6ch;
-  text-align: center;
-  padding: 1px 3px;
-  margin: 0 1px;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid var(--line-2);
-  outline: none;
-}
-
-.gate input.port:focus {
-  border-color: var(--gal-hi);
-  box-shadow: 0 0 0 1px rgba(var(--gal-rgb), 0.35);
-}
-
-.gate .port-state {
-  margin-left: 8px;
-  font-size: 11px;
-  font-family: var(--font);
-}
-
-.gate .port-state.ok {
-  color: var(--gal-hi);
-}
-
-.gate .port-state.bad {
-  color: #ff7a6c;
-}
-
 .gate .fine.tight {
   margin: 0 0 8px;
   font-size: 11px;
@@ -369,6 +357,14 @@
 
 .gate .fine.center {
   text-align: center;
+}
+
+/* login card: where the tokens stay, with a link to the documentation's privacy chapter */
+.gate .fine.privacy {
+  margin-top: 22px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-2);
+  text-align: left;
 }
 
 /* About (the (i) button): the same window as the confirmations, in the HUD's blue */

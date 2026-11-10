@@ -98,7 +98,7 @@ export function displayLabel(d, i, primaryId) {
 // ---------- the window ----------
 
 // onAppAction(name): the page asked the app for something it can't do itself, by going to
-// /__app/<name> ("log", "restart", "quit"; the "EVE HUD stopped working" window uses them).
+// /__app/<name> ("log", "config", "restart", "quit"; the red windows of the page use them).
 // onLoadFailed(description): the HUD page itself could not be loaded (its server isn't answering).
 export function createHudWindow({
   url,

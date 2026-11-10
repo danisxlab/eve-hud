@@ -80,7 +80,12 @@ export function renderParts(parts) {
     if (!p.href) return p.text;
     const t = parseHref(p.href);
     if (t.kind === 'web')
-      return h('a', { class: 'evelink', href: t.url, target: '_blank', rel: 'noopener noreferrer' }, p.text);
+      // the real address on hover: a chat link's text can say anything (it opens in your browser)
+      return h(
+        'a',
+        { class: 'evelink', href: t.url, title: t.url, target: '_blank', rel: 'noopener noreferrer' },
+        p.text,
+      );
     const b = h('button', { type: 'button', class: 'evelink' }, p.text);
     // the HUD's hover box in the item window's orange, inside the module (the chat)
     hoverPop(b, 'Show info', { cls: 'link', within: () => b.closest('.scroll') || b.closest('.mod') });

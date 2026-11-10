@@ -508,13 +508,14 @@
             <a href="#getting-started">Getting started</a>
             <ul>
               <li><a href="#quick-start">Quick start</a></li>
+              <li><a href="#eve-hud-application">The EVE HUD application</a></li>
               <li><a href="#first-start">First start</a></li>
             </ul>
           </li>
           <li class="chap">
-            <a href="#using">Using the HUD</a>
+            <a href="#using">Using EVE HUD</a>
             <ul>
-              <li><a href="#using-the-hud">Using the HUD</a></li>
+              <li><a href="#using-the-hud">Using EVE HUD</a></li>
               <li><a href="#window">Window</a></li>
               <li>
                 <a href="#tray-menu-windows-and-settings-menu-mac"
@@ -545,7 +546,7 @@
               <li><a href="#where-the-files-are">Where the files are</a></li>
               <li><a href="#files-and-folders">Files and folders</a></li>
               <li><a href="#start-options">Start options</a></li>
-              <li><a href="#port-4747-and-the-login">Port 4747 and the login</a></li>
+              <li><a href="#port-4747-and-the-login">Port 4747 callback</a></li>
               <li><a href="#refresh-timing">Refresh timing</a></li>
               <li><a href="#esi-rate-limits">ESI rate limits</a></li>
             </ul>
@@ -603,7 +604,7 @@
               height="900"
               alt="EVE HUD with its modules: character, training queue, star map, chat, industry, market orders and warfare"
             />
-            <figcaption>The HUD in demo mode (<code>npm run demo</code>): sample data, no login.</figcaption>
+            <figcaption>EVE HUD in demo mode (<code>npm run demo</code>): sample data, no login.</figcaption>
           </figure>
         </div>
 
@@ -624,7 +625,7 @@
                 <path d="M12 2.5V7M12 17v4.5" /></svg
             ></span>
             <h2 id="getting-started-title">Getting started</h2>
-            <span class="sub">Install it and connect your EVE application.</span>
+            <span class="sub">Install it and log in with EVE Online.</span>
           </header>
           <div class="chapter-body">
             <div class="section">
@@ -639,39 +640,83 @@
                   <a href="https://danisxlab.github.io/eve-hud/demo/">try the demo in your browser</a>.
                 </li>
                 <li>
-                  <strong>First start:</strong> start fresh, or import an existing HUD folder (see
+                  <strong>First start:</strong> start fresh, or import an existing EVE HUD folder (see
                   <a href="#first-start">First start</a>).
                 </li>
                 <li>
-                  <strong>EVE developer application</strong> on
-                  <a href="https://developers.eveonline.com">https://developers.eveonline.com</a>: starting
-                  fresh, the HUD shows <em>Set up your EVE application</em> with the
-                  <strong>Callback URL</strong> and the <strong>scopes</strong> to enable (each with a
-                  <em>Copy</em> button), and fields for the <strong>Client ID</strong> and
-                  <strong>Secret Key</strong>.
+                  <strong>Log in:</strong> click <strong>LOG IN with EVE Online</strong>. The login opens in
+                  your default browser; when it says you're logged in, close the tab and EVE HUD updates. The
+                  character comes from the login, so there is no character ID to configure. No developer
+                  account is needed: EVE HUD logs in through the EVE HUD application (see
+                  <a href="#eve-hud-application">The EVE HUD application</a>).
+                </li>
+                <li>
+                  <strong>Optional, your own EVE application:</strong>
+                  clicking <em>Use your own EVE developer client credentials instead</em> on the login screen
+                  opens a form with the <strong>Callback URL</strong> and the <strong>scopes</strong> to enable on
+                  <a href="https://developers.eveonline.com">https://developers.eveonline.com</a> (each with a
+                  <em>Copy</em> button), and fields for its <strong>Client ID</strong> and
+                  <strong>Secret Key</strong>. <em>← Back to the EVE HUD login</em> returns to the login.
                   <ul>
                     <li>
-                      The Callback URL must be exactly <code>http://localhost:4747/callback</code>, because
-                      EVE only returns to that exact URL. If 4747 is taken on that computer, type another port
-                      in the setup screen (it says whether a port is free); the HUD moves there and
-                      <em>Copy</em> copies the URL with that port.
+                      The application's Callback URL must be exactly the one shown
+                      (<code>http://localhost:4747/callback</code>), because EVE only returns to that exact
+                      URL. The port can't be changed in EVE HUD itself; see
+                      <a href="#port-4747-and-the-login">Port 4747 callback</a>.
                     </li>
                     <li>
                       Every scope in <code>config.json</code> must also be enabled on the application,
                       otherwise the login fails. See <a href="#scopes">Scopes</a>.
                     </li>
                     <li>
+                      The Secret Key is optional: without it EVE HUD logs in the same way as with the EVE HUD
+                      application (PKCE).
+                    </li>
+                    <li>
                       <em>Save and continue</em> stores them (encrypted) in the app's
-                      <code>config.json</code> and takes effect at once.
+                      <code>config.json</code> and takes effect at once. Settings → Account →
+                      <em>Reset EVE HUD</em> removes them, and the login goes through the EVE HUD application
+                      again.
                     </li>
                   </ul>
                 </li>
-                <li>
-                  Click <strong>Log in with EVE Online</strong>. The login opens in your default browser; when
-                  it says you're logged in, close the tab and the HUD updates. The character comes from the
-                  login, so there is no character ID to configure.
-                </li>
               </ol>
+            </div>
+            <div class="section">
+              <h3 id="eve-hud-application">The EVE HUD application</h3>
+              <p>
+                Every program that logs in to EVE Online needs an application on developers.eveonline.com.
+                EVE HUD has one built in, so you don't need a developer account:
+              </p>
+              <ul>
+                <li>
+                  Its Client ID is public and part of the app. There is no Secret Key: the login uses
+                  <strong>PKCE</strong>, a one-time code EVE HUD makes for every login. EVE hands the tokens
+                  only to the copy of EVE HUD that started that login.
+                </li>
+                <li>
+                  The tokens go straight from <code>login.eveonline.com</code> to EVE HUD on your computer and
+                  are stored there, encrypted, in <code>data/tokens.json</code>. They never pass through
+                  danisxlab or any other server (see <a href="#data-privacy">Data and privacy</a>).
+                </li>
+                <li>
+                  Its Callback URL is <code>http://localhost:4747/callback</code>, so it only works when EVE
+                  HUD runs on port 4747 (the default). On another port, use your own EVE application (see
+                  <a href="#port-4747-and-the-login">Port 4747 callback</a>).
+                </li>
+                <li>
+                  EVE's login page shows the application's name and the permissions (scopes) EVE HUD asks
+                  for; you approve them there. Settings → Account → <strong>Log out</strong> removes the
+                  login from this computer.
+                </li>
+                <li>
+                  <strong>Which application EVE HUD uses</strong> depends only on the Client ID in
+                  <code>config.json</code>. Empty, the <code>PASTE_…</code> placeholder or the EVE HUD
+                  application's own Client ID: the EVE HUD application (a Secret Key is then ignored, and the
+                  port has to be 4747). Any other Client ID: your own EVE application, with or without a Secret
+                  Key. If you already use your own application, EVE HUD keeps using it.
+                </li>
+              </ul>
             </div>
             <div class="section">
               <h3 id="first-start">First start</h3>
@@ -683,12 +728,12 @@
               <ul>
                 <li>
                   <p>
-                    <strong>Import from folder…</strong> pick an existing HUD folder, for example a backup or
+                    <strong>Import from folder…</strong> pick an existing EVE HUD folder, for example a backup or
                     one from another computer (the folder with <code>config.json</code> and
                     <code>data/</code>; picking its <code>data</code> folder works too). It copies:
                   </p>
                   <ul>
-                    <li><code>config.json</code> (client ID and secret, scopes, refresh timings…)</li>
+                    <li><code>config.json</code> (scopes, refresh timings…, and your own application's Client ID and Secret Key, if any)</li>
                     <li><code>data/tokens.json</code> — your EVE login, so you don't have to log in again</li>
                     <li>
                       <code>data/universe.json</code> + <code>data/typenames.json</code> — the star map and
@@ -702,19 +747,18 @@
                   </ul>
                   <p>
                     Files are copied as they are; their contents are never shown or logged. The originals stay
-                    where they were. On the first load the app encrypts the Client ID, Secret Key and login in
-                    its copies (see <a href="#privacy-login-cookies-network">Privacy</a>). Values encrypted on
-                    another computer can't be read: the HUD then asks for the Client ID and Secret Key and the
-                    EVE login again.
+                    where they were. On the first load the app encrypts the login (and your own application's
+                    Client ID and Secret Key, if any) in its copies (see
+                    <a href="#privacy-login-cookies-network">Privacy</a>). Values encrypted on another computer
+                    can't be read: EVE HUD then shows the EVE login again (and says so when your own
+                    application's Client ID and Secret Key couldn't be read).
                   </p>
                 </li>
                 <li>
                   <p>
                     <strong>Start fresh</strong> creates <code>config.json</code> from
-                    <code>config.example.json</code>, and the HUD window asks for your EVE application's
-                    <strong>Client ID</strong> and <strong>Secret Key</strong> (with the callback URL and
-                    scopes to copy). They are saved, encrypted, to the app's <code>config.json</code> and used
-                    at once, no restart. Settings → Account → <em>Reset EVE HUD</em> removes them again.
+                    <code>config.example.json</code>, and the EVE HUD window shows
+                    <strong>LOG IN with EVE Online</strong> (see <a href="#quick-start">Quick start</a>).
                   </p>
                 </li>
                 <li>
@@ -727,8 +771,9 @@
               </p>
               <p>
                 Moving to another computer: the encrypted values only work on the computer (and user account)
-                that saved them. Copy <code>data/</code> (layout, star map) and on the new computer enter the
-                Client ID and Secret Key and log in again; the HUD asks by itself.
+                that saved them. Copy <code>data/</code> (layout, star map) and on the new computer log in again
+                (and enter your own application's Client ID and Secret Key again, if you use one); EVE HUD asks
+                by itself.
               </p>
             </div>
           </div>
@@ -750,12 +795,12 @@
                 <circle cx="12" cy="12" r="2" />
                 <path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3" /></svg
             ></span>
-            <h2 id="using-title">Using the HUD</h2>
+            <h2 id="using-title">Using EVE HUD</h2>
             <span class="sub">The top bar, the modules, the star map, chat and combat.</span>
           </header>
           <div class="chapter-body">
             <div class="section">
-              <h3 id="using-the-hud">Using the HUD</h3>
+              <h3 id="using-the-hud">Using EVE HUD</h3>
               <ul>
                 <li>
                   <strong>Top bar</strong>, from left to right:
@@ -784,7 +829,7 @@
                       <ul>
                         <li>
                           <p>
-                            <strong>Alerts</strong> are worked out from data the HUD already has, with no
+                            <strong>Alerts</strong> are worked out from data EVE HUD already has, with no
                             extra ESI calls:
                           </p>
                           <ul>
@@ -810,9 +855,9 @@
                           </p>
                           <ul>
                             <li>
-                              Why not ESI's own read flag: it isn't updated when you read notifications in
+                              Why not ESI's own read flag? It isn't updated when you read notifications in
                               EVE's notification panel, so everything would stay &quot;unread&quot; forever.
-                              The HUD remembers what you've seen in <code>data/settings.json</code>. On the
+                              EVE HUD remembers what you've seen in <code>data/settings.json</code>. On the
                               first run, existing notifications count as seen.
                             </li>
                             <li>
@@ -853,7 +898,7 @@
                     <li>
                       <strong>CLUSTER</strong> light (Tranquility shows &quot;–&quot; while its status is
                       unknown): green when Tranquility is online (ESI <code>/status</code>) and every ESI
-                      route the HUD uses is OK; amber in VIP mode (only CCP/Fenris Creations can log in) or when ESI reports
+                      route EVE HUD uses is OK; amber in VIP mode (only CCP/Fenris Creations can log in) or when ESI reports
                       one of those routes as slow, recovering or down; red when Tranquility doesn't answer;
                       grey until it's known. Hover it for players, server version, uptime and which routes
                       have trouble;
@@ -884,7 +929,7 @@
                   in <code>FEED_ROUTES</code> in <code>hud/lib/feeds/health.js</code>.
                 </li>
                 <li>
-                  <strong>&quot;EVE HUD stopped working&quot;:</strong> the HUD's server runs inside the app.
+                  <strong>&quot;EVE HUD stopped working&quot;:</strong> EVE HUD's server runs inside the app.
                   If it stops answering, a red window says so after a few seconds, with a link to the log
                   file, <strong>Restart</strong> and <strong>Close EVE HUD</strong>. (If the page itself can't
                   be loaded, the app shows the same choices in a system dialog.)
@@ -908,7 +953,7 @@
                   free cell. When the grid is full, the settings close and a bar asks you to
                   <strong>click the module it should replace</strong>: the new module takes that module's cell
                   and size, and the replaced one is hidden (tick it again to bring it back, the same way).
-                  <em>Esc., Cancel</em> or a click outside the modules cancels.
+                  <em>Esc</em>, <em>Cancel</em> or a click outside the modules cancels.
                 </li>
                 <li>
                   <strong>Lock the layout:</strong> use the padlock in the top bar, so you don't move things
@@ -916,7 +961,7 @@
                 </li>
                 <br />
                 <li>
-                  <strong>Settings Pane</strong>
+                  <strong>Settings pane</strong>
                   <figure>
                     <img
                       src="images/settings.webp"
@@ -996,11 +1041,11 @@
                               CSS animations in steps). Much less CPU.
                             </li>
                             <li>
-                              <em>Off</em>: no motion at all; the HUD only redraws when something changes. The
+                              <em>Off</em>: no motion at all; EVE HUD only redraws when something changes. The
                               least CPU and battery.
                             </li>
                             <li>
-                              Whatever the setting, the HUD pauses while its window is minimised or completely
+                              Whatever the setting, EVE HUD pauses while its window is minimised or completely
                               hidden (not when another app, like EVE, has the focus).
                             </li>
                           </ul>
@@ -1029,23 +1074,25 @@
                       <a href="#chat-logs">Chat logs</a>).
                     </li>
                     <li>
-                      <strong>Account:</strong> how many of the HUD's permissions (scopes) your login has,
-                      with <strong>Grant the missing N</strong> (see <a href="#scopes">Scopes</a>); refresh
-                      now, log in again; <strong>Log out</strong> and <strong>Reset EVE HUD</strong>: after a
-                      confirmation window it logs out and removes the Client ID and Secret Key from
-                      <code>config.json</code> (to switch to another EVE application, or before handing the
-                      HUD on). Layout, settings and the star map stay; the HUD then asks for the credentials
-                      again like the first time.
+                      <strong>Account:</strong> which application you're logged in through, and how many of
+                      EVE HUD's permissions (scopes) your login has, with <strong>Grant the missing N</strong>
+                      (see <a href="#scopes">Scopes</a>). The buttons are <strong>Refresh now</strong>,
+                      <strong>Log in again</strong>, <strong>Log out</strong> and
+                      <strong>Reset EVE HUD</strong>. After a confirmation window, Reset EVE HUD logs out and
+                      removes your own application's Client ID and Secret Key from <code>config.json</code>,
+                      if any (to switch to another EVE application, or before handing EVE HUD on). Layout,
+                      settings and the star map stay; EVE HUD then shows the login again, through the EVE HUD
+                      application.
                     </li>
                     <li>
-                      <strong>ESI API rate limits:</strong> the live token balance of each ESI route group the
+                      <strong>ESI API rate limits:</strong> the live token balance of each ESI route group EVE
                       HUD has used.
                     </li>
                   </ul>
                 </li>
               </ul>
               <p>
-                Everything you change in the HUD is saved to <code>data/settings.json</code> automatically.
+                Everything you change in EVE HUD is saved to <code>data/settings.json</code> automatically.
               </p>
             </div>
             <div class="section">
@@ -1104,7 +1151,7 @@
                 </li>
                 <li>
                   <strong>Keys:</strong> F11 full-screen on/off · F5 or Ctrl+R reload · Ctrl + / Ctrl − / Ctrl
-                  0 zoom (Cmd on a Mac). Esc still belongs to the HUD.
+                  0 zoom (Cmd on a Mac). Esc still belongs to EVE HUD.
                 </li>
                 <li>
                   <strong>Developer tools</strong> (F12 or Ctrl+Shift+I) only work when run from source (<code
@@ -1116,7 +1163,7 @@
                   Full screen is the <em>Enter Full Screen</em> item macOS adds to View by itself (or F11).
                 </li>
                 <li><strong>Closing the window quits the app</strong> and stops the server.</li>
-                <li>Links that leave the HUD (zKillboard and the like) open in your default browser.</li>
+                <li>Links that leave EVE HUD (zKillboard and the like) open in your default browser.</li>
               </ul>
             </div>
             <div class="section">
@@ -1124,13 +1171,13 @@
                 Tray menu (Windows, Linux) and Settings menu (Mac)
               </h3>
               <p>
-                <strong>Windows:</strong> an icon in the notification area. Left click shows the HUD, right
+                <strong>Windows:</strong> an icon in the notification area. Left click shows EVE HUD, right
                 click opens the menu.
               </p>
               <p>
                 <strong>Linux:</strong> the same menu from a status icon (a click opens
                 it) on KDE, Cinnamon, Xfce and others, and on GNOME with the AppIndicator extension (Ubuntu
-                has it built in). The HUD window has it too, as a menu bar that appears when you press
+                has it built in). The EVE HUD window has it too, as a menu bar that appears when you press
                 <kbd>Alt</kbd>, for desktops without status icons.
               </p>
               <p>
@@ -1179,7 +1226,7 @@
                     <tr>
                       <td>Use the graphics card (restart needed)</td>
                       <td>
-                        On by default. Off, the HUD draws with the processor instead, so a game on the other
+                        On by default. When it is off, EVE HUD draws with the processor instead, so a game on the other
                         screen (EVE in <em>Fixed window</em> mode, say) has the graphics card to itself. It
                         costs some CPU; Settings → Animations → Limited keeps that low. Saved in
                         <code>app-options.json</code> in the app folder; <code>--no-gpu</code> turns it off
@@ -1189,7 +1236,7 @@
                     <tr>
                       <td>Start with Windows (Open at login on a Mac, Start at login on Linux)</td>
                       <td>
-                        Off by default. Only in the installed app; run from source it would register Electron
+                        Off by default. Only in the installed app; when run from source, it would register Electron
                         itself. On Linux it adds <code>~/.config/autostart/eve-hud.desktop</code> (for the
                         AppImage: the AppImage file where it is, so start it from its final place first).
                       </td>
@@ -1288,7 +1335,7 @@
               <p>
                 Hidden by default, because the default 4×4 grid is full. Tick the module under Settings →
                 Modules: it goes into a free cell, or, when there is none, you pick a module for it to replace
-                (see <em>Show a module</em> under <a href="#using-the-hud">Using the HUD</a>). Each one needs
+                (see <em>Show a module</em> under <a href="#using-the-hud">Using EVE HUD</a>). Each one needs
                 a scope (see <a href="#scopes">Scopes</a>); without it the module says which.
               </p>
               <p>
@@ -1451,7 +1498,7 @@
                     </li>
                     <li>
                       <strong>No API calls</strong> for the search itself: the names come from the star
-                      map data the HUD already has.
+                      map data EVE HUD already has.
                     </li>
                     <li>
                       <strong>Route:</strong> searching a system also draws the route from your location
@@ -1555,7 +1602,7 @@
                   shows <em>Autopilot → system</em> under your current system and green brackets on that
                   system. On the route, that next jump gets a green dotted border on both sides, marching
                   towards the system (still with Animations: Off), so you can tell the autopilot's jump from
-                  the rest of the route. When the HUD's route goes another way of the same length, it's worked
+                  the rest of the route. When EVE HUD's route goes another way of the same length, it's worked
                   out again through that system, so the map follows the way the game flies. A destination set
                   only in the game isn't shown (the log doesn't name it); set it with
                   <strong>Set destination</strong> to see the whole route.
@@ -1566,11 +1613,11 @@
                   planner then picks one of them, and the game's autopilot may pick another. Both are equally
                   short; <em>Set destination</em> only sets the destination, so the game follows its own
                   choice. Your game's autopilot settings (Shorter / Safer, the security penalty, avoided
-                  systems) also aren't visible to the HUD: pick the same choice in the route box.
+                  systems) also aren't visible to EVE HUD: pick the same choice in the route box.
                 </li>
                 <li>
                   <strong>Source:</strong> ESI's route planner (<code>POST /route/{origin}/{destination}</code
-                  >), the same as the game's. In demo mode, or when ESI can't be reached, the HUD works the
+                  >), the same as the game's. In demo mode, or when ESI can't be reached, EVE HUD works the
                   route out from the map's stargates and labels it <em>estimate</em>.
                 </li>
                 <li><strong>Clearing</strong> the search removes the route.</li>
@@ -1750,7 +1797,7 @@
                   reads <code>Fleet_20261029_….txt</code>.
                 </li>
                 <li>
-                  <strong>Which file is used:</strong> when you have several characters, the HUD picks the log
+                  <strong>Which file is used:</strong> when you have several characters, EVE HUD picks the log
                   files of the logged-in character. Newer EVE clients put the character ID at the end of each
                   file name.
                 </li>
@@ -1759,13 +1806,13 @@
                   seconds.
                 </li>
                 <li>
-                  <strong>EVE runs on another computer:</strong> the HUD needs to read the log files while you
+                  <strong>EVE runs on another computer:</strong> EVE HUD needs to read the log files while you
                   play, so share that computer's <code>Documents\EVE\logs</code> folder on your network
                   (read-only is enough) and point Settings → Storage → <strong>EVE logs</strong> at it: a UNC
                   path such as <code>\\gamepc\evelogs</code> on Windows; on the Mac connect to it in Finder
                   (Go → Connect to Server, <code>smb://&lt;pc-name&gt;/evelogs</code>, optionally under System
                   Settings → General → Login Items so it reconnects) and choose <code>/Volumes/evelogs</code>.
-                  The HUD polls the files, so a network share works like a local folder. A copied-over folder
+                  EVE HUD polls the files, so a network share works like a local folder. A copied-over folder
                   works too, but it won't update.
                 </li>
               </ul>
@@ -1784,7 +1831,7 @@
                 </li>
                 <li>
                   <strong>How names are found:</strong> EVE's log files keep only the plain text of a link,
-                  not the link itself (checked against real logs). So the HUD recognises names using CCP/Fenris Creations's
+                  not the link itself (checked against real logs). So EVE HUD recognises names using CCP/Fenris Creations's
                   item list from the static data:
                   <ul>
                     <li>
@@ -1962,7 +2009,7 @@
                 updated, and whether any source was unavailable; hover that note for details.
               </p>
               <p>
-                <strong>Wars caveat:</strong> ESI has no &quot;wars of my corporation&quot; route, so the HUD
+                <strong>Wars caveat:</strong> ESI has no &quot;wars of my corporation&quot; route, so EVE HUD
                 only checks the 15 most recent wars. A war declared longer ago won't be flagged.
               </p>
             </div>
@@ -2171,7 +2218,7 @@
                 <li>
                   <strong>Start:</strong> the first new <code>(combat)</code> line (damage done or taken,
                   misses, scrams…; remote reps and capacitor transfers don't count) shows
-                  <strong>ATTACK</strong> in the top bar, before the notifications, and the whole HUD flashes
+                  <strong>ATTACK</strong> in the top bar, before the notifications, and the whole EVE HUD window flashes
                   red for about a second (a blink, a quick fade to red, 0.5 s red, a fade back).
                 </li>
                 <li>
@@ -2185,11 +2232,11 @@
                   ATTACK still shows. With Animations: Off the red flash and the blinks are skipped too.
                 </li>
                 <li>
-                  <strong>Which lines count:</strong> only lines EVE writes while the HUD runs, in the newest
+                  <strong>Which lines count:</strong> only lines EVE writes while EVE HUD runs, in the newest
                   game log (the logged-in character's, when the file name has the character ID).
                 </li>
                 <li>
-                  <strong>Can't read the game logs:</strong> a window over the whole HUD says why (folder
+                  <strong>Can't read the game logs:</strong> a window over all of EVE HUD says why (folder
                   missing, network share not connected, or on a Mac no permission for Documents or network
                   volumes) and asks for EVE's logs folder: type it or <strong>Browse…</strong>, then
                   <strong>Use this folder</strong>. Under the field are the usual places: Windows
@@ -2198,12 +2245,12 @@
                   <ul>
                     <li>
                       It appears only after the folder has been unreadable for 6 seconds, so a short network
-                      hiccup or macOS's own permission question comes first. Started with
-                      <code>npm start</code>, the app is called <em>Electron</em> to macOS, so macOS asks
-                      again for that one.
+                      hiccup or macOS's own permission question comes first. When started with
+                      <code>npm start</code>, the app is called <em>Electron</em> as far as macOS is concerned,
+                      so macOS asks again for that one.
                     </li>
                     <li>
-                      <strong>Exit</strong> closes it until the next start; the HUD then runs without combat
+                      <strong>Exit</strong> closes it until the next start; EVE HUD then runs without combat
                       alerts. It also closes by itself when the folder can be read again (for example a
                       network share that reconnected).
                     </li>
@@ -2219,8 +2266,8 @@
                 <figcaption>Update Ready in the top bar.</figcaption>
               </figure>
               <p>
-                When a newer EVE HUD is on GitHub, an orange <strong>Update Ready</strong> button appears in
-                the top bar, next to your character's name. It opens a window over the (blurred) HUD with the
+                When a newer EVE HUD version is available on GitHub, an orange <strong>Update Ready</strong> button appears in
+                the top bar, next to your character's name. It opens a window over the (blurred) EVE HUD window with the
                 new version's release notes and <strong>Get EVE HUD &lt;version&gt;</strong>, which opens the
                 release page in your browser, where you download it like the first time. The window also opens
                 by itself once for each new version; <em>Later</em> or <kbd>Esc</kbd> closes it, and the
@@ -2228,7 +2275,7 @@
               </p>
               <ul>
                 <li>
-                  The HUD asks GitHub at start and then once an hour. It never downloads or installs anything
+                  EVE HUD asks GitHub at start and then once an hour. It never downloads or installs anything
                   itself, and sends nothing about you (see
                   <a href="#privacy-login-cookies-network">Privacy</a>).
                 </li>
@@ -2237,8 +2284,7 @@
                 </li>
                 <li>
                   <em>About</em> (the <strong>i</strong> button) shows your version and the commit it was
-                  built from in its bottom right corner, e.g. <code>v1.0.3_83fa76b</code>; the update window
-                  shows the new one the same way, as on GitHub's release page.
+                  built from in its bottom-right corner, e.g. <code>v1.0.3_83fa76b</code>.
                 </li>
               </ul>
             </div>
@@ -2263,7 +2309,7 @@
                 <circle cx="12" cy="12" r="3" /></svg
             ></span>
             <h2 id="configuration-title">Configuration</h2>
-            <span class="sub">config.json, where the files are, and how often the HUD asks ESI.</span>
+            <span class="sub">config.json, where the files are, and how often EVE HUD asks ESI.</span>
           </header>
           <div class="chapter-body">
             <div class="section">
@@ -2273,8 +2319,8 @@
               <p>
                 <code>config.json</code> is in the app folder (<a href="#where-the-files-are"
                   >Where the files are</a
-                >; tray / Settings menu → Open config file). It holds your Client ID and Secret Key
-                (encrypted), so <strong>keep it private</strong>. Keys starting with <code>_</code> are help
+                >; tray / Settings menu → Open config file). If you use your own EVE application it holds
+                its Client ID and Secret Key (encrypted), so <strong>keep it private</strong>. Keys starting with <code>_</code> are help
                 text and are ignored. Restart the app after editing (tray / Settings menu → Restart).
               </p>
               <div class="table">
@@ -2291,8 +2337,11 @@
                       <td><code>clientId</code>, <code>clientSecret</code></td>
                       <td>(none)</td>
                       <td>
-                        From your application on developers.eveonline.com. Entered in the HUD's setup form,
-                        which writes them here encrypted (<code>&quot;enc:…&quot;</code>);
+                        Only for your own application on developers.eveonline.com; empty (or the
+                        <code>PASTE_…</code> placeholders, or the EVE HUD application's own Client ID) means
+                        EVE HUD logs in through the EVE HUD application, and a Secret Key is then ignored. Entered in the login screen's
+                        <em>Use your own EVE developer client credentials instead</em> form, which writes them
+                        here encrypted (<code>&quot;enc:…&quot;</code>); the Secret Key is optional.
                         <em>Reset EVE HUD</em> clears them. A plain value typed in by hand is encrypted at the
                         next start. The secret is never sent to the page or written to the log.
                       </td>
@@ -2300,19 +2349,19 @@
                     <tr>
                       <td><code>port</code></td>
                       <td><code>4747</code></td>
-                      <td>Local port of the HUD.</td>
+                      <td>Local port of EVE HUD.</td>
                     </tr>
                     <tr>
                       <td><code>callbackUrl</code></td>
                       <td><code>http://localhost:4747/callback</code></td>
-                      <td>Must match the developer portal exactly, and use the same port.</td>
+                      <td>Your own application only: must match the developer portal exactly, and use the same port. The EVE HUD application always uses <code>http://localhost:4747/callback</code>.</td>
                     </tr>
                     <tr>
                       <td><code>scopes</code></td>
                       <td>see file</td>
                       <td>
                         ESI permissions requested at login. After changing them, use <em>Log in again</em> in
-                        settings. A module whose scope is missing tells you which one it needs.
+                        Settings. A module whose scope is missing tells you which one it needs.
                       </td>
                     </tr>
                     <tr>
@@ -2320,7 +2369,7 @@
                       <td><code>2026-08-18</code></td>
                       <td>
                         ESI version date, sent as the <code>X-Compatibility-Date</code> header. Response
-                        formats are frozen at this date. Only move it forward deliberately. Every route the
+                        formats are frozen at this date. Only move it forward deliberately. Every route EVE
                         HUD uses exists at this date; changes it brought: <code>/sovereignty/map</code> →
                         <code>/sovereignty/systems</code>, the route planner is
                         <code>POST /route/{origin}/{destination}</code>, and military campaign lists are
@@ -2394,7 +2443,7 @@
                       <td>
                         EVE's logs folder (the one with <code>Chatlogs</code>, <code>Gamelogs</code>,
                         <code>Fleetlogs</code>, <code>Marketlogs</code>), if auto-detection doesn't find it,
-                        or a network share. Easiest set in Settings → Storage → <strong>EVE logs</strong>. An
+                        or a network share. Easiest to set in Settings → Storage → <strong>EVE logs</strong>. An
                         older <code>chatLogDir</code> (a <code>Chatlogs</code> folder) still works; saving in
                         Settings replaces it.
                       </td>
@@ -2412,7 +2461,7 @@
                       <td><code>15</code></td>
                       <td>
                         Seconds without a <code>(combat)</code> line in the game log before ATTACK goes off
-                        (5–300; Settings → Combat).
+                        (5–300; Settings → Combat offers 5–120).
                       </td>
                     </tr>
                     <tr>
@@ -2421,7 +2470,7 @@
                       <td>
                         Chat tabs: <code>id</code>, <code>label</code>, and <code>filePrefix</code> (the start
                         of the log file name). <code>&quot;fw&quot;: true</code> shows the tab only while
-                        you're enlisted in Faction Warfare. Militia is always added, also to an older
+                        you're enlisted in Faction Warfare. Militia is always added, even to an older
                         <code>config.json</code>.
                       </td>
                     </tr>
@@ -2430,7 +2479,7 @@
               </div>
               <h4 id="scopes">Scopes</h4>
               <p>
-                <code>config.example.json</code> lists every scope the HUD can use. The login asks EVE for the
+                <code>config.example.json</code> lists every scope EVE HUD can use. The login asks EVE for the
                 scopes in <strong>your</strong> <code>config.json</code>; EVE only shows its approval screen
                 when that list has something new.
               </p>
@@ -2442,9 +2491,10 @@
                   so EVE asks you to approve it.
                 </li>
                 <li>
-                  <strong>Tick it on the developer site too:</strong> every scope in
+                  <strong>Your own application: tick it on the developer site too.</strong> Every scope in
                   <code>config.json</code> must also be enabled on your application at
-                  developers.eveonline.com. If one isn't, EVE refuses the login and the HUD says so.
+                  developers.eveonline.com. If one isn't, EVE refuses the login and EVE HUD says so. The EVE
+                  HUD application has all of EVE HUD's scopes enabled already.
                 </li>
               </ul>
               <div class="table">
@@ -2510,7 +2560,7 @@
                     </tr>
                     <tr>
                       <td><code>esi-characters.read_loyalty.v1</code></td>
-                      <td>loyalty points (Activity &amp; Income)</td>
+                      <td>Loyalty points (Activity &amp; Income)</td>
                     </tr>
                     <tr>
                       <td><code>esi-industry.read_character_mining.v1</code></td>
@@ -2586,20 +2636,20 @@
                   folder / Open log file).
                 </li>
                 <li>
-                  <strong>Other folders:</strong> Settings → <strong>Storage</strong> in the HUD has a field
+                  <strong>Other folders:</strong> Settings → <strong>Storage</strong> in EVE HUD has a field
                   for each, with <strong>Browse…</strong>: <em>Settings</em> (<code>config.json</code>) and
                   <em>Data</em> (<code>data/</code>). <strong>Move and restart</strong> restarts the app and
-                  moves the files before the HUD starts again: it copies them, checks the copies, records the
+                  moves the files before EVE HUD starts again: it copies them, checks the copies, records the
                   new place in <code>location.json</code> in the default folder above (which stays put), and
                   then removes the old ones. A folder that already has a <code>config.json</code>, or a data
                   folder that isn't empty, is refused, so nothing gets overwritten.
                   <strong>Use default folders</strong> moves them back. Folders that sync to the cloud (iCloud
-                  Drive, OneDrive) work, but bring no benefit: the encrypted login and Secret Key only work on
-                  this computer.
+                  Drive, OneDrive) work, but bring no benefit: the encrypted login (and your own Secret Key, if
+                  any) only work on this computer.
                 </li>
                 <li>
                   With <code>--data-dir</code> (or <code>EVE_HUD_HOME</code>) the folders are set by that
-                  option, and the HUD shows them without the option to change them.
+                  option, and EVE HUD shows them without the option to change them.
                 </li>
                 <li>
                   <code>npm start</code> (run from source) uses the same folder as the installed app.
@@ -2622,13 +2672,14 @@
                     <tr>
                       <td><code>config.json</code></td>
                       <td>
-                        Settings (<a href="#configuration-reference-configjson">reference</a>) and the Client
-                        ID / Secret Key, encrypted. <strong>Private.</strong>
+                        Settings (<a href="#configuration-reference-configjson">reference</a>) and, if you use
+                        your own EVE application, its Client ID / Secret Key, encrypted.
+                        <strong>Private.</strong>
                       </td>
                     </tr>
                     <tr>
                       <td><code>data/settings.json</code></td>
-                      <td>Layout, appearance, map view, chosen chat tab. Written by the HUD.</td>
+                      <td>Layout, appearance, map view, chosen chat tab. Written by EVE HUD.</td>
                     </tr>
                     <tr>
                       <td><code>data/settings-demo.json</code></td>
@@ -2713,7 +2764,7 @@
               </div>
               <p>
                 They are in the app folder (<a href="#where-the-files-are">Where the files are</a>);
-                <code>hud/config.example.json</code> is the template for a new <code>config.json</code>. The
+                <code>hud/config.example.json</code> is the template for a new <code>config.json</code>. EVE
                 HUD's Settings drawer and login screen show the actual paths.
               </p>
               <p>
@@ -2743,8 +2794,8 @@
                     <tr>
                       <td><code>--port=N</code></td>
                       <td>
-                        Another port (the login only works on the <code>callbackUrl</code> port, so mainly
-                        with <code>--demo</code>).
+                        Another port (the EVE HUD login only works on 4747, your own application only on its
+                        <code>callbackUrl</code> port, so mainly with <code>--demo</code>).
                       </td>
                     </tr>
                     <tr>
@@ -2773,21 +2824,33 @@
               </div>
             </div>
             <div class="section">
-              <h3 id="port-4747-and-the-login">Port 4747 and the login</h3>
+              <h3 id="port-4747-and-the-login">Port 4747 callback</h3>
               <ul>
                 <li>
-                  The app's server listens on <code>127.0.0.1</code> only, on <code>port</code> from
+                  The app's server listens on <code>127.0.0.1</code> only, on the <code>port</code> from
                   <code>config.json</code> (4747). Other devices on your network can't reach it. It's there
                   because EVE's login has to return somewhere: EVE sends your browser to
                   <code>http://localhost:4747/callback</code>.
                 </li>
                 <li>
-                  It never moves to another port by itself: EVE's login only returns to the exact
-                  <code>callbackUrl</code> registered for your application,
-                  <code>http://localhost:4747/callback</code>.
+                  It never moves to another port by itself: EVE's login only returns to the exact Callback URL
+                  registered for the application, <code>http://localhost:4747/callback</code>.
                 </li>
                 <li>
-                  <strong>When the port is taken</strong> the app tells you who has it:
+                  <strong>The EVE HUD application only works on port 4747.</strong> To run EVE HUD on another
+                  port, use your own EVE application and put that port in its Callback URL. If you log in
+                  through the EVE HUD application on another port, the login page shows
+                  <em>The login needs port 4747</em>.
+                </li>
+                <li>
+                  <strong>The port can't be changed in EVE HUD itself</strong>, only by hand in
+                  <code>config.json</code>. When <code>port</code> isn't 4747 and you don't use your own
+                  EVE application, a red window over EVE HUD says <em>The port can only be changed with your
+                  own EVE application</em>, with <strong>Open config file</strong> and
+                  <strong>Restart</strong>: change <code>port</code> back to <code>4747</code> and restart.
+                </li>
+                <li>
+                  <strong>When the port is taken</strong>, the app tells you what is using it:
                   <ul>
                     <li>
                       <em>Another EVE HUD is already running</em> (for example a second copy started with
@@ -2796,8 +2859,8 @@
                       the other server running).
                     </li>
                     <li>
-                      <em>Used by another program</em>: close it and <strong>Try again</strong>, or
-                      <strong>Open config file</strong> to pick another port.
+                      <em>Used by another program</em>: close it and <strong>Try again</strong>. With your own
+                      EVE application you can also pick another port: <strong>Open config file</strong>.
                     </li>
                     <li>
                       <em>May not be used on this computer</em> (Windows can reserve port ranges for
@@ -2807,15 +2870,16 @@
                   </ul>
                 </li>
                 <li>
-                  <strong>First start on a computer where 4747 is taken by something else:</strong> the setup
-                  screen lets you type another port in the callback URL; the HUD moves there when you save,
-                  and the window follows.
-                </li>
-                <li>
-                  If you change <code>port</code>, change <code>callbackUrl</code> in
+                  With your own application: if you change <code>port</code>, change <code>callbackUrl</code> in
                   <code>config.json</code> and the Callback URL of your application on
                   developers.eveonline.com to the same port. The app logs a warning when <code>port</code> and
                   <code>callbackUrl</code> don't match.
+                </li>
+                <li>
+                  <strong>Please note</strong> that the port (4747) cannot be changed if you haven't created
+                  your own developer application in the EVE developer portal. Should you change the port in
+                  <code>config.json</code> yourself without your own developer application, EVE HUD can't
+                  log in: it shows the red window above until <code>port</code> is back on 4747.
                 </li>
               </ul>
             </div>
@@ -2828,8 +2892,8 @@
               </p>
               <ul>
                 <li>
-                  <strong>Hiding a module</strong> pauses its feed. Its last data is kept, so showing the
-                  module again shows it straight away, and <strong>showing a module fetches at once</strong>.
+                  <strong>Hiding a module</strong> pauses its feed. Its last data is kept, so a module you show
+                  again has its data straight away, and <strong>showing a module fetches new data at once</strong>.
                 </li>
                 <li>
                   <strong>The top bar always counts as visible:</strong> players online, location and ship,
@@ -3030,7 +3094,7 @@
                 <strong>Load:</strong> about 20–25 ESI requests per minute in normal use, mostly the 5-second
                 location check. The map extras (hazards, traffic) and the Warfare module add only a few dozen
                 requests per hour in total, because they fetch data for all systems at once and ESI caches it
-                for 5–60 minutes. The HUD also saves requests in other ways:
+                for 5–60 minutes. EVE HUD also saves requests in other ways:
               </p>
               <ul>
                 <li>
@@ -3040,7 +3104,7 @@
                 <li>
                   Names of items, systems and stations are cached permanently in <code>data/names.json</code>.
                 </li>
-                <li>&quot;Refresh now&quot; in settings respects the cache too.</li>
+                <li>&quot;Refresh now&quot; in Settings respects the cache too.</li>
               </ul>
               <p>
                 Chat doesn't use ESI at all. When you jump, Local announces it instantly, and the map moves
@@ -3053,8 +3117,9 @@
                 ESI limits requests per <em>route group</em>, using a floating window (<a
                   href="https://developers.eveonline.com/docs/services/esi/rate-limiting/"
                   >CCP/Fenris Creations documentation</a
-                >). Each group has its own token bucket per character (logged-in routes) or per IP address
-                (public routes). Tokens flow back into the bucket over time.
+                >). Each group has its own token bucket per application and character (logged-in routes) or
+                per IP address (public routes), so every player has their own buckets, even with the EVE HUD
+                application. Tokens flow back into the bucket over time.
               </p>
               <p><strong>Token cost per request (CCP/Fenris Creations's rules):</strong></p>
               <div class="table">
@@ -3089,7 +3154,7 @@
                   </tbody>
                 </table>
               </div>
-              <p><strong>What the HUD does:</strong></p>
+              <p><strong>What EVE HUD does:</strong></p>
               <ol>
                 <li>
                   <strong>Reads the headers on every response.</strong> <code>X-Ratelimit-Group</code> names
@@ -3129,13 +3194,13 @@
                   just that route.
                 </li>
                 <li>
-                  <strong>Routes still on the old error limit</strong> (at most 100 errors per minute): the
+                  <strong>Routes still on the old error limit</strong> (at most 100 errors per minute): EVE
                   HUD pauses everything when the <code>X-ESI-Error-Limit-Remain</code> header gets low, or
                   after a 420 response.
                 </li>
               </ol>
               <p>
-                <strong>Pagination:</strong> ESI splits some long lists over several responses. The HUD
+                <strong>Pagination:</strong> ESI splits some long lists over several responses. EVE HUD
                 handles both kinds CCP/Fenris Creations uses:
               </p>
               <ul>
@@ -3150,12 +3215,12 @@
                   <strong>Cursor-based</strong> (<a
                     href="https://developers.eveonline.com/docs/services/esi/pagination/cursor-based/"
                     >docs</a
-                  >) is used for freelance jobs and military campaign objectives. The HUD follows the
+                  >) is used for freelance jobs and military campaign objectives. EVE HUD follows the
                   <code>before</code> cursor back through older records, at most 5 responses.
                 </li>
                 <li>
                   <strong>Duplicates:</strong> both docs warn that a record can show up twice when data
-                  changes between page requests, so the HUD drops repeats by ID.
+                  changes between page requests, so EVE HUD drops repeats by ID.
                 </li>
                 <li>
                   <strong>Not involved:</strong> the other feeds aren't paginated, and the star map comes from
@@ -3186,7 +3251,7 @@
                 <path d="M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3" /></svg
             ></span>
             <h2 id="data-privacy-title">Data and privacy</h2>
-            <span class="sub">What the HUD stores, what it connects to, and where its data comes from.</span>
+            <span class="sub">What EVE HUD stores, what it connects to, and where its data comes from.</span>
           </header>
           <div class="chapter-body">
             <div class="section">
@@ -3194,11 +3259,17 @@
               <ul>
                 <li>
                   <strong>The EVE login opens in your default browser</strong>, not in the app.
-                  <em>Log in with EVE Online</em> (and <em>Grant access</em>) open
-                  <code>http://localhost:4747/login?from=app</code> in the browser; EVE sends you back to the
+                  <em>Log in with EVE Online</em> (and <em>Grant access</em>) opens
+                  <code>http://localhost:4747/login?from=app</code> in the browser; EVE sends you back to EVE
                   HUD's server there, which shows &quot;Logged in as …, you can close this tab&quot;, and the
-                  app window updates and comes to the front by itself. EVE's login cookies stay in the browser
-                  you already use.
+                  app window updates and comes to the front by itself. EVE's login cookies stay only in the
+                  browser you already use.
+                </li>
+                <li>
+                  <strong>Your tokens stay on this computer:</strong> the tokens that give access to your
+                  character information go straight from <code>login.eveonline.com</code> to EVE HUD on your
+                  computer. They never pass through danisxlab or any other server. EVE HUD doesn't send or use
+                  your data other than to make the app work.
                 </li>
                 <li>
                   <strong>No cookies or site data on disk:</strong> the window uses an in-memory session, so
@@ -3206,34 +3277,92 @@
                   token in <code>data/tokens.json</code>.
                 </li>
                 <li>
-                  <strong>Only EVE servers:</strong> the window loads only the HUD itself and
+                  <strong>Only EVE servers:</strong> the window loads only EVE HUD itself and
                   <code>https://*.evetech.net</code> / <code>https://*.eveonline.com</code> (portraits,
-                  icons); everything else is blocked before it connects and noted in the log. The HUD server
+                  icons); everything else is blocked before it connects and noted in the log. The EVE HUD server
                   has the same rule for its own requests. Camera, microphone, location, notifications and the
                   like are refused; only the Copy buttons' clipboard writes are allowed.
                 </li>
                 <li>
-                  <strong>One exception, for updates:</strong> once an hour the HUD server asks GitHub
+                  <strong>Only your own character:</strong> EVE HUD only shows the character you logged in
+                  with, and ESI itself only answers for the character a login belongs to. Your login tokens
+                  are only used in the background, by the part of EVE HUD that talks to EVE. The EVE HUD window
+                  never receives them, so they can't be read from it, not even with the developer tools.
+                </li>
+                <li>
+                  <strong>Only for this computer:</strong> EVE HUD's server only answers on this computer, and
+                  only to EVE HUD itself. Other devices on your network can't reach it, and other
+                  websites open in your browser can't read or change anything in EVE HUD.
+                </li>
+                <li>
+                  <strong>Chat is only text:</strong> messages from other players, item descriptions and
+                  release notes are shown as text, so nobody can run anything in EVE HUD through them. Links
+                  in chat show their real address when you hover over them, and open in your browser.
+                </li>
+                <li>
+                  <strong>One exception, for updates:</strong> once an hour the EVE HUD server asks GitHub
                   (<code>api.github.com</code>) for the newest release of EVE HUD. Nothing about you is sent:
                   no character, no settings; GitHub sees the request like any website visit. Nothing is
                   downloaded or installed either. Settings → <strong>Updates</strong> turns it off (see
                   <a href="#updates">Updates</a>).
                 </li>
                 <li>
-                  <strong>Secrets encrypted:</strong> the Client ID and Secret Key in
-                  <code>config.json</code> (<code>&quot;enc:…&quot;</code>) and the EVE login in
-                  <code>data/tokens.json</code> are encrypted with Electron's safeStorage: the macOS Keychain
-                  (item <em>EVE HUD Safe Storage</em>) or Windows' data protection (DPAPI) for your user
-                  account. The key is kept by the operating system, not in a file. Other user accounts,
-                  another computer, or someone with only the files can't read them; programs running as you on
-                  this computer still could, as with any local app. Plain values (typed in by hand, or
-                  imported) are encrypted the first time they're loaded.
+                  <strong>Your login is a refresh token, encrypted:</strong> after the login, EVE Online gives
+                  EVE HUD a short-lived <em>access token</em> (about 20 minutes) and a <em>refresh token</em>.
+                  With the refresh token, EVE HUD gets a new access token by itself, so you stay logged in.
+                  When the application has no <code>Client Secret Key</code> (the EVE HUD application has
+                  none), the refresh token alone gives access to your character information. It is protected
+                  in the following ways:
                   <ul>
                     <li>
-                      Mac: an app without an Apple certificate may ask once after an update to
+                      <code>data/tokens.json</code> holds the whole login (character, access token, refresh
+                      token, scopes) as one encrypted value, <code>{ &quot;sealed&quot;: &quot;enc:…&quot; }</code>.
+                      <em>Log out</em> (Settings → Account) clears it.
+                    </li>
+                    <li>
+                      It is encrypted with Electron's safeStorage, using the operating system's key store for
+                      your user account (see below). The key is kept by the operating system, not in a file.
+                      Other user accounts, another computer, or someone with only the files can't read it;
+                      programs running as you on this computer still could, as with any local app. On another
+                      computer you simply log in again.
+                    </li>
+                    <li>
+                      <strong>Your own EVE developer Client ID and Client Secret Key:</strong> if you use your
+                      own EVE application, its Client ID and Secret Key in <code>config.json</code>
+                      (<code>&quot;enc:…&quot;</code>) are encrypted in the same way.
+                    </li>
+                    <li>
+                      Plain values (typed in by hand, or imported from an older version) are encrypted the
+                      first time they're loaded.
+                    </li>
+                    <li>
+                      <strong>Private files:</strong> on a Mac and Linux, <code>config.json</code> and the
+                      files in <code>data/</code> can only be read by your own user account. On Windows, your
+                      app folder in <code>%APPDATA%</code> already is private.
+                    </li>
+                  </ul>
+                </li>
+                <li>
+                  <strong>The key store per system:</strong>
+                  <ul>
+                    <li><strong>Windows:</strong> Windows' data protection (DPAPI) for your user account.</li>
+                    <li>
+                      <strong>macOS:</strong> the Keychain, item <em>EVE HUD Safe Storage</em>. An app without
+                      an Apple certificate may ask once after an update to
                       <em>use your confidential information stored in &quot;EVE HUD Safe Storage&quot;</em>.
                       Click <strong>Always Allow</strong>. <code>npm start</code> and the installed app are
                       different apps to the Keychain, so each asks once.
+                    </li>
+                    <li>
+                      <strong>Linux:</strong> the desktop's keyring: GNOME Keyring (libsecret) or KWallet. Some
+                      desktops and window managers have none; Electron would then use a fixed built-in key that
+                      protects nothing, so EVE HUD can't encrypt your data: <code>data/tokens.json</code> and
+                      <code>config.json</code> stay unencrypted on disk (still readable only by your user
+                      account), and the log says <em>No system encryption
+                      available</em>.<br />
+                      It is highly recommended to install a keyring (for example <code>gnome-keyring</code>),
+                      have it unlocked automatically when you log in, and restart EVE HUD; the files are
+                      encrypted the next time they're loaded.
                     </li>
                   </ul>
                 </li>
@@ -3247,8 +3376,8 @@
               <h3 id="network-access">Network access</h3>
               <p>
                 The app only talks to EVE's own servers (<code>*.evetech.net</code>,
-                <code>*.eveonline.com</code>), and to GitHub for the update check: the server
-                (<code>hud/lib/net.js</code>) refuses every other host, also when a redirect points elsewhere,
+                <code>*.eveonline.com</code>), and to GitHub for the update check, always over https: the server
+                (<code>hud/lib/net.js</code>) refuses every other host, even when a redirect points elsewhere,
                 the window blocks everything else (<a href="#privacy-login-cookies-network">Privacy</a>), and
                 the page has a Content Security Policy with the same rule. The font is a local file. In
                 detail:
@@ -3353,8 +3482,36 @@
                       </td>
                     </tr>
                     <tr>
-                      <td>Optional modules</td>
-                      <td>See <a href="#optional-modules">Optional modules</a>.</td>
+                      <td>Activity &amp; income</td>
+                      <td>
+                        ESI: wallet journal (ESI keeps 30 days), sorted by source, and your loyalty points
+                        per corporation.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Mining ledger</td>
+                      <td>
+                        ESI: mining ledger (30 days, updated a few times a day), valued at CCP/Fenris
+                        Creations's average market prices.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Ships &amp; assets</td>
+                      <td>
+                        ESI: assets and their custom names (updated about once an hour), item types and groups
+                        to recognise ships, valued at average market prices.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>Standings</td>
+                      <td>ESI: your standings with factions, NPC corporations and agents.</td>
+                    </tr>
+                    <tr>
+                      <td>Kills &amp; losses</td>
+                      <td>
+                        ESI: your killmails of the last 30 days, each fetched once and kept in
+                        <code>data/killmails.json</code>, valued at average market prices.
+                      </td>
                     </tr>
                     <tr>
                       <td>Top bar</td>
@@ -3368,11 +3525,11 @@
               </div>
               <p>
                 <strong>Not available through ESI:</strong> Daily goals (AIR), agent missions and the
-                Opportunities tracker. They can't appear in the HUD.
+                Opportunities tracker. They can't appear in EVE HUD.
               </p>
               <p>
                 <strong>Freelance jobs / campaigns caveat:</strong> the exact response format of the
-                freelance-job and campaign routes wasn't documented when this was written, so the HUD reads
+                freelance-job and campaign routes wasn't documented when this was written, so EVE HUD reads
                 them loosely (at this compatibility date the lists are wrapped, e.g.
                 <code>{ campaigns }</code> and <code>{ objectives, cursor }</code>, with <code>id</code>,
                 <code>started</code>, <code>finished</code>, <code>is_committed</code>). The raw responses are
@@ -3403,7 +3560,7 @@
                     </li>
                     <li>
                       It extracts only <code>mapSolarSystems.jsonl</code>, <code>mapRegions.jsonl</code> and
-                      <code>mapStargates.jsonl</code>. This uses a small built-in zip reader, so no unzip tool
+                      <code>mapStargates.jsonl</code>. EVE HUD has a small built-in zip reader, so no unzip tool
                       is needed.
                     </li>
                     <li>
@@ -3468,8 +3625,7 @@
                 <code>location.json</code> / <code>app-options.json</code> in the app folder) isn't valid
                 JSON, for example after a crash while saving or a bad hand edit. The only button,
                 <strong>Reset EVE HUD and restart</strong>, deletes all configuration files and starts the app
-                as on its first start: Welcome (import or start fresh), then the Client ID and Secret Key, and
-                the EVE login again. The star map and other downloaded data stay. Closing the window quits
+                as on its first start: Welcome (import or start fresh), then the EVE login again. The star map and other downloaded data stay. Closing the window quits
                 without changing anything; the next start asks again.
               </p>
               <div class="table">
@@ -3491,29 +3647,42 @@
                     <tr>
                       <td>Login fails with &quot;Login state did not match&quot;</td>
                       <td>
-                        The app restarted during login, or an old login tab was used. Start again from the
+                        The app restarted during login, or an old login tab was used. Start again from EVE
                         HUD's login button.
                       </td>
                     </tr>
                     <tr>
-                      <td>The browser says the HUD can't be reached after the login</td>
+                      <td>The browser says EVE HUD can't be reached after the login</td>
                       <td>The app was closed or restarted during the login. Start it and log in again.</td>
                     </tr>
                     <tr>
                       <td>
-                        The HUD asks for the Client ID and Secret Key again (&quot;could not be
-                        decrypted&quot;)
+                        The login screen says your own application's Client ID and Secret Key &quot;could not
+                        be decrypted&quot;
                       </td>
                       <td>
                         <code>config.json</code> was encrypted on another computer or user account (or the
-                        Keychain entry was removed). Enter them again; log in again too.
+                        Keychain or keyring entry was removed). Log in again through the EVE HUD application, or
+                        enter your own Client ID and Secret Key again and then log in.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        A red window says <em>The port can only be changed with your own EVE application</em>,
+                        or the login page says <em>The login needs port 4747</em>
+                      </td>
+                      <td>
+                        EVE HUD runs on another port, and the EVE HUD application only works on 4747. Set
+                        <code>port</code> in <code>config.json</code> back to <code>4747</code> and restart,
+                        or use your own EVE application (see
+                        <a href="#port-4747-and-the-login">Port 4747 callback</a>).
                       </td>
                     </tr>
                     <tr>
                       <td>Login page shows an error about the redirect URI</td>
                       <td>
-                        The callback URL in the developer portal differs from <code>callbackUrl</code> in
-                        <code>config.json</code>.
+                        Your own application: the callback URL in the developer portal differs from
+                        <code>callbackUrl</code> in <code>config.json</code>.
                       </td>
                     </tr>
                     <tr>
@@ -3534,7 +3703,7 @@
                       <td>The CLUSTER light or a module light is amber with &quot;ESI degraded&quot;</td>
                       <td>
                         ESI itself reports that route as slow (CCP/Fenris Creations's <code>/meta/status</code>). Nothing to
-                        fix in the HUD; it clears when CCP/Fenris Creations's servers recover.
+                        fix in EVE HUD; it clears when CCP/Fenris Creations's servers recover.
                       </td>
                     </tr>
                     <tr>
@@ -3556,16 +3725,16 @@
                     <tr>
                       <td>Settings → ESI rate limits shows amber or red</td>
                       <td>
-                        The HUD is holding requests back to protect the limit. It recovers on its own. If it
+                        EVE HUD is holding requests back to protect the limit. It recovers on its own. If it
                         happens often, raise <code>min</code> values or <code>rateLimit.reserve</code>.
                       </td>
                     </tr>
                     <tr>
                       <td>A module says it needs a scope</td>
                       <td>
-                        Add the scope to <code>&quot;scopes&quot;</code> in <code>config.json</code>
-                        <em>and</em> to your application on developers.eveonline.com, then
-                        <em>Log in again</em>. See <a href="#scopes">Scopes</a>.
+                        Click its <em>Grant access</em> button and approve it on EVE's login page. With your own
+                        application, also enable the scope on developers.eveonline.com. See
+                        <a href="#scopes">Scopes</a>.
                       </td>
                     </tr>
                     <tr>
@@ -3586,12 +3755,16 @@
                       <td>Want to start completely fresh</td>
                       <td>
                         Quit the app, delete the <code>data/</code> folder (tray / Settings menu → Open data
-                        folder), start again. Settings → Reset EVE HUD removes the Client ID and Secret Key.
+                        folder), start again. Settings → Reset EVE HUD removes your own application's Client ID
+                        and Secret Key.
                       </td>
                     </tr>
                     <tr>
-                      <td>The app starts, but the HUD asks for the Client ID and Secret Key</td>
-                      <td>A fresh start without import: enter them in the HUD window.</td>
+                      <td>The app starts, but EVE HUD asks you to log in</td>
+                      <td>
+                        A fresh start without import, or a login saved on another computer: click
+                        <strong>LOG IN with EVE Online</strong>.
+                      </td>
                     </tr>
                     <tr>
                       <td>Map downloads again although you imported</td>
@@ -3678,7 +3851,7 @@
                     <tr>
                       <td><code>npm run check</code></td>
                       <td>
-                        Connection check for every host the HUD uses (see
+                        Connection check for every host EVE HUD uses (see
                         <a href="#troubleshooting">Troubleshooting</a>).
                       </td>
                     </tr>
@@ -3699,7 +3872,7 @@
               <p>
                 <strong>What needs a restart:</strong> changes to <code>config.json</code>, <code>src/</code>,
                 <code>hud/server.js</code> or <code>hud/lib/</code> need a restart (tray / Settings menu →
-                Restart). Changes in <code>hud/public/</code> only need a reload (F5). Settings changed in the
+                Restart). Changes in <code>hud/public/</code> only need a reload (F5). Settings changed in EVE
                 HUD itself apply immediately.
               </p>
             </div>
@@ -3707,9 +3880,9 @@
               <h3 id="project-layout">Project layout</h3>
               <pre><code>src/                   the app (Electron main process)
   main.js              start-up, first-run import, encryption, port problems, quitting
-  paths.js             where the HUD code and its config.json + data/ are
+  paths.js             where the EVE HUD code and its config.json + data/ are
   storage.js           where config.json and data/ are kept, and moving them (Settings → Storage)
-  importer.js          copies config.json + data files from an older HUD folder
+  importer.js          copies config.json + data files from an older EVE HUD folder
   window.js            the window: normal / full-screen, monitors, remembered position, keys, links, login
   privacy.js           in-memory session, EVE-only request filter, permissions
   tray.js              tray icon and menu (Windows, Linux), Settings menu (Mac)
@@ -3720,12 +3893,12 @@
   port-check.js        another EVE HUD on the port, or something else?
   log.js               the log file
   recovery.js          damaged configuration files: the reset window
-hud/                   the HUD (server and page; no dependencies)
+hud/                   EVE HUD (server and page; no dependencies)
   server.js            local HTTP server: the API routes, login, live updates to the window (server-sent events)
   config.example.json  template for config.json
   lib/store.js         config.json + settings loading, JSON file helpers
-  lib/secrets.js       encryption of Client ID, Secret Key and login (key from the app: Keychain / DPAPI)
-  lib/auth.js          EVE SSO login, token refresh
+  lib/secrets.js       encryption of the login and your own Client ID / Secret Key (Keychain / DPAPI / keyring)
+  lib/auth.js          EVE SSO login (PKCE or Secret Key), token refresh
   lib/esi.js           ESI client: caching, ETags, error limit, name resolution
   lib/ratelimit.js     X-Ratelimit tracking and request holding
   lib/net.js           fetch wrapper: EVE servers only, readable network errors (prefers IPv4)
@@ -3750,7 +3923,7 @@ hud/                   the HUD (server and page; no dependencies)
     js/dialogs.js      About, graphics-card restart, confirmations, &quot;EVE HUD stopped working&quot;
     js/logs-dialog.js  &quot;EVE's log files can't be read&quot;
     js/update-dialog.js  Update Ready: the release notes window; js/markdown.js shows the notes
-    js/login-gate.js   setup form and &quot;Log in with EVE Online&quot;
+    js/login-gate.js   &quot;Log in with EVE Online&quot; and the own-application form
     js/appearance.js   Settings → Appearance applied to the page
     js/backdrop.js     the starfield; js/plexus.js the low-poly background
     js/grid.js         module grid: drag, resize, swap
@@ -3781,7 +3954,7 @@ test/                  tests, the stand-in electron module, run-server.js
 LICENSE                GNU General Public License v3
 README.md              the short introduction on GitHub
 documentation/         this page (index.html) and its screenshots (images/)
-demo/fake-server.js    the demo website: answers the HUD page in the browser, instead of server.js
+demo/fake-server.js    the demo website: answers the EVE HUD page in the browser, instead of server.js
 .github/workflows/     docs.yml: publishes this page and the demo on GitHub Pages
 </code></pre>
             </div>
@@ -3827,7 +4000,7 @@ demo/fake-server.js    the demo website: answers the HUD page in the browser, in
                   starts with a comment that says what it is for.
                 </li>
                 <li>
-                  <strong>The demo website</strong> is the HUD page itself with the sample data of
+                  <strong>The demo website</strong> is the EVE HUD page itself with the sample data of
                   <code>npm run demo</code>, but without the app: <code>demo/fake-server.js</code> answers the
                   page's requests in the browser, with an invented star map, and keeps the layout in that
                   browser. The same workflow publishes it next to this page.
@@ -3844,8 +4017,9 @@ demo/fake-server.js    the demo website: answers the HUD page in the browser, in
               <ul>
                 <li>
                   <code>test/hud.test.js</code>: the server: feed scheduling, the modules' data, routes, the
-                  HTTP endpoints, setup and Reset, the EVE-only network rule, and the encryption of the Client
-                  ID, Secret Key and login (including values from &quot;another computer&quot;).
+                  HTTP endpoints, setup and Reset, the login (the EVE HUD application with PKCE, or your own
+                  application), the EVE-only network rule, and the encryption of the Client ID, Secret Key and
+                  login (including values from &quot;another computer&quot;).
                   <code>test/run-server.js</code> starts the server on its own for these tests.
                 </li>
                 <li>
@@ -3868,7 +4042,7 @@ demo/fake-server.js    the demo website: answers the HUD page in the browser, in
                       first start: import (secret never logged, values encrypted in place, imported layout
                       used), start fresh, quit;
                     </li>
-                    <li>port taken by another HUD (both choices) or by another program (Try again);</li>
+                    <li>port taken by another EVE HUD (both choices) or by another program (Try again);</li>
                     <li>
                       damaged configuration files (the reset window); a second instance; the Mac menu bar
                       (Settings menu, no icon).
@@ -3957,7 +4131,7 @@ demo/fake-server.js    the demo website: answers the HUD page in the browser, in
                 <li>Mac apps can only be built on a Mac.</li>
                 <li>
                   <strong>Linux:</strong> the <strong>AppImage</strong> is one file that runs on most
-                  distributions and desktops: make it executable (right click → Properties →
+                  distributions and desktops: make it executable (right-click → Properties →
                   <em>Allow executing</em>, or <code>chmod +x</code>) and start it. Some distributions need
                   <code>libfuse2</code> for AppImages (Ubuntu 24.04 and later:
                   <code>sudo apt install libfuse2t64</code>, on 22.04 <code>libfuse2</code>); without it,
@@ -3965,13 +4139,13 @@ demo/fake-server.js    the demo website: answers the HUD page in the browser, in
                   <strong>.deb</strong> installs it like any other program, with a menu entry:
                   <code>sudo apt install ./eve-hud_&lt;version&gt;_amd64.deb</code>; uninstall with
                   <code>sudo apt remove eve-hud</code> (your settings and data in
-                  <code>~/.config/EVE HUD</code> stay). EVE itself runs on Linux through Steam (Proton); the
+                  <code>~/.config/EVE HUD</code> stay). EVE itself runs on Linux through Steam (Proton); EVE
                   HUD finds its logs there by itself (see <a href="#chat-logs">Chat logs</a>). Unsigned, like
                   most Linux apps; nothing asks. The Linux settings are under <code>linux</code>,
                   <code>appImage</code> and <code>deb</code> in <code>electron-builder.config.cjs</code>.
                 </li>
                 <li>
-                  <strong>The Mac .dmg</strong> opens in a window in the HUD's style: the plexus background,
+                  <strong>The Mac .dmg</strong> opens in a window in EVE HUD's style: the plexus background,
                   the app on the left, an arrow, and the Applications folder on the right to drag it onto. The
                   picture is <code>build/background.png</code> (and <code>background@2x.png</code> for Retina
                   screens), the layout is under <code>dmg</code> in <code>electron-builder.config.cjs</code>.
@@ -3989,7 +4163,7 @@ demo/fake-server.js    the demo website: answers the HUD page in the browser, in
                   your settings and data too (EVE login, layout, star map in <code>%APPDATA%\EVE HUD</code>);
                   the default is to keep them. The installer's settings are under <code>nsis</code> in
                   <code>electron-builder.config.cjs</code>, the uninstall question in
-                  <code>build/installer.nsh</code>. Its picture, the plexus with the logo in the HUD's style
+                  <code>build/installer.nsh</code>. Its picture, the plexus with the logo in EVE HUD's style
                   down the left of the last page, is <code>build/installerSidebar.bmp</code>.
                 </li>
                 <li>
@@ -4008,7 +4182,7 @@ demo/fake-server.js    the demo website: answers the HUD page in the browser, in
               <ul>
                 <li>
                   <strong>Windows:</strong> SmartScreen shows <em>Windows protected your PC</em>. Click
-                  <strong>More info → Run anyway</strong>. Since 2024 no certificate (not even EV) removes
+                  <strong>More info → Run anyway</strong>. Since 2024, no certificate (not even EV) removes
                   this warning straight away; it fades as a signed app builds up reputation.
                 </li>
                 <li>
@@ -4028,7 +4202,7 @@ demo/fake-server.js    the demo website: answers the HUD page in the browser, in
                 <strong>Apple Development</strong> certificate (no notarization, which needs the paid
                 program). Create the certificate once in Xcode → <strong>Settings → Accounts</strong> → add
                 your Apple ID → <strong>Manage Certificates</strong> → <strong>+</strong> →
-                <em>Apple Development</em>. Why bother: the HUD keeps its secrets encrypted with a key in your
+                <em>Apple Development</em>. Why bother: EVE HUD keeps its secrets encrypted with a key in your
                 Keychain, and the Keychain trusts an app by its signature. Unsigned builds get a new signature
                 every time, so macOS may ask
                 <em
@@ -4127,9 +4301,9 @@ demo/fake-server.js    the demo website: answers the HUD page in the browser, in
               </p>
               <p>
                 The GPL covers this project's own code and icons. It doesn't cover CCP/Fenris Creations's material or the font,
-                which keep their own terms (below). Anyone who runs the HUD uses ESI with their own EVE
-                application (Client ID), so CCP/Fenris Creations's EVE Developer License Agreement applies to them too,
-                including its non-commercial rule for CCP/Fenris Creations's data and images.
+                which keep their own terms (below). EVE HUD uses ESI through an EVE application (Client ID):
+                the EVE HUD application, or your own. CCP/Fenris Creations's EVE Developer License Agreement
+                applies, including its non-commercial rule for CCP/Fenris Creations's data and images.
               </p>
             </div>
             <div class="section">
@@ -4143,7 +4317,7 @@ demo/fake-server.js    the demo website: answers the HUD page in the browser, in
                     >EVE Developer License Agreement</a
                   >. It allows non-commercial use only (no fee; voluntary donations or ISK are allowed) and
                   asks for CCP/Fenris Creations's notice, which is in the About window (the ⓘ button at the far right of the
-                  top bar). None of it is bundled: the HUD fetches it while it runs.
+                  top bar). None of it is bundled: EVE HUD fetches it while it runs.
                 </li>
                 <li>
                   <strong>Font:</strong> Saira Semi Condensed by Hector Gatti / Omnibus-Type, under the SIL
@@ -4156,8 +4330,8 @@ demo/fake-server.js    the demo website: answers the HUD page in the browser, in
                   every build (electron-builder adds them).
                 </li>
                 <li>
-                  The HUD's icons (<code>hud/public/js/glyphs.js</code>), the app icon and tray icon were
-                  drawn for this project. The HUD uses no outside libraries.
+                  EVE HUD's icons (<code>hud/public/js/glyphs.js</code>), the app icon and tray icon were
+                  drawn for this project. EVE HUD uses no outside libraries.
                 </li>
                 <li>zKillboard and EVE Ref are only linked.</li>
               </ul>

@@ -18,16 +18,16 @@ It covers installing, every module and setting, `config.json`, privacy, building
 - **Top bar:** alerts (skill queue, industry jobs, expiring orders), EVE notifications, mail, Tranquility status, EVE time, and ESI health.
 - **Light on ESI:** only what's on screen is polled, at ESI's own cache times, within its rate limits.
 - **Update Ready:** a new release on GitHub shows in the top bar, with its release notes (checked once an hour; can be turned off).
-- **Private:** your login and EVE application keys stay on your computer, encrypted, and the app connects only to CCP/Fenris Creations's servers, plus GitHub for the hourly update check.
+- **Private:** the tokens that give access to your character information are only stored on your computer, encrypted. EVE HUD doesn't send or use your data other than to make the app work, and connects only to CCP/Fenris Creations's servers, plus GitHub for the hourly update check. See [Data and privacy](https://danisxlab.github.io/eve-hud/documentation/#data-privacy).
 - **EVE on another computer:** works through a shared logs folder.
 
 ## Quick start
 
-You need an application on the [EVE developers site](https://developers.eveonline.com) with the callback URL `http://localhost:4747/callback` for EVE HUD to function.
-
 Download the installer for your system from [Releases](https://github.com/danisxlab/eve-hud/releases/latest).
 
-On the first start EVE HUD asks for your application's **Client ID** and **Secret Key** and lists the scopes to enable, each with a *Copy* button. Then log in with EVE Online in your browser. Details: [Getting started](https://danisxlab.github.io/eve-hud/documentation/#getting-started).
+On the first start click **LOG IN with EVE Online** and log in in your browser. No developer account is needed: EVE HUD logs in through its own EVE application, and the tokens go straight from EVE to your computer ([The EVE HUD application](https://danisxlab.github.io/eve-hud/documentation/#eve-hud-application)).
+
+Prefer your own application from the [EVE developers site](https://developers.eveonline.com)? Choose *Use your own EVE developer client credentials instead* on the login screen: it shows the callback URL and the scopes to enable, each with a *Copy* button. EVE HUD runs on port 4747; another port only works with your own application ([Port 4747 callback](https://danisxlab.github.io/eve-hud/documentation/#port-4747-and-the-login)). Details: [Getting started](https://danisxlab.github.io/eve-hud/documentation/#getting-started).
 
 ## Development
 

@@ -15,7 +15,7 @@ import { applyAppearance, setPlexusRepaint } from './appearance.js';
 import { startBackdrop } from './backdrop.js';
 import { renderTopbar } from './topbar.js';
 import { toggleDrawer } from './settings-drawer.js';
-import { watchServer } from './dialogs.js';
+import { watchServer, checkPortProblem } from './dialogs.js';
 import { checkLogs } from './logs-dialog.js';
 import { renderGate } from './login-gate.js';
 import { watchUpdate } from './update-dialog.js';
@@ -159,6 +159,8 @@ async function main() {
   store.on('snapshot', checkLogs);
   store.on('logs', checkLogs);
   store.on('auth', checkLogs);
+  store.on('snapshot', checkPortProblem); // "port" changed without your own application: red window
+  store.on('auth', checkPortProblem);
   connect();
 }
 

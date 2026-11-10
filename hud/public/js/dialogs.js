@@ -333,3 +333,73 @@ export function serverLostModal() {
   quit.focus();
   return overlay;
 }
+
+// ---------------- "port" changed without your own application ----------------
+// The EVE HUD application's Callback URL only comes back to port 4747. When "port" in config.json was
+// changed by hand and no own EVE developer application is set up, a red window over everything says
+// so; it stays until the port is back on 4747 (Open config file, change it, Restart).
+let portOverlay = null;
+export function checkPortProblem() {
+  const port = store.auth?.portProblem;
+  if (!port || store.auth?.demo) {
+    portOverlay?.remove();
+    portOverlay = null;
+    return;
+  }
+  if (!portOverlay) portOverlay = portProblemModal(port);
+}
+export function portProblemModal(port) {
+  const inApp = Boolean(store.config?.app);
+  const go = (action) => {
+    location.href = `/__app/${action}`;
+  };
+  const restart = h('button', { type: 'button', class: 'btn warn', onclick: () => go('restart') }, 'Restart');
+  const overlay = h(
+    'div',
+    { class: 'modal-overlay error-overlay' },
+    h(
+      'div',
+      {
+        class: 'modal error',
+        role: 'alertdialog',
+        'aria-modal': 'true',
+        'aria-label': 'The port can only be changed with your own EVE application',
+      },
+      h('i', { class: 'tick tl' }),
+      h('i', { class: 'tick tr' }),
+      h('i', { class: 'tick bl' }),
+      h('i', { class: 'tick br' }),
+      h('h2', {}, 'The port can only be changed with your own EVE application'),
+      h(
+        'p',
+        {},
+        h('code', {}, `"port": ${port}`),
+        ' in ',
+        h('code', {}, 'config.json'),
+        " can't be used: EVE HUD logs in through the EVE HUD application, and EVE only sends that login back to port 4747.",
+      ),
+      h(
+        'p',
+        {},
+        'Change ',
+        h('code', {}, '"port"'),
+        ' back to ',
+        h('code', {}, '4747'),
+        ' in ',
+        h('code', {}, 'config.json'),
+        ' and restart EVE HUD. Another port only works with your own EVE developer application registered on developers.eveonline.com.',
+      ),
+      inApp
+        ? h(
+            'div',
+            { class: 'modal-actions' },
+            h('button', { type: 'button', class: 'btn', onclick: () => go('config') }, 'Open config file'),
+            restart,
+          )
+        : null,
+    ),
+  );
+  document.body.append(overlay);
+  if (inApp) restart.focus();
+  return overlay;
+}

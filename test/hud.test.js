@@ -462,7 +462,10 @@ test('setup: Client ID / Secret from the page, Reset EVE HUD, config.json keeps 
     const example = fs.readFileSync(path.join(ROOT, 'config.example.json'), 'utf8');
     const id = 'a'.repeat(32);
     const secret = 'eat_SecretSecretSecretSecret1234';
-    assert.equal((await fetch(`${base}/api/state`).then((r) => r.json())).auth.configured, false);
+    const first = (await fetch(`${base}/api/state`).then((r) => r.json())).auth;
+    assert.equal(first.configured, true, 'ready to log in with the built-in application');
+    assert.equal(first.ownApp, false);
+    assert.equal(first.callbackUrl, 'http://localhost:4747/callback');
     // an older config.json with only Local and Corp still gets the Militia channel
     assert.ok(
       (await fetch(`${base}/api/state`).then((r) => r.json())).config.chatChannels.some(
@@ -495,7 +498,7 @@ test('setup: Client ID / Secret from the page, Reset EVE HUD, config.json keeps 
       'only the two values changed',
     );
     const state = await fetch(`${base}/api/state`).then((r) => r.text());
-    assert.ok(JSON.parse(state).auth.configured);
+    assert.ok(JSON.parse(state).auth.ownApp);
     assert.ok(!state.includes(secret), 'the secret never goes back to the page');
     assert.equal(
       (await post('/api/credentials', { clientId: id, clientSecret: secret })).status,
@@ -507,7 +510,11 @@ test('setup: Client ID / Secret from the page, Reset EVE HUD, config.json keeps 
     assert.equal(after.clientId, '');
     assert.equal(after.clientSecret, '');
     assert.equal(after.port, 4747, 'everything else kept');
-    assert.equal((await fetch(`${base}/api/state`).then((r) => r.json())).auth.configured, false);
+    assert.equal(
+      (await fetch(`${base}/api/state`).then((r) => r.json())).auth.ownApp,
+      false,
+      'built-in again',
+    );
     // Settings → Storage → EVE logs: another folder (e.g. a network share), checked, saved, applied
     const logs = fs.mkdtempSync(path.join(os.tmpdir(), 'eve-hud-chatlogs-'));
     assert.equal(
@@ -551,11 +558,21 @@ test('setup: Client ID / Secret from the page, Reset EVE HUD, config.json keeps 
   }
 });
 
-test('setup with another port: HUD moves there, config.json keeps port and callbackUrl in step; Grant access adds scopes', async () => {
+test('another port: only with your own application (otherwise auth.portProblem: the red window); the setup form never moves the port; Grant access adds scopes', async () => {
   const liveHome = fs.mkdtempSync(path.join(os.tmpdir(), 'eve-hud-port-'));
   const port = 4785;
-  const next = 4784;
-  const child = spawn(process.execPath, [SERVER, `--port=${port}`], {
+  // "port" changed by hand in config.json (callbackUrl too, as for your own application)
+  fs.writeFileSync(
+    path.join(liveHome, 'config.json'),
+    fs
+      .readFileSync(path.join(ROOT, 'config.example.json'), 'utf8')
+      .replace('"port": 4747', `"port": ${port}`)
+      .replace(
+        '"callbackUrl": "http://localhost:4747/callback"',
+        `"callbackUrl": "http://localhost:${port}/callback"`,
+      ),
+  );
+  const child = spawn(process.execPath, [SERVER], {
     env: { ...process.env, EVE_HUD_HOME: liveHome },
     stdio: 'ignore',
   });
@@ -575,33 +592,44 @@ test('setup with another port: HUD moves there, config.json keeps port and callb
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
-    assert.deepEqual(await fetch(`${base}/api/portcheck?port=${next}`).then((r) => r.json()), {
-      port: next,
-      free: true,
-    });
-    assert.equal((await fetch(`${base}/api/portcheck?port=${port}`).then((r) => r.json())).current, true);
-    assert.equal((await fetch(`${base}/api/portcheck?port=80`).then((r) => r.json())).invalid, true);
+    // the EVE HUD application (no Client ID of your own) only works on 4747
+    const before = (await fetch(`${base}/api/state`).then((r) => r.json())).auth;
+    assert.equal(before.ownApp, false);
+    assert.equal(before.portProblem, port, 'the page shows the red window');
+    const refused = await fetch(`${base}/login`, { redirect: 'manual' });
+    assert.equal(refused.status, 400);
+    assert.match(await refused.text(), /The login needs port 4747/);
+    assert.equal((await fetch(`${base}/api/portcheck?port=4784`)).status, 404, 'no port check any more');
+    // the EVE HUD application's own Client ID is no "own application" (not in the form, not in config.json)
+    const { BUILTIN_CLIENT_ID, hasOwnApp, builtinPortProblem } = await import('../hud/lib/store.js');
+    const builtinRefused = await post(base, '/api/credentials', { clientId: BUILTIN_CLIENT_ID });
+    assert.equal(builtinRefused.status, 400);
+    assert.equal((await builtinRefused.json()).field, 'clientId');
+    assert.equal(
+      hasOwnApp({ clientId: BUILTIN_CLIENT_ID, clientSecret: 'eat_PastedByHandPastedByHand' }),
+      false,
+    );
+    assert.equal(builtinPortProblem({ clientId: BUILTIN_CLIENT_ID, port: port }), true);
+    assert.equal(builtinPortProblem({ clientId: 'c'.repeat(32), port: port }), false);
+    assert.equal(builtinPortProblem({ clientId: '', port: 4747 }), false);
+
+    // your own application: the port stays as it is (a port in the request is ignored)
     const creds = { clientId: 'b'.repeat(32), clientSecret: 'eat_PortTestSecretPortTestSecret' };
-    assert.equal((await post(base, '/api/credentials', { ...creds, port: 'abc' })).status, 400);
-    const r = await post(base, '/api/credentials', { ...creds, port: next }).then((x) => x.json());
-    assert.equal(r.url, `http://localhost:${next}/`);
+    const r = await post(base, '/api/credentials', { ...creds, port: 4784 }).then((x) => x.json());
+    assert.deepEqual(r, { ok: true });
     const cfg = JSON.parse(fs.readFileSync(path.join(liveHome, 'config.json'), 'utf8'));
-    assert.equal(cfg.port, next);
-    assert.equal(cfg.callbackUrl, `http://localhost:${next}/callback`);
-    const moved = await fetch(`http://localhost:${next}/api/state`).then((x) => x.json());
-    assert.equal(moved.auth.configured, true);
-    assert.equal(moved.config.callbackUrl, `http://localhost:${next}/callback`);
-    await sleep(1800);
-    await assert.rejects(fetch(`${base}/api/state`), 'old port closed');
-    // login now sends EVE to the new callback
-    const login = await fetch(`http://localhost:${next}/login`, { redirect: 'manual' });
+    assert.equal(cfg.port, port);
+    const after = (await fetch(`${base}/api/state`).then((x) => x.json())).auth;
+    assert.equal(after.ownApp, true);
+    assert.equal(after.portProblem, undefined, 'no red window with your own application');
+    const login = await fetch(`${base}/login`, { redirect: 'manual' });
     assert.equal(
       new URL(login.headers.get('location')).searchParams.get('redirect_uri'),
-      `http://localhost:${next}/callback`,
+      `http://localhost:${port}/callback`,
     );
 
     // Grant access: known scopes are added to config.json in place, unknown ones refused
-    const nb = `http://localhost:${next}`;
+    const nb = base;
     fs.writeFileSync(
       path.join(liveHome, 'config.json'),
       fs
@@ -645,8 +673,12 @@ test('network: the HUD server only connects to EVE servers, redirects included',
     assert.ok(!isEveHost(h), h);
   const real = globalThis.fetch;
   const asked = [];
-  globalThis.fetch = async (u) => {
+  const sent = {};
+  globalThis.fetch = async (u, o = {}) => {
     asked.push(u);
+    sent[u] = o.headers || {};
+    if (u.includes('/insecure'))
+      return new Response(null, { status: 302, headers: { location: 'http://esi.evetech.net/plain' } });
     if (u.includes('/hop'))
       return new Response(null, { status: 302, headers: { location: 'https://images.evetech.net/ok' } });
     if (u.includes('/away'))
@@ -664,6 +696,20 @@ test('network: the HUD server only connects to EVE servers, redirects included',
       'fine',
       'redirects within EVE are followed',
     );
+    // the login token stays with the host it was sent to; plain http is never used, not even by a redirect
+    await netFetch('https://esi.evetech.net/hop', {
+      headers: { Authorization: 'Bearer secret-token', 'User-Agent': 'x' },
+    });
+    assert.equal(sent['https://esi.evetech.net/hop'].Authorization, 'Bearer secret-token');
+    assert.equal(
+      sent['https://images.evetech.net/ok'].Authorization,
+      undefined,
+      'not sent on to another host',
+    );
+    assert.equal(sent['https://images.evetech.net/ok']['User-Agent'], 'x');
+    await assert.rejects(netFetch('http://esi.evetech.net/x'), /Refused/);
+    await assert.rejects(netFetch('https://esi.evetech.net/insecure'), /Refused/);
+    assert.ok(!asked.some((u) => u.startsWith('http:')), 'no plain-http request');
     await assert.rejects(netFetch('https://esi.evetech.net/away'), /Refused to connect to example\.com/);
     assert.ok(!asked.some((u) => u.includes('example.com')), 'the redirect target is never contacted');
     // the update check's one exception: api.github.com, only when it asks for it
@@ -678,6 +724,89 @@ test('network: the HUD server only connects to EVE servers, redirects included',
     await assert.rejects(netFetch('https://github.com/x', { allowHost: 'api.github.com' }), /Refused/);
   } finally {
     globalThis.fetch = real;
+  }
+});
+
+test('security: other websites in the browser get nothing from the API; pending logins are capped; private files', async () => {
+  const { isCrossSite } = await import('../hud/server.js');
+  const req = (headers) => ({ headers: { host: 'localhost:4747', ...headers } });
+  assert.equal(isCrossSite(req({})), false, 'no browser headers: not from a web page');
+  assert.equal(isCrossSite(req({ 'sec-fetch-site': 'same-origin', origin: 'http://localhost:4747' })), false);
+  assert.equal(isCrossSite(req({ 'sec-fetch-site': 'cross-site' })), true);
+  assert.equal(isCrossSite(req({ 'sec-fetch-site': 'same-site' })), true, 'another localhost port');
+  assert.equal(isCrossSite(req({ origin: 'https://evil.example' })), true);
+  assert.equal(isCrossSite(req({ origin: 'http://localhost:3000' })), true);
+  assert.equal(isCrossSite(req({ origin: 'null' })), true);
+
+  // a running HUD: reads, work and the live stream are refused to other sites too
+  const port = 4793;
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'eve-hud-xsite-'));
+  const child = spawn(process.execPath, [SERVER, '--demo', `--port=${port}`], {
+    env: { ...process.env, EVE_HUD_HOME: home },
+    stdio: 'ignore',
+  });
+  try {
+    const base = `http://localhost:${port}`;
+    for (let i = 0; i < 50; i++) {
+      try {
+        await fetch(`${base}/api/state`);
+        break;
+      } catch {
+        await sleep(100);
+      }
+    }
+    for (const p of ['/api/state', '/api/stream', '/api/showinfo?type=34', '/api/route?from=1&to=2']) {
+      const r = await fetch(`${base}${p}`, { headers: { 'Sec-Fetch-Site': 'cross-site' } });
+      assert.equal(r.status, 403, p);
+      const o = await fetch(`${base}${p}`, { headers: { Origin: 'https://evil.example' } });
+      assert.equal(o.status, 403, p);
+    }
+    const ok = await fetch(`${base}/api/state`, {
+      headers: { Origin: base, 'Sec-Fetch-Site': 'same-origin' },
+    });
+    assert.equal(ok.status, 200, 'the HUD page itself');
+    const otherStatus = await new Promise((resolve, reject) => {
+      const r = http.get(
+        { host: '127.0.0.1', port, path: '/api/state', headers: { Host: 'evil.example' } },
+        (res) => {
+          res.resume();
+          resolve(res.statusCode);
+        },
+      );
+      r.on('error', reject);
+    });
+    assert.equal(otherStatus, 421, 'DNS rebinding: other names get nothing');
+    // text from the address on the login error page is plain text, and short
+    const page = await fetch(
+      `${base}/callback?error=x&error_description=${encodeURIComponent('<script>x</script>' + 'a'.repeat(500))}`,
+    );
+    const html = await page.text();
+    assert.ok(!html.includes('<script>x'), 'escaped');
+    assert.ok(!html.includes('a'.repeat(300)), 'shortened');
+  } finally {
+    child.kill();
+  }
+
+  // at most 20 logins waiting: the oldest is forgotten
+  const { createAuth } = await import('../hud/lib/auth.js');
+  const auth = createAuth(
+    { scopes: ['publicData'], clientId: '', port: 4747 },
+    { log: { info() {}, warn() {} } },
+  );
+  const first = new URL(auth.loginUrl()).searchParams.get('state');
+  for (let i = 0; i < 25; i++) auth.loginUrl();
+  await assert.rejects(auth.handleCallback({ code: 'x', state: first }), /state did not match/);
+
+  // config.json and data/ files: readable for your user account only (Mac, Linux)
+  if (process.platform !== 'win32') {
+    const store = await import('../hud/lib/store.js');
+    const f = store.dataPath('private-test.json');
+    store.writeJson(f, { a: 1 });
+    assert.equal(fs.statSync(f).mode & 0o777, 0o600);
+    fs.chmodSync(f, 0o644);
+    store.makePrivate(f);
+    assert.equal(fs.statSync(f).mode & 0o777, 0o600, 'older files are made private');
+    fs.rmSync(f);
   }
 });
 
@@ -794,7 +923,7 @@ test('secrets: Client ID, Secret Key and login are stored encrypted; values from
     );
     let cfg = store.loadConfig();
     assert.equal(cfg.clientSecret, 'plain-secret-value-123456');
-    assert.equal(cfg.configured, true);
+    assert.equal(cfg.ownApp, true);
     const text = fs.readFileSync(store.CONFIG_FILE, 'utf8');
     assert.doesNotMatch(text, /plain-secret|abcdefabcdef/, 'encrypted on first load');
     assert.match(JSON.parse(text).clientSecret, /^enc:/);
@@ -815,7 +944,8 @@ test('secrets: Client ID, Secret Key and login are stored encrypted; values from
 
     key.v = 'pc2'; // the same files on another computer
     cfg = store.loadConfig();
-    assert.equal(cfg.configured, false, 'asks for the Client ID and Secret Key again');
+    assert.equal(cfg.ownApp, false, 'falls back to the built-in application');
+    assert.equal(cfg.configured, true, 'and can still log in');
     assert.match(cfg.secretProblem, /another computer/);
     const warns = [];
     assert.equal(createAuth(cfg, { log: { ...quiet, warn: (m) => warns.push(m) } }).status().loggedIn, false);
@@ -896,5 +1026,83 @@ test('feeds: a restart while a request is in flight still updates that feed (Tra
     assert.ok(published.includes('status'), 'status published after the restart');
   } finally {
     feeds.stop();
+  }
+});
+
+test('login: the built-in EVE HUD application uses PKCE (no Secret Key); your own with a secret uses Basic auth', async () => {
+  const store = await import('../hud/lib/store.js');
+  const { createAuth } = await import('../hud/lib/auth.js');
+  const crypto = await import('node:crypto');
+  const jwt = (claims) =>
+    `x.${Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 1200, ...claims })).toString('base64url')}.y`;
+  const calls = [];
+  let life = 1200; // seconds until the access token expires
+  const real = globalThis.fetch;
+  globalThis.fetch = async (u, opts) => {
+    calls.push({
+      url: String(u),
+      headers: opts.headers,
+      body: Object.fromEntries(new URLSearchParams(opts.body)),
+    });
+    const exp = Math.floor(Date.now() / 1000) + life;
+    const access = jwt({ sub: 'CHARACTER:EVE:7', name: 'Pilot', scp: ['esi-skills.read_skills.v1'], exp });
+    return new Response(
+      JSON.stringify({ access_token: access, refresh_token: `rt${calls.length}`, expires_in: 1200 }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      },
+    );
+  };
+  const quiet = { warn() {}, info() {} };
+  try {
+    const cfg = {
+      clientId: '',
+      clientSecret: '',
+      callbackUrl: 'http://localhost:4747/callback',
+      scopes: ['a', 'b'],
+      userAgent: 'test',
+    };
+    const auth = createAuth(cfg, { log: quiet });
+    auth.logout();
+    assert.equal(auth.status().ownApp, false);
+    const u = new URL(auth.loginUrl());
+    assert.equal(u.searchParams.get('client_id'), store.BUILTIN_CLIENT_ID);
+    assert.equal(u.searchParams.get('redirect_uri'), 'http://localhost:4747/callback');
+    assert.equal(u.searchParams.get('code_challenge_method'), 'S256');
+    const challenge = u.searchParams.get('code_challenge');
+    await auth.handleCallback({ code: 'c1', state: u.searchParams.get('state') });
+    const ex = calls[0];
+    assert.equal(ex.headers.Authorization, undefined, 'no secret, no Basic auth');
+    assert.equal(ex.body.client_id, store.BUILTIN_CLIENT_ID);
+    assert.equal(ex.body.grant_type, 'authorization_code');
+    assert.equal(crypto.createHash('sha256').update(ex.body.code_verifier).digest('base64url'), challenge);
+    assert.equal(auth.status().characterName, 'Pilot');
+    // a refresh goes to the same application, also without a secret
+    life = 30; // expires within the minute: the next getAccessToken() refreshes
+    const u2 = new URL(auth.loginUrl());
+    await auth.handleCallback({ code: 'c2', state: u2.searchParams.get('state') });
+    life = 1200;
+    await auth.getAccessToken();
+    const rf = calls.at(-1);
+    assert.equal(rf.body.grant_type, 'refresh_token');
+    assert.equal(rf.body.refresh_token, 'rt2');
+    assert.equal(rf.body.client_id, store.BUILTIN_CLIENT_ID);
+    assert.equal(rf.headers.Authorization, undefined);
+    auth.logout();
+    // your own application with a Secret Key: Basic auth, no PKCE
+    const own = { ...cfg, clientId: 'b'.repeat(32), clientSecret: 'eat_OwnSecretOwnSecretOwnSecret12' };
+    const auth3 = createAuth(own, { log: quiet });
+    const u3 = new URL(auth3.loginUrl());
+    assert.equal(u3.searchParams.get('client_id'), 'b'.repeat(32));
+    assert.equal(u3.searchParams.get('code_challenge'), null);
+    await auth3.handleCallback({ code: 'c3', state: u3.searchParams.get('state') });
+    const ex3 = calls.at(-1);
+    assert.match(ex3.headers.Authorization, /^Basic /);
+    assert.equal(ex3.body.client_id, undefined);
+    assert.equal(ex3.body.code_verifier, undefined);
+    auth3.logout();
+  } finally {
+    globalThis.fetch = real;
   }
 });

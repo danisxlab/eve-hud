@@ -316,7 +316,11 @@ export function renderDrawer() {
       : [
           auth.loggedIn
             ? [
-                h('p', { class: 'note' }, `Logged in as ${auth.characterName}.`),
+                h(
+                  'p',
+                  { class: 'note' },
+                  `Logged in as ${auth.characterName}, through ${auth.ownApp ? 'your own EVE application' : 'the EVE HUD application'}.`,
+                ),
                 permissionsBlock(auth),
                 h(
                   'div',
@@ -346,9 +350,7 @@ export function renderDrawer() {
                   },
                   'Log out',
                 )
-              : auth.configured
-                ? h('a', { class: 'btn', href: '/login' }, 'Log in with EVE Online')
-                : null,
+              : h('a', { class: 'btn', href: '/login' }, 'Log in with EVE Online'),
             h('button', { class: 'btn muted', onclick: resetHud }, 'Reset EVE HUD…'),
           ),
         ],
@@ -704,17 +706,19 @@ export async function resetHud() {
   toggleDrawer(false);
   const ok = await confirmModal({
     title: 'Reset EVE HUD?',
-    body: [
-      'This logs you out and removes your Client ID and Secret Key from config.json.',
-      'Your layout, settings and the star map stay. The HUD then asks for your EVE application again, like the first time.',
-    ],
+    body: store.auth?.ownApp
+      ? [
+          'This logs you out and removes the Client ID and Secret Key of your own EVE application from config.json.',
+          'Your layout, settings and the star map stay. The next login uses the EVE HUD application.',
+        ]
+      : ['This logs you out.', 'Your layout, settings and the star map stay.'],
     confirmLabel: 'Reset everything',
   });
   if (!ok) return;
   try {
     const r = await fetch('/api/reset', { method: 'POST' });
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
-    toast('EVE HUD reset. Enter your Client ID and Secret Key to set it up again.');
+    toast('EVE HUD reset. Log in with EVE Online to continue.');
   } catch (err) {
     toast(`Reset failed: ${err.message}`);
   }
@@ -761,21 +765,23 @@ export function permissionsBlock(auth) {
       ),
     ),
     btn,
-    h(
-      'p',
-      { class: 'note' },
-      'Tick them on your application at ',
-      h(
-        'a',
-        {
-          href: 'https://developers.eveonline.com/applications',
-          target: '_blank',
-          rel: 'noopener noreferrer',
-        },
-        'developers.eveonline.com',
-      ),
-      ' first, or EVE refuses the login.',
-    ),
+    auth.ownApp
+      ? h(
+          'p',
+          { class: 'note' },
+          'Tick them on your application at ',
+          h(
+            'a',
+            {
+              href: 'https://developers.eveonline.com/applications',
+              target: '_blank',
+              rel: 'noopener noreferrer',
+            },
+            'developers.eveonline.com',
+          ),
+          ' first, or EVE refuses the login.',
+        )
+      : null,
   );
 }
 

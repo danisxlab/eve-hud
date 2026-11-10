@@ -171,12 +171,6 @@ async function start() {
         port: PORT,
         log,
         rebuildMap: argv.includes('--rebuild-map'),
-        // the setup form moved the HUD to another port: the window and tray follow
-        onPortChange: (next) => {
-          url = next;
-          hud?.setUrl(next);
-          tray?.update();
-        },
         // logged in through the browser: bring the app back to the front
         onLogin: () => hud?.show(),
         storage: {
@@ -265,6 +259,7 @@ async function start() {
     onAppAction: (action) => {
       log.info(`From the HUD page: ${action}`);
       if (action === 'log') openFile(log.file);
+      else if (action === 'config') openFile(paths.configFile);
       else if (action === 'restart') restart();
       else if (action === 'quit') app.quit();
     },
@@ -405,7 +400,8 @@ async function importLater(home, dataDir) {
 async function portProblem(err, configFile) {
   const { port } = err;
   const portHelp =
-    'If you change "port" in config.json, change "callbackUrl" there and the Callback URL of your application on developers.eveonline.com to the same port. ' +
+    'Another port only works with your own EVE developer application: the EVE HUD application only logs in on port 4747. ' +
+    'With your own application, change "port" and "callbackUrl" in config.json and the Callback URL on developers.eveonline.com to the same port. ' +
     'The app never moves to another port by itself, because the EVE login only comes back to the callbackUrl port.';
   let options;
   const probe = err.code === 'EADDRINUSE' ? await probeHud(port) : { isHud: false };
@@ -424,7 +420,7 @@ async function portProblem(err, configFile) {
         err.code === 'EACCES'
           ? `Port ${port} may not be used on this computer`
           : `Port ${port} is used by another program`,
-      detail: `${err.code === 'EACCES' ? err.message : 'Close that program and choose Try again, or pick another port.'}\n\n${portHelp}`,
+      detail: `${err.code === 'EACCES' ? err.message : 'Close that program and choose Try again.'}\n\n${portHelp}`,
       buttons: ['Try again', 'Open config file', 'Quit'],
       actions: ['retry', 'config', 'quit'],
     };

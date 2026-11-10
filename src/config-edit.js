@@ -49,7 +49,7 @@ export function setWindowMode(file, mode) {
     next = `${JSON.stringify({ ...parsed, window: { ...(parsed.window || {}), mode } }, null, 2)}\n`;
 
   const tmp = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(tmp, next);
+  fs.writeFileSync(tmp, next, { mode: 0o600 }); // readable for your user account only
   fs.renameSync(tmp, file);
   return true;
 }

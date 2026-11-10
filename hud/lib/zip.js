@@ -97,7 +97,8 @@ export function extractEntry(file, entry) {
     const start = entry.offset + 30 + head.readUInt16LE(26) + head.readUInt16LE(28);
     const data = read(fd, entry.compSize, start);
     if (entry.method === 0) return data;
-    if (entry.method === 8) return zlib.inflateRawSync(data);
+    // at most 1 GB unpacked (the map files are far smaller): a broken archive can't fill the memory
+    if (entry.method === 8) return zlib.inflateRawSync(data, { maxOutputLength: 1024 * 1024 * 1024 });
     throw new Error(`Unsupported compression method ${entry.method} for ${entry.name}`);
   } finally {
     fs.closeSync(fd);

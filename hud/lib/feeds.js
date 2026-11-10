@@ -246,7 +246,7 @@ export function createFeeds({
 
   // "Refresh now" and the chat log's jump hint: only feeds something shows.
   function refresh(name) {
-    if (name && defs[name]) return runFeed(name);
+    if (name && Object.hasOwn(defs, name)) return runFeed(name); // only real feed names
     return Promise.all(Object.keys(defs).map((n) => runFeed(n)));
   }
 
