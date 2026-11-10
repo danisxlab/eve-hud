@@ -24,6 +24,7 @@ import {
   knownScopes,
   addConfigScopes,
   builtinPortProblem,
+  GITHUB_USER_AGENT,
   BUILTIN_CLIENT_ID,
   CLIENT_ID_RE,
   BUILTIN_PORT,
@@ -215,7 +216,7 @@ export async function startServer({
   const updatesOn = () => loadSettings()?.updates?.check !== false;
   const updates = createUpdateCheck({
     version: process.env.EVE_HUD_UPDATE_CHECK === 'off' ? null : process.env.EVE_HUD_VERSION || null,
-    userAgent: config.userAgent,
+    userAgent: GITHUB_USER_AGENT, // without the contact address: that's for EVE's servers
     enabled: updatesOn,
     onChange: (u) => broadcast('update', u),
     log,

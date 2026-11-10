@@ -61,13 +61,17 @@ export function writeJson(file, value) {
 // User-Agent that identifies the HUD to CCP/Fenris Creations. Changing the version changes it too.
 const APP_VERSION =
   process.env.EVE_HUD_VERSION || readJson(path.join(ROOT, '..', 'package.json'), {})?.version || 'dev';
-const DEFAULT_USER_AGENT = `eve-hud/${APP_VERSION} (+https://github.com/danisxlab/eve-hud)`;
-// User-Agents earlier versions wrote into config.json: replaced by the current one
-const isOldDefaultUserAgent = (ua) =>
-  typeof ua === 'string' &&
-  /^eve-hud\/[\w.-]+ \((personal second-screen dashboard|\+https:\/\/github\.com\/danisxlab\/eve-hud)\)$/.test(
-    ua,
-  );
+// CCP/Fenris Creations asks for a contact address in the User-Agent, so they can reach the author
+// before blocking anything (developers.eveonline.com/docs/services/esi/best-practices/). It's a
+// fixed part of the app: not in config.json, not shown, not changeable. Only sent to EVE's servers;
+// GitHub's update check gets GITHUB_USER_AGENT, without it. (Put together at run time, so the
+// address isn't written out in the source for scrapers.)
+const turn = (s) => [...s].reverse().join('');
+const CONTACT = [turn('lacofib-37.nordah'), [turn('duolci'), turn('moc')].join('.')].join(
+  String.fromCharCode(64),
+);
+export const GITHUB_USER_AGENT = `eve-hud/${APP_VERSION} (+https://github.com/danisxlab/eve-hud)`;
+export const USER_AGENT = `eve-hud/${APP_VERSION} (${CONTACT}; +https://github.com/danisxlab/eve-hud)`;
 
 const DEFAULT_CONFIG = {
   clientId: '',
@@ -76,7 +80,7 @@ const DEFAULT_CONFIG = {
   callbackUrl: 'http://localhost:4747/callback',
   scopes: [],
   compatibilityDate: '2026-08-18',
-  userAgent: DEFAULT_USER_AGENT,
+  userAgent: USER_AGENT,
   eveLogDir: '', // EVE's logs folder ('' = the usual place); chatLogDir: the older setting (a Chatlogs folder)
   chatLogDir: '',
   chatChannels: [
@@ -130,7 +134,8 @@ export function loadConfig() {
     );
   }
   const cfg = { ...DEFAULT_CONFIG, ...(raw || {}) };
-  if (!cfg.userAgent || isOldDefaultUserAgent(cfg.userAgent)) cfg.userAgent = DEFAULT_USER_AGENT; // follows the version
+  cfg.userAgent = USER_AGENT; // fixed: one from config.json (older versions wrote it there) is ignored…
+  if (raw && Object.hasOwn(raw, 'userAgent')) removeConfigKey('userAgent'); // …and taken out of the file
   cfg.refresh = { ...DEFAULT_CONFIG.refresh };
   for (const [k, v] of Object.entries(raw?.refresh || {}))
     if (v && typeof v === 'object') cfg.refresh[k] = { ...DEFAULT_CONFIG.refresh[k], ...v };
@@ -224,6 +229,31 @@ export function setConfigValues(values) {
   fs.renameSync(tmp, CONFIG_FILE);
 }
 
+// Removes one top-level key from config.json, keeping the rest of the file as you wrote it.
+function removeConfigKey(key) {
+  try {
+    const text = fs.readFileSync(CONFIG_FILE, 'utf8');
+    const parsed = JSON.parse(text);
+    if (!Object.hasOwn(parsed, key)) return;
+    const rest = { ...parsed };
+    delete rest[key];
+    // the key's own line (a string value), with its comma
+    const line = new RegExp(`\\n[ \\t]*"${key}"\\s*:\\s*"(?:[^"\\\\]|\\\\.)*"[ \\t]*,?`);
+    let next = text.replace(line, '').replace(/,(\s*})\s*$/, '$1\n');
+    try {
+      if (JSON.stringify(JSON.parse(next)) !== JSON.stringify(rest)) next = null;
+    } catch {
+      next = null;
+    }
+    if (!next) next = `${JSON.stringify(rest, null, 2)}\n`;
+    const tmp = `${CONFIG_FILE}.${process.pid}.tmp`;
+    fs.writeFileSync(tmp, next, PRIVATE);
+    fs.renameSync(tmp, CONFIG_FILE);
+  } catch {
+    /* stays until the next start */
+  }
+}
+
 // Every scope the HUD can use (the list in config.example.json), for "Grant access".
 export function knownScopes() {
   return readJson(path.join(ROOT, 'config.example.json'), {})?.scopes || [];
@@ -270,7 +300,12 @@ export function addConfigScopes(add) {
 // public Client ID without a Secret Key (EVE SSO's PKCE flow for desktop apps), so players don't
 // need an application of their own. Its Callback URL is fixed, so the built-in login needs port 4747.
 // Your own application (Client ID, and optionally its Secret Key, in config.json) replaces it.
-export const BUILTIN_CLIENT_ID = 'a4168fa5545f4bc290966721eb4574b7';
+// (put together at run time, so it isn't written out in the source for scrapers; it is public
+// anyway: EVE's login page shows it in the address bar)
+export const BUILTIN_CLIENT_ID = ['7b4754be', '12766909', '2cb4f545', '5af8614a']
+  .map(turn)
+  .reverse()
+  .join('');
 export const BUILTIN_PORT = 4747;
 export const BUILTIN_CALLBACK_URL = `http://localhost:${BUILTIN_PORT}/callback`;
 

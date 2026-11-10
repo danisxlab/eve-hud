@@ -616,6 +616,12 @@ test('another port: only with your own application (otherwise auth.portProblem: 
       hasOwnApp({ clientId: BUILTIN_CLIENT_ID, clientSecret: 'eat_PastedByHandPastedByHand' }),
       false,
     );
+    // the EVE HUD application's Client ID (put together at run time): still the registered one
+    const { createHash } = await import('node:crypto');
+    assert.equal(
+      createHash('sha256').update(BUILTIN_CLIENT_ID).digest('hex'),
+      'd6442ea0c7966fc8d0d4a6e0f54a2aa6f0ee4ee0b790e9cac2de1fc2b4bddfc3',
+    );
     assert.equal(builtinPortProblem({ clientId: BUILTIN_CLIENT_ID, port: port }), true);
     assert.equal(builtinPortProblem({ clientId: 'c'.repeat(32), port: port }), false);
     assert.equal(builtinPortProblem({ clientId: '', port: 4747 }), false);
@@ -842,6 +848,31 @@ test('a Client ID that cannot be one (typed into config.json): the EVE HUD appli
     const own = store.loadConfig();
     assert.equal(own.ownApp, true);
     assert.equal(own.secretProblem, null);
+
+    // the User-Agent is fixed: with the contact address CCP asks for (not written out in the source),
+    // never from config.json, and taken out of it; GitHub's update check gets none
+    assert.match(
+      own.userAgent,
+      /^eve-hud\/\S+ \([^\s;()]+@[^\s;()]+\.[a-z]+; \+https:\/\/github\.com\/danisxlab\/eve-hud\)$/,
+    );
+    assert.equal(own.userAgent, store.USER_AGENT);
+    assert.ok(!store.GITHUB_USER_AGENT.includes('@'));
+    assert.ok(
+      !fs
+        .readFileSync(path.join(APP, 'hud', 'lib', 'store.js'), 'utf8')
+        .includes(own.userAgent.split(' (')[1].split(';')[0]),
+      'not in the source',
+    );
+    for (const ua of [
+      'eve-hud/1.0.8 (+https://github.com/danisxlab/eve-hud)',
+      'my-fork/2.0 (me@example.com)',
+    ]) {
+      fs.writeFileSync(store.CONFIG_FILE, JSON.stringify({ ...example, userAgent: ua, port: 4747 }, null, 2));
+      assert.equal(store.loadConfig().userAgent, store.USER_AGENT, ua);
+      const file = JSON.parse(fs.readFileSync(store.CONFIG_FILE, 'utf8'));
+      assert.equal(file.userAgent, undefined, 'taken out of config.json');
+      assert.equal(file.port, 4747, 'the rest stays');
+    }
 
     // Settings → Account names the application the login was made with, not the one in config.json
     const quiet = { info() {}, warn() {} };
