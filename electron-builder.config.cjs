@@ -83,6 +83,20 @@ module.exports = {
   // installers (the pieces an updater downloads). dist/ then holds just what you share.
   publish: null,
   extraMetadata: { gitCommit: gitCommit() },
+  // Electron "fuses": switches in the app's own program file, set once at build time. With these the
+  // program can't be started as plain Node (ELECTRON_RUN_AS_NODE, NODE_OPTIONS, --inspect), and it
+  // only starts the app.asar it was built with: another program can't run its own code as "EVE HUD"
+  // (and ask the Keychain for the login under that name). The asar check works on macOS and Windows.
+  // resetAdHocDarwinSignature: an unsigned Mac build keeps a valid ad-hoc signature after the change
+  // (Apple silicon doesn't start an app without one).
+  electronFuses: {
+    runAsNode: false,
+    enableNodeOptionsEnvironmentVariable: false,
+    enableNodeCliInspectArguments: false,
+    enableEmbeddedAsarIntegrityValidation: true,
+    onlyLoadAppFromAsar: true,
+    resetAdHocDarwinSignature: true,
+  },
 
   win: {
     target: [{ target: 'nsis', arch: ['x64'] }],

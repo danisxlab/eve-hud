@@ -58,6 +58,9 @@ export function logsModal(st) {
     spellcheck: 'false',
     autocomplete: 'off',
     value: parentOf(st.dir),
+    // in the app: chosen with Browse… (the system's folder window), never typed
+    readonly: Boolean(store.config?.folderPicker),
+    title: store.config?.folderPicker ? 'Choose the folder with Browse…' : null,
     'aria-label': 'EVE logs folder',
   });
   const where = h('p', { class: 'logs-where' });
@@ -91,13 +94,7 @@ export function logsModal(st) {
     },
     'Browse…',
   );
-  fetch('/api/storage')
-    .then((r) => {
-      if (!r.ok) browse.hidden = true;
-    })
-    .catch(() => {
-      browse.hidden = true;
-    }); // only in the app
+  browse.hidden = !store.config?.folderPicker; // only in the app
   const use = h('button', { type: 'button', class: 'btn warn', onclick: () => apply() }, 'Use this folder');
   const exit = h(
     'button',
@@ -121,7 +118,7 @@ export function logsModal(st) {
   async function apply() {
     const dir = input.value.trim();
     if (!dir) {
-      err.textContent = 'Type or browse to the folder first.';
+      err.textContent = 'Choose the folder first.';
       err.hidden = false;
       return;
     }

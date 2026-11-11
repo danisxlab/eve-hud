@@ -11,9 +11,15 @@
 //   No device permissions: camera, microphone, location, notifications etc. are refused. Only
 //   writing to the clipboard is allowed (the HUD's Copy buttons).
 //
+//   Only this window may use the HUD's API: the app makes a random token at every start, the HUD
+//   server asks for it on /api/*, and the window's requests to the HUD (and to nothing else) carry
+//   it. Other programs on this computer don't know it, so the server refuses them. The page itself
+//   never sees the token.
+//
 // The HUD server (inside the app) has the same EVE-only rule for its own requests (lib/net.js).
 
 export const SESSION_PARTITION = 'eve-hud'; // in memory: no "persist:" prefix
+const API_TOKEN_HEADER = 'x-eve-hud-token'; // the same name as in hud/server.js
 
 const EVE_DOMAINS = ['evetech.net', 'eveonline.com'];
 const isEveHost = (hostname) => {
@@ -38,8 +44,24 @@ export function isAllowedRequest(url, hudOrigin) {
 }
 
 // Installs the request filter and the permission rules on the window's session.
-export function guardSession(ses, { getHudOrigin, log }) {
+// getApiToken: the token for the HUD's API (see above), or nothing.
+export function guardSession(ses, { getHudOrigin, getApiToken = () => null, log }) {
   const reported = new Set();
+  ses.webRequest.onBeforeSendHeaders?.({ urls: ['<all_urls>'] }, (details, callback) => {
+    const requestHeaders = { ...details.requestHeaders };
+    for (const k of Object.keys(requestHeaders))
+      if (k.toLowerCase() === API_TOKEN_HEADER) delete requestHeaders[k];
+    const token = getApiToken();
+    let toHud = false;
+    try {
+      const u = new URL(details.url);
+      toHud = u.origin === getHudOrigin() && u.pathname.startsWith('/api/');
+    } catch {
+      /* not a URL: no token */
+    }
+    if (token && toHud) requestHeaders['X-EVE-HUD-Token'] = token;
+    callback({ requestHeaders });
+  });
   ses.webRequest.onBeforeRequest({ urls: ['<all_urls>'] }, (details, callback) => {
     const ok = isAllowedRequest(details.url, getHudOrigin());
     if (!ok) {

@@ -100,8 +100,20 @@ export function displayLabel(d, i, primaryId) {
 // onAppAction(name): the page asked the app for something it can't do itself, by going to
 // /__app/<name> ("log", "config", "restart", "quit"; the red windows of the page use them).
 // onLoadFailed(description): the HUD page itself could not be loaded (its server isn't answering).
+// apiToken: sent along with the window's requests to the HUD's API (privacy.js).
+
+// The window loads the HUD from 127.0.0.1, the address the server listens on, and not from the name
+// "localhost": that name also stands for ::1 (IPv6), where another program could be listening on
+// the same port. The EVE login in your browser keeps using localhost (EVE's callback URL).
+export function windowUrl(url) {
+  const u = new URL(url);
+  if (u.hostname === 'localhost') u.hostname = '127.0.0.1';
+  return u.href;
+}
+
 export function createHudWindow({
   url,
+  apiToken = null,
   devTools = false,
   mode = 'normal',
   windowConfig = {},
@@ -132,6 +144,7 @@ export function createHudWindow({
     `Window: ${mode} on display ${display.id} at ${bounds.x},${bounds.y} ${bounds.width}×${bounds.height}${maximize ? ', maximized' : ''}`,
   );
 
+  url = windowUrl(url);
   let hudOrigin = new URL(url).origin;
   let currentMode = mode;
   let moving = false; // true while moving a full-screen window to another monitor
@@ -241,7 +254,11 @@ export function createHudWindow({
   });
 
   // ---------- links, login, network ----------
-  guardSession(win.webContents.session, { getHudOrigin: () => hudOrigin, log });
+  guardSession(win.webContents.session, {
+    getHudOrigin: () => hudOrigin,
+    getApiToken: () => apiToken,
+    log,
+  });
   const external = (target) => {
     if (/^https?:\/\//i.test(target)) shell.openExternal(target);
   };
@@ -263,6 +280,7 @@ export function createHudWindow({
       // the EVE login goes to your default browser; the app updates when it's done
       event.preventDefault();
       t.searchParams.set('from', 'app'); // keeps any other options of the login (extra permissions)
+      if (t.hostname === '127.0.0.1') t.hostname = 'localhost'; // as in EVE's callback URL
       external(t.href);
     } else if (t && t.origin !== hudOrigin) {
       event.preventDefault(); // a link to another site: open it in the browser, not in the app
@@ -345,6 +363,7 @@ export function createHudWindow({
     currentDisplayId: () => (win.isDestroyed() ? null : screen.getDisplayMatching(win.getBounds()).id),
     // The HUD moved to another port (setup form): load it there; links to it stay inside the window.
     setUrl(next) {
+      next = windowUrl(next);
       url = next;
       hudOrigin = new URL(next).origin;
       if (!win.isDestroyed()) win.loadURL(next);

@@ -143,11 +143,15 @@ class Session {
     this.persistent = persistent;
     this.cleared = [];
     this.beforeRequest = null;
+    this.beforeSendHeaders = null;
     this.permissionRequest = null;
     this.permissionCheck = null;
     this.webRequest = {
       onBeforeRequest: (_filter, fn) => {
         this.beforeRequest = fn;
+      },
+      onBeforeSendHeaders: (_filter, fn) => {
+        this.beforeSendHeaders = fn;
       },
     };
   }

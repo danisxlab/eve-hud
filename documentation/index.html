@@ -574,6 +574,7 @@
               <li><a href="#reading-and-changing-the-code">Reading and changing the code</a></li>
               <li><a href="#tests">Tests</a></li>
               <li><a href="#build-the-installer">Build the installer</a></li>
+              <li><a href="#verify-your-download">Verify your download</a></li>
               <li><a href="#signing">Signing</a></li>
             </ul>
           </li>
@@ -872,7 +873,7 @@
                                 [&quot;NPCStandingsLost&quot;] }</code
                               >
                               in <code>config.json</code>. The exact type names are listed in
-                              <code>data/debug/notifications.json</code>.
+                              <code>data/debug/notifications.json</code> (with <code>debugDumps</code> on).
                             </li>
                             <li>
                               Source: <code>/notifications</code> (scope
@@ -887,7 +888,8 @@
                       the <strong>mail</strong> icon (envelope), with a green count badge when there's unread
                       mail; it blinks once when the count goes up. Hover it for &quot;No unread mail&quot;, or
                       how many unread mails there are per label. Source: <code>/mail/labels</code> (counts
-                      only, never contents; scope <code>esi-mail.read_mail.v1</code>). Hide it with Settings →
+                      only, never contents; scope <code>esi-mail.read_mail.v1</code>). EVE has no smaller
+                      permission for this: the scope would also allow reading mail, which EVE HUD never does. Hide it with Settings →
                       Appearance → <em>Show the mail icon in the top bar</em>.
                     </li>
                     <li>
@@ -1705,7 +1707,7 @@
                 <li>
                   <strong>Military campaigns:</strong> ESI doesn't document their location format, so systems
                   are only shown when the campaign data actually contains them. Raw responses are saved in
-                  <code>data/debug/hazards.json</code>.
+                  <code>data/debug/hazards.json</code> (with <code>debugDumps</code> on).
                 </li>
                 <li>
                   <strong>No location, so not on the map:</strong> wars, FW statistics and leaderboards are
@@ -1781,8 +1783,8 @@
                   within a few minutes of enlisting or leaving).
                 </li>
                 <li>
-                  <strong>Other locations:</strong> Settings → Storage → <strong>EVE logs</strong>: type or
-                  browse to EVE's logs folder (the one with <code>Chatlogs</code> and <code>Gamelogs</code> in
+                  <strong>Other locations:</strong> Settings → Storage → <strong>EVE logs</strong>:
+                  <strong>Browse…</strong> to EVE's logs folder (the one with <code>Chatlogs</code> and <code>Gamelogs</code> in
                   it), then <strong>Use this folder</strong>. Choosing <code>Chatlogs</code> or
                   <code>Gamelogs</code> itself works too: the logs folder above it is saved. It applies at
                   once (no restart) and is saved as <code>&quot;eveLogDir&quot;</code> in
@@ -1810,8 +1812,8 @@
                 <li>
                   <strong>EVE runs on another computer:</strong> EVE HUD needs to read the log files while you
                   play, so share that computer's <code>Documents\EVE\logs</code> folder on your network
-                  (read-only is enough) and point Settings → Storage → <strong>EVE logs</strong> at it: a UNC
-                  path such as <code>\\gamepc\evelogs</code> on Windows; on the Mac connect to it in Finder
+                  (read-only is enough) and point Settings → Storage → <strong>EVE logs</strong> at it with <strong>Browse…</strong>: a UNC
+                  path such as <code>\\gamepc\evelogs</code> on Windows (type it in the folder window's address bar); on the Mac connect to it in Finder
                   (Go → Connect to Server, <code>smb://&lt;pc-name&gt;/evelogs</code>, optionally under System
                   Settings → General → Login Items so it reconnects) and choose <code>/Volumes/evelogs</code>.
                   EVE HUD polls the files, so a network share works like a local folder. A copied-over folder
@@ -2240,7 +2242,7 @@
                 <li>
                   <strong>Can't read the game logs:</strong> a window over all of EVE HUD says why (folder
                   missing, network share not connected, or on a Mac no permission for Documents or network
-                  volumes) and asks for EVE's logs folder: type it or <strong>Browse…</strong>, then
+                  volumes) and asks for EVE's logs folder: choose it with <strong>Browse…</strong>, then
                   <strong>Use this folder</strong>. Under the field are the usual places: Windows
                   <code>C:\Users\&lt;you&gt;\Documents\EVE\logs</code> (or under OneDrive), Mac
                   <code>/Users/&lt;you&gt;/Documents/EVE/logs</code>.
@@ -2433,12 +2435,24 @@
                       </td>
                     </tr>
                     <tr>
+                      <td><code>debugDumps</code></td>
+                      <td><code>false</code></td>
+                      <td>
+                        <code>true</code> saves the last raw answers from ESI in <code>data/debug/</code>, for
+                        finding out why a module shows something odd (see
+                        <a href="#where-the-files-are">Where the files are</a>). They can hold your industry
+                        jobs and notification types, so look through them before you share one. Off, nothing
+                        is written and older debug files are removed at the next start.
+                      </td>
+                    </tr>
+                    <tr>
                       <td><code>eveLogDir</code></td>
                       <td><code>&quot;&quot;</code> (auto-detect)</td>
                       <td>
                         EVE's logs folder (the one with <code>Chatlogs</code>, <code>Gamelogs</code>,
                         <code>Fleetlogs</code>, <code>Marketlogs</code>), if auto-detection doesn't find it,
-                        or a network share. Easiest to set in Settings → Storage → <strong>EVE logs</strong>. An
+                        or a network share. Easiest to set in Settings → Storage → <strong>EVE logs</strong> (there only
+                        with <strong>Browse…</strong>). An
                         older <code>chatLogDir</code> (a <code>Chatlogs</code> folder) still works; saving in
                         Settings replaces it.
                       </td>
@@ -2551,7 +2565,10 @@
                       <td>
                         <code>esi-mail.read_mail.v1</code>, <code>esi-characters.read_notifications.v1</code>
                       </td>
-                      <td>Mail icon, notifications in the triangle</td>
+                      <td>
+                        Mail icon (the unread count; the scope also covers reading mail, which EVE HUD doesn't
+                        do), notifications in the triangle
+                      </td>
                     </tr>
                     <tr>
                       <td><code>esi-characters.read_loyalty.v1</code></td>
@@ -2631,8 +2648,8 @@
                   folder / Open log file).
                 </li>
                 <li>
-                  <strong>Other folders:</strong> Settings → <strong>Storage</strong> in EVE HUD has a field
-                  for each, with <strong>Browse…</strong>: <em>Settings</em> (<code>config.json</code>) and
+                  <strong>Other folders:</strong> Settings → <strong>Storage</strong> in EVE HUD shows the folder
+                  for each, chosen with <strong>Browse…</strong>: <em>Settings</em> (<code>config.json</code>) and
                   <em>Data</em> (<code>data/</code>). <strong>Move and restart</strong> restarts the app and
                   moves the files before EVE HUD starts again: it copies them, checks the copies, records the
                   new place in <code>location.json</code> in the default folder above (which stays put), and
@@ -2650,7 +2667,11 @@
                   <code>npm start</code> (run from source) uses the same folder as the installed app.
                   <code>npm run fresh</code> uses <code>./.test-home</code> instead, for trying a first start.
                 </li>
-                <li>The log file is rotated at 1 MB.</li>
+                <li>
+                  The log file is rotated at 1 MB. <strong>Before you share it</strong> (for example in a
+                  GitHub issue): it has your character name and ID, and folder paths with your computer's
+                  user name. It never has your login tokens or Secret Key.
+                </li>
               </ul>
             </div>
             <div class="section">
@@ -2703,7 +2724,10 @@
                     </tr>
                     <tr>
                       <td><code>data/debug/objectives.json</code></td>
-                      <td>Last raw freelance-job and campaign responses.</td>
+                      <td>
+                        Last raw freelance-job and campaign responses. All <code>data/debug/</code> files are
+                        only written with <code>&quot;debugDumps&quot;: true</code> in <code>config.json</code>.
+                      </td>
                     </tr>
                     <tr>
                       <td><code>data/killmails.json</code></td>
@@ -2734,7 +2758,7 @@
                       <td><code>data/debug/feeds-status.json</code></td>
                       <td>
                         For every feed: last update, next scheduled refresh, and last error. The first place
-                        to look when a module seems stuck.
+                        to look when a module seems stuck (turn <code>debugDumps</code> on first).
                       </td>
                     </tr>
                     <tr>
@@ -2850,13 +2874,8 @@
                   <strong>When the port is taken</strong>, the app tells you what is using it:
                   <ul>
                     <li>
-                      <em>Another EVE HUD is already running</em> (for example a second copy started with
-                      <code>--data-dir</code>): stop that one and choose <strong>Try again</strong>, or
-                      <strong>Show the running HUD</strong> in the app window (quitting the app then leaves
-                      the other server running).
-                    </li>
-                    <li>
-                      <em>Used by another program</em>: close it and <strong>Try again</strong>. With your own
+                      <em>Used by another program</em> (maybe another EVE HUD: a second copy, or one started
+                      with <code>npm start</code>): close it and <strong>Try again</strong>. With your own
                       EVE application you can also pick another port: <strong>Open config file</strong>.
                     </li>
                     <li>
@@ -2910,7 +2929,7 @@
                   everything) only the top bar's feeds keep running.
                 </li>
                 <li>
-                  <code>data/debug/feeds-status.json</code> shows for every feed whether it's
+                  <code>data/debug/feeds-status.json</code> (with <code>debugDumps</code> on) shows for every feed whether it's
                   <code>active</code>.
                 </li>
               </ul>
@@ -3007,7 +3026,8 @@
                       <td><code>sovereignty</code></td>
                       <td>
                         star map Faction colouring: owner of every system (<code>/sovereignty/systems</code>;
-                        a sample of the raw answer is saved to <code>data/debug/sovereignty.json</code>),
+                        with <code>debugDumps</code> on, a sample of the raw answer is saved to
+                        <code>data/debug/sovereignty.json</code>),
                         Faction Warfare occupation (<code>/fw/systems</code>), faction and alliance names
                       </td>
                       <td>1 hour</td>
@@ -3355,8 +3375,8 @@
                       desktops and window managers have none; Electron would then use a fixed built-in key that
                       protects nothing, so EVE HUD can't encrypt your data: <code>data/tokens.json</code> and
                       <code>config.json</code> stay unencrypted on disk (still readable only by your user
-                      account), and the log says <em>No system encryption
-                      available</em>.<br />
+                      account). The login screen and Settings → Account say so in red, and the log says
+                      <em>No system encryption available</em>.<br />
                       It is highly recommended to install a keyring (for example <code>gnome-keyring</code>),
                       have it unlocked automatically when you log in, and restart EVE HUD; the files are
                       encrypted the next time they're loaded.
@@ -3529,7 +3549,8 @@
                 freelance-job and campaign routes wasn't documented when this was written, so EVE HUD reads
                 them loosely (at this compatibility date the lists are wrapped, e.g.
                 <code>{ campaigns }</code> and <code>{ objectives, cursor }</code>, with <code>id</code>,
-                <code>started</code>, <code>finished</code>, <code>is_committed</code>). The raw responses are
+                <code>started</code>, <code>finished</code>, <code>is_committed</code>). With
+                <code>debugDumps</code> on, the raw responses are
                 saved to <code>data/debug/objectives.json</code> on every refresh. If something looks off,
                 that file shows what ESI actually sent.
               </p>
@@ -3716,7 +3737,7 @@
                         Each feed waits for ESI's cache (see <a href="#refresh-timing">Refresh timing</a>). A
                         new industry job can take up to ~5 minutes, market orders up to 20 minutes.
                         <em>Refresh now</em> doesn't bypass ESI's cache.
-                        <code>data/debug/feeds-status.json</code> shows when each feed refreshes next.
+                        <code>data/debug/feeds-status.json</code> (with <code>debugDumps</code> on) shows when each feed refreshes next.
                       </td>
                     </tr>
                     <tr>
@@ -3744,7 +3765,7 @@
                     <tr>
                       <td>A module stays empty after showing it</td>
                       <td>
-                        Its feed starts at once; <code>data/debug/feeds-status.json</code> shows
+                        Its feed starts at once; <code>data/debug/feeds-status.json</code> (with <code>debugDumps</code> on) shows
                         <code>active: true</code> and any error.
                       </td>
                     </tr>
@@ -3853,6 +3874,13 @@
                       </td>
                     </tr>
                     <tr>
+                      <td><code>npm run checksums</code></td>
+                      <td>
+                        Writes <code>dist/SHA256SUMS.txt</code> for the built release files (see
+                        <a href="#verify-your-download">Verify your download</a>).
+                      </td>
+                    </tr>
+                    <tr>
                       <td><code>npm test</code></td>
                       <td>All tests, without Electron, network or login (see <a href="#tests">Tests</a>).</td>
                     </tr>
@@ -3887,7 +3915,6 @@
   build-info.js        the commit the app was built from (About: v1.0.3_83fa76b)
   gpu.js               &quot;Use the graphics card&quot; (app-options.json)
   config-edit.js       saves &quot;window.mode&quot; into config.json without reformatting it
-  port-check.js        another EVE HUD on the port, or something else?
   log.js               the log file
   recovery.js          damaged configuration files: the reset window
 hud/                   EVE HUD (server and page; no dependencies)
@@ -3906,6 +3933,7 @@ hud/                   EVE HUD (server and page; no dependencies)
                        shapes.js (helpers for answers of unknown shape)
   lib/route.js         star map routes (ESI POST /route) and Set destination (ESI autopilot waypoint)
   lib/universe.js      star map from the SDE (fallback: ESI), update check
+  lib/universe-data.js the star map in the page's shapes (shared with the demo website)
   lib/zip.js           minimal zip reader for the SDE archive
   lib/chatlogs.js      chat log tailing (UTF-16), the EVE logs folder
   lib/gamelogs.js      the game logs: combat (ATTACK) and the autopilot's next jump
@@ -3926,6 +3954,7 @@ hud/                   EVE HUD (server and page; no dependencies)
     js/grid.js         module grid: drag, resize, swap
     js/store.js        the page's state: settings, feeds, live updates from the server
     js/util.js         small helpers: h() to create elements, formatting, the shared animation clock
+    js/toast.js        short messages at the bottom of the window that fade by themselves
     js/glyphs.js       the line icons (ICONS)
     js/fx.js           data-change animations
     js/alerts.js       the top-bar alerts
@@ -3944,8 +3973,10 @@ build/background*.png  the Mac .dmg window's background (600×460, and @2x for R
 build/installerSidebar.bmp   the Windows installer's side picture (164×314)
 build/entitlements.mac.plist   macOS hardened-runtime permissions (JIT)
 build/installer.nsh    Windows installer extra: the uninstaller's &quot;delete settings and data too?&quot; question
+package.json           version, npm commands (scripts), Electron and electron-builder
 electron-builder.config.cjs    build + signing settings
 scripts/check.js       connection check (npm run check)
+scripts/checksums.js   SHA-256 of the release files (npm run checksums)
 scripts/build-site.js  the GitHub Pages website: this page and the demo (npm run site)
 test/                  tests, the stand-in electron module, run-server.js
 LICENSE                GNU General Public License v3
@@ -4027,8 +4058,8 @@ demo/fake-server.js    the demo website: answers the EVE HUD page in the browser
                   <ul>
                     <li>
                       run from source: server in-process, window loads it, links and login in the browser,
-                      in-memory session, EVE-only requests, permissions, single instance, closing the window
-                      quits and frees the port;
+                      in-memory session, EVE-only requests, permissions, the server answering only the window,
+                      folders only from Browse…, single instance, closing the window quits and frees the port;
                     </li>
                     <li>
                       the window: first start on the portrait monitor, F11 / tray mode switch saved in
@@ -4039,7 +4070,7 @@ demo/fake-server.js    the demo website: answers the EVE HUD page in the browser
                       first start: import (secret never logged, values encrypted in place, imported layout
                       used), start fresh, quit;
                     </li>
-                    <li>port taken by another EVE HUD (both choices) or by another program (Try again);</li>
+                    <li>port taken by another program (Try again);</li>
                     <li>
                       damaged configuration files (the reset window); a second instance; the Mac menu bar
                       (Settings menu, no icon).
@@ -4164,6 +4195,13 @@ demo/fake-server.js    the demo website: answers the EVE HUD page in the browser
                   down the left of the last page, is <code>build/installerSidebar.bmp</code>.
                 </li>
                 <li>
+                  <strong>Locked program file:</strong> <code>electronFuses</code> in
+                  <code>electron-builder.config.cjs</code> sets Electron's switches at build time: the built
+                  app can't be started as plain Node, and on Windows and macOS it only starts the
+                  <code>app.asar</code> it was built with. After changing them, build and start the app once
+                  to check.
+                </li>
+                <li>
                   <strong>What goes into the app:</strong> <code>src/</code>, <code>hud/</code>,
                   <code>assets/</code>, <code>package.json</code> and <code>LICENSE</code> (a whitelist in
                   <code>electron-builder.config.cjs</code>). Your <code>config.json</code> and
@@ -4172,6 +4210,39 @@ demo/fake-server.js    the demo website: answers the EVE HUD page in the browser
                   they can't end up in the installer.
                 </li>
               </ul>
+            </div>
+            <div class="section">
+              <h3 id="verify-your-download">Verify your download</h3>
+              <p>
+                Every release on GitHub has a file <code>SHA256SUMS.txt</code> with the SHA-256 checksum of
+                each download. If the checksum of your file is the same, it is exactly the file that was
+                published: complete and unchanged.
+              </p>
+              <ul>
+                <li>
+                  <strong>Windows</strong> (PowerShell, in the folder with the download):
+                  <code>Get-FileHash &quot;EVE HUD Setup &lt;version&gt;.exe&quot;</code>
+                </li>
+                <li>
+                  <strong>macOS</strong> (Terminal):
+                  <code>shasum -a 256 &quot;EVE HUD-&lt;version&gt;-universal.dmg&quot;</code>
+                </li>
+                <li>
+                  <strong>Linux:</strong> with <code>SHA256SUMS.txt</code> next to the download,
+                  <code>sha256sum -c SHA256SUMS.txt --ignore-missing</code> compares by itself and says
+                  <em>OK</em>.
+                </li>
+              </ul>
+              <p>
+                On Windows and macOS, compare the result with the line for that file in
+                <code>SHA256SUMS.txt</code> (capital or small letters make no difference). GitHub also shows
+                a <code>sha256</code> value next to each file on the release page.
+              </p>
+              <p>
+                <strong>For your own release:</strong> after building, <code>npm run checksums</code> writes
+                <code>dist/SHA256SUMS.txt</code> for the files of the current version. Attach it to the
+                release with the installers.
+              </p>
             </div>
             <div class="section">
               <h3 id="signing">Signing</h3>

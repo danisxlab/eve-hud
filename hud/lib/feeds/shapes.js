@@ -17,7 +17,32 @@ export const ACTIVITIES = {
 };
 export const DEBUG_DIR = dataPath('debug');
 
+// Raw ESI answers and feed timings, for troubleshooting. They can hold game details (industry
+// jobs, notifications), so they are only written with "debugDumps": true in config.json. Off (the
+// default): nothing is written, and files an earlier version left there are removed.
+const DUMP_NAMES = [
+  'feeds-status',
+  'hazards',
+  'industry',
+  'meta-status',
+  'notifications',
+  'objectives',
+  'sovereignty',
+];
+let dumpsOn = false;
+export function setDebugDumps(on) {
+  dumpsOn = Boolean(on);
+  if (dumpsOn) return;
+  try {
+    for (const name of DUMP_NAMES) fs.rmSync(`${DEBUG_DIR}/${name}.json`, { force: true });
+    if (fs.existsSync(DEBUG_DIR) && !fs.readdirSync(DEBUG_DIR).length) fs.rmdirSync(DEBUG_DIR);
+  } catch {
+    /* best effort */
+  }
+}
+
 export function dumpDebug(name, value) {
+  if (!dumpsOn) return;
   try {
     fs.mkdirSync(DEBUG_DIR, { recursive: true });
     writeJson(`${DEBUG_DIR}/${name}.json`, value);

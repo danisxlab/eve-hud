@@ -123,6 +123,7 @@ test('development: demo server starts in-process, window shows it, tray works, c
     args: ['--demo', '--port=4791'],
     steps: [
       'fetchState',
+      'apiToken',
       'trayLabels',
       'externalLink',
       'privacy',
@@ -132,8 +133,25 @@ test('development: demo server starts in-process, window shows it, tray works, c
       'closeWindow',
     ],
   });
-  assert.equal(r.url, 'http://localhost:4791/', r.output);
+  // the window loads the address the server listens on (not the name localhost, which is also ::1)
+  assert.equal(r.url, 'http://127.0.0.1:4791/', r.output);
   assert.equal(r.steps.fetchState.status, 200);
+  // the API only answers the app's own window: other programs on the computer have no token
+  const t = r.steps.apiToken;
+  assert.ok(t.tokenLength >= 40, 'a long random token');
+  assert.equal(t.inLog, false, 'never written to the log');
+  assert.deepEqual(
+    { withToken: t.withToken, without: t.without, wrong: t.wrong, stream: t.stream, post: t.post },
+    { withToken: 200, without: 401, wrong: 401, stream: 401, post: 401 },
+    r.output,
+  );
+  assert.deepEqual({ page: t.page, script: t.script }, { page: 200, script: 200 }, 'the page itself loads');
+  assert.notEqual(t.login, 401, 'the EVE login in your browser needs no token');
+  assert.equal(t.badUrl, 400, '"GET //" gets a plain answer');
+  assert.equal(t.after, 200, '…and the server keeps running');
+  for (const k of ['toStatic', 'toEve', 'toOtherPort', 'toLocalhostName'])
+    assert.ok(!t[k].some((h) => /token/i.test(h)), `no token ${k}`);
+  assert.deepEqual(t.forged, {}, "a token header from the page itself doesn't get out");
   assert.equal(r.steps.fetchState.demo, true);
   assert.equal(
     path.dirname(r.steps.fetchState.files.configFile),
@@ -251,7 +269,7 @@ test('Settings → Storage: shows the folders, moves config.json and data at the
   const to = { configDir: path.join(tmp, 'moved-cfg'), dataDir: path.join(tmp, 'moved-data') };
   const options = { paths: { userData, logs: dir('l-st'), documents: tmp } };
   const r = await run({
-    options,
+    options: { ...options, openDialogResults: [to.configDir, to.dataDir] }, // chosen with Browse…
     args: ['--demo', '--port=4789'],
     steps: ['storage', 'quit'],
     env: { FAKE_MOVE_TO: JSON.stringify(to) },
@@ -267,7 +285,10 @@ test('Settings → Storage: shows the folders, moves config.json and data at the
     r.output,
   );
   assert.equal(r.steps.storage.badStatus, 400, 'a relative path is refused');
-  assert.equal(r.steps.storage.status, 200);
+  assert.equal(r.steps.storage.typedStatus, 400, 'a folder that was not chosen with Browse… is refused');
+  assert.equal(r.steps.storage.shareStatus, 400, 'a network share as the logs folder too');
+  assert.deepEqual(r.steps.storage.picked, [to.configDir, to.dataDir]);
+  assert.equal(r.steps.storage.status, 200, r.output);
   assert.equal(r.steps.storage.relaunched, true, 'restarts to move');
   assert.ok(
     !r.steps.storage.relaunchEnv.EVE_HUD_HOME && !r.steps.storage.relaunchEnv.EVE_HUD_DATA,
@@ -343,7 +364,7 @@ test('installed app, first start: start fresh creates config.json from the examp
     args: ['--port=4796'],
     steps: ['fetchState', 'quit'],
   });
-  assert.equal(r.url, 'http://localhost:4796/', r.output);
+  assert.equal(r.url, 'http://127.0.0.1:4796/', r.output);
   assert.equal(
     fs.readFileSync(path.join(userData, 'config.json'), 'utf8'),
     fs.readFileSync(path.join(HUD, 'config.example.json'), 'utf8'),
@@ -364,25 +385,19 @@ test('installed app, first start: Quit leaves without starting anything', async 
   assert.equal(r.quit, true);
 });
 
-test('port taken by another EVE HUD: clear message, then Quit or Show the running HUD', async () => {
+test('port taken by another EVE HUD: says the port is used, and never shows that HUD in this window', async () => {
   const other = spawn(process.execPath, [path.join(APP, 'test', 'run-server.js'), '--demo', '--port=4793'], {
     stdio: 'ignore',
   });
   try {
     await waitForPort(4793);
+    // whatever answers on the port could be any program: no "Show the running HUD" any more
     const quit = await run({ args: ['--demo', '--port=4793'], options: { messageResponses: [2] } });
-    assert.equal(quit.dialogs[0].message, 'Another EVE HUD is already running on port 4793', quit.output);
-    assert.match(quit.dialogs[0].detail, /demo mode/);
+    assert.equal(quit.dialogs[0].message, 'Port 4793 is used by another program', quit.output);
+    assert.match(quit.dialogs[0].detail, /Maybe another EVE HUD/);
+    assert.deepEqual(quit.dialogs[0].buttons, ['Try again', 'Open config file', 'Quit']);
     assert.equal(quit.windows, 0);
     assert.equal(quit.quit, true);
-
-    const use = await run({
-      args: ['--demo', '--port=4793'],
-      options: { messageResponses: [1] },
-      steps: ['trayLabels', 'quit'],
-    });
-    assert.equal(use.url, 'http://localhost:4793/');
-    assert.match(use.steps.trayLabels[0], /already running/);
   } finally {
     other.kill();
   }
@@ -400,7 +415,7 @@ test('port taken by some other program: says so, Try again works once it is free
   });
   assert.equal(r.dialogs[0].message, 'Port 4794 is used by another program', r.output);
   assert.match(r.dialogs[0].detail, /callbackUrl/);
-  assert.equal(r.url, 'http://localhost:4794/');
+  assert.equal(r.url, 'http://127.0.0.1:4794/');
 });
 
 test('damaged config.json: the reset window; closing it changes nothing', async () => {

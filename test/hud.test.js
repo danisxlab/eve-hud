@@ -898,6 +898,26 @@ test('a Client ID that cannot be one (typed into config.json): the EVE HUD appli
   }
 });
 
+test('debug files (data/debug/*.json) are only written with "debugDumps": true; off removes the ones an earlier version left', async () => {
+  const { dumpDebug, setDebugDumps, DEBUG_DIR } = await import('../hud/lib/feeds/shapes.js');
+  const store = await import('../hud/lib/store.js');
+  assert.equal(store.loadConfig().debugDumps, false, 'off unless you turn it on');
+  fs.mkdirSync(DEBUG_DIR, { recursive: true });
+  fs.writeFileSync(path.join(DEBUG_DIR, 'industry.json'), '{"old":true}'); // from an earlier version
+  fs.writeFileSync(path.join(DEBUG_DIR, 'mine.txt'), 'not ours');
+  setDebugDumps(false);
+  assert.ok(!fs.existsSync(path.join(DEBUG_DIR, 'industry.json')), 'old dump removed');
+  assert.ok(fs.existsSync(path.join(DEBUG_DIR, 'mine.txt')), 'other files are left alone');
+  dumpDebug('industry', { jobs: 1 });
+  assert.ok(!fs.existsSync(path.join(DEBUG_DIR, 'industry.json')), 'nothing written while off');
+  setDebugDumps(true);
+  dumpDebug('industry', { jobs: 1 });
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(DEBUG_DIR, 'industry.json'), 'utf8')), { jobs: 1 });
+  fs.rmSync(path.join(DEBUG_DIR, 'mine.txt'));
+  setDebugDumps(false);
+  assert.ok(!fs.existsSync(DEBUG_DIR), 'the empty folder goes too');
+});
+
 test('updates: a newer release on GitHub, its notes and commit; unchanged answers cost nothing; off means no requests', async () => {
   const { createUpdateCheck, isNewer, parseVersion, versionLabel } = await import('../hud/lib/updates.js');
   assert.deepEqual(parseVersion('v1.0.4'), [1, 0, 4]);

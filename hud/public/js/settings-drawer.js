@@ -2,7 +2,7 @@
 // The settings drawer (the gear in the top bar): appearance, modules, alerts, combat, grid,
 // storage and EVE logs, account and permissions, ESI rate limits.
 
-import { $, h, fill, grantAccess } from './util.js';
+import { $, h, fill, grantAccess, PLAIN_SECRETS } from './util.js';
 import { store, saveSettings, resetLayout } from './store.js';
 import { ALERT_KINDS } from './alerts.js';
 import { hud } from './hud-context.js';
@@ -321,6 +321,7 @@ export function renderDrawer() {
                   { class: 'note' },
                   `Logged in as ${auth.characterName}, through ${(auth.loginOwnApp ?? auth.ownApp) ? 'your own EVE application' : 'the EVE HUD application'}.`,
                 ),
+                store.config?.plainSecrets ? h('p', { class: 'form-error' }, PLAIN_SECRETS) : null,
                 permissionsBlock(auth),
                 h(
                   'div',
@@ -400,6 +401,8 @@ export function storageForm(st) {
       value,
       placeholder: def,
       disabled: st.fixed,
+      readonly: true, // chosen with Browse… (the system's folder window), never typed
+      title: 'Choose the folder with Browse…',
       'aria-label': label,
     });
     const browse = h(
@@ -520,7 +523,7 @@ export function storageForm(st) {
 }
 
 // Settings → Storage → EVE logs: where the HUD reads EVE's chat logs (Chat, and your jumps from
-// Local). Empty: the usual place on this computer. Can be a network share, e.g. the game PC's
+// Local). "Use the default folder": the usual place on this computer. Can be a network share, e.g. the game PC's
 // Documents\EVE\logs\Chatlogs shared to this computer. Applies at once, no restart.
 // ATTACK in the top bar: how long it stays after the last combat line. Saved in config.json
 // ("combatIdleSeconds"), since the server reads the game logs.
@@ -601,6 +604,9 @@ export function chatLogsBlock() {
       value: st.dir,
       placeholder: st.auto || 'Documents/EVE/logs (not found on this computer)',
       disabled: st.demo,
+      // in the app: chosen with Browse… (the system's folder window), never typed
+      readonly: Boolean(store.config?.folderPicker),
+      title: store.config?.folderPicker ? 'Choose the folder with Browse…' : null,
       'aria-label': 'EVE logs folder',
     });
     const browse = h(
@@ -624,14 +630,8 @@ export function chatLogsBlock() {
       },
       'Browse…',
     );
-    // the browse button needs the app (it opens the system's folder window); in a browser, type the path
-    fetch('/api/storage')
-      .then((r) => {
-        if (!r.ok) browse.hidden = true;
-      })
-      .catch(() => {
-        browse.hidden = true;
-      });
+    // the browse button needs the app (it opens the system's folder window)
+    browse.hidden = !store.config?.folderPicker;
     const save = h('button', { class: 'btn', onclick: () => apply(input.value.trim()) }, 'Use this folder');
     const def = h(
       'button',
@@ -684,7 +684,7 @@ export function chatLogsBlock() {
         h(
           'p',
           { class: 'note path-hint' },
-          "EVE's logs folder, with Chatlogs and Gamelogs in it: for Chat, your jumps in Local and combat alerts. Empty: the usual place on this computer. Also a network share, e.g. \\\\gamepc\\EVE\\logs or /Volumes/evelogs.",
+          "EVE's logs folder, with Chatlogs and Gamelogs in it: for Chat, your jumps in Local and combat alerts. Use the default folder: the usual place on this computer. Also a network share, e.g. \\\\gamepc\\EVE\\logs or /Volumes/evelogs.",
         ),
         h('p', { class: `note path-hint${(st.found && !gameBad) || st.demo ? '' : ' warn'}` }, reading),
       ),

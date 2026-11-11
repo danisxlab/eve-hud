@@ -7,6 +7,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import {
   ROOT,
   HOME,
@@ -29,6 +30,8 @@ import {
   CLIENT_ID_RE,
   BUILTIN_PORT,
 } from './lib/store.js';
+import { canEncrypt } from './lib/secrets.js';
+import { setDebugDumps } from './lib/feeds/shapes.js';
 import { createAuth } from './lib/auth.js';
 import { createEsi } from './lib/esi.js';
 import { createUniverse } from './lib/universe.js';
@@ -122,6 +125,23 @@ export function isCrossSite(req) {
   }
 }
 
+// The API token (see startServer's apiToken): compared without giving away how much of it matched.
+export const API_TOKEN_HEADER = 'x-eve-hud-token';
+function sameToken(given, expected) {
+  const hash = (v) =>
+    crypto
+      .createHash('sha256')
+      .update(String(v ?? ''))
+      .digest();
+  return typeof given === 'string' && crypto.timingSafeEqual(hash(given), hash(expected));
+}
+
+// A folder path as people write it: no spaces around it, no slash at the end.
+const cleanDir = (v) => {
+  const t = String(v || '').trim();
+  return t.length > 3 ? t.replace(/[\\/]+$/, '') : t; // a drive ("C:/") or "/" stays as it is
+};
+
 function serveStatic(req, res, pathname) {
   const rel = pathname === '/' ? 'index.html' : decodeURIComponent(pathname.slice(1));
   const file = path.normalize(path.join(PUBLIC, rel));
@@ -166,6 +186,11 @@ function errorPage(res, title, detail) {
 //   rebuildMap  force a fresh star map download
 //   host        listen address, 127.0.0.1 by default: the HUD is never reachable from the network
 //   log         { info, warn } for log lines; the app passes its log file writer
+//   apiToken    from the app: a random value made at every start. /api/* then only answers requests
+//               that carry it (the X-EVE-HUD-Token header, which the app adds to its own window's
+//               requests): other programs on this computer get 401. The pages of the EVE login
+//               (/login, /callback) and the page's files stay open: your browser has no token.
+//               Without it (the server on its own: development, tests) the API is open on localhost.
 //   onPortChange(url)  called when the setup form (or Reset) moved the HUD to another port (the app window follows)
 //   onLogin(name)      called after a successful EVE login (the app comes to the front)
 // Rejects with err.code 'EADDRINUSE' (port taken) or 'EACCES' (port not allowed) and a readable
@@ -180,6 +205,7 @@ export async function startServer({
   rebuildMap = false,
   host = '127.0.0.1',
   log = defaultLog,
+  apiToken = null,
   onPortChange = () => {},
   onLogin = () => {},
   storage = null,
@@ -187,6 +213,12 @@ export async function startServer({
   const config = loadConfig();
   const DEMO = Boolean(demo);
   if (DEMO) useSettingsFile('settings-demo.json');
+  // data/debug/*.json (raw ESI answers, for troubleshooting): only with "debugDumps": true
+  setDebugDumps(config.debugDumps === true);
+  // Folders may only come from the app's own folder window (storage.browse), never typed in or sent
+  // by a request: a path could point anywhere, also at another computer (\\server\share).
+  const pickedFolders = new Set();
+  const isPicked = (dir) => pickedFolders.has(cleanDir(dir));
   // port: e.g. 4748 for a demo next to your live HUD.
   // (Live login only works on the port in callbackUrl, so use this mainly with demo mode.)
   if (port) config.port = Number(port) || config.port;
@@ -329,6 +361,9 @@ export async function startServer({
         demo: DEMO,
         files: { configFile: CONFIG_FILE, dataDir: DATA_DIR },
         app: true,
+        folderPicker: Boolean(storage), // folders are chosen with Browse… (the app's folder window)
+        // no system encryption (a Linux desktop without a keyring): the login is saved unencrypted
+        plainSecrets: Boolean(apiToken) && !DEMO && !canEncrypt(),
         version: process.env.EVE_HUD_VERSION || null,
         commit: process.env.EVE_HUD_COMMIT || null, // the commit it was built from (About: v1.0.3_8f2c1d0)
         scopes: config.scopes, // for the setup form: what to enable on the EVE application
@@ -343,13 +378,23 @@ export async function startServer({
       res.writeHead(421, { 'Content-Type': 'text/plain', ...SECURITY_HEADERS });
       return res.end('EVE HUD only answers on localhost.');
     }
-    const url = new URL(req.url, `http://${req.headers.host}`);
+    let url;
+    try {
+      url = new URL(req.url, `http://${req.headers.host}`);
+    } catch {
+      // e.g. "GET //": not an address
+      res.writeHead(400, { 'Content-Type': 'text/plain', ...SECURITY_HEADERS });
+      return res.end('Bad request');
+    }
     const p = url.pathname;
     // The API is only for the HUD page itself, not for another website open in the same browser:
     // not for changes (settings, logout, autopilot…), and not for reads or work either (ESI lookups,
     // routes, the live stream). Browsers say where a request comes from (Origin, Sec-Fetch-Site).
     if (p.startsWith('/api/') && isCrossSite(req))
       return json(res, 403, { error: 'Cross-site request refused' });
+    // …and, in the app, only for the app's own window (apiToken, above): not for other programs
+    if (apiToken && p.startsWith('/api/') && !sameToken(req.headers[API_TOKEN_HEADER], apiToken))
+      return json(res, 401, { error: 'Only the EVE HUD window can use this.' });
     try {
       // /login?from=app: the app opens this in your default browser, so the EVE login (and its
       // cookies) stay in the browser you trust; the app itself never shows EVE's login page.
@@ -422,6 +467,7 @@ export async function startServer({
           ['data', 'logs'].includes(body.which) ? body.which : 'config',
           String(body.current || ''),
         );
+        if (folder) pickedFolders.add(cleanDir(folder));
         return json(res, 200, { folder: folder || null });
       }
       if (p === '/api/storage' && req.method === 'POST') {
@@ -429,15 +475,17 @@ export async function startServer({
         const body = await readBody(req)
           .then((t) => JSON.parse(t || '{}'))
           .catch(() => ({}));
+        // only the folders as they are, the default ones, ones chosen with Browse…, and "data"
+        // inside the settings folder (where the page puts it by itself)
+        const now = storage.get();
+        const to = { configDir: cleanDir(body.configDir), dataDir: cleanDir(body.dataDir) };
+        const known = (dir, which) =>
+          isPicked(dir) || [now[which], now.defaults?.[which]].some((d) => cleanDir(d) === dir);
+        const dataInside = [`${to.configDir}/data`, `${to.configDir}\\data`].includes(to.dataDir);
+        if (!known(to.configDir, 'configDir') || !(known(to.dataDir, 'dataDir') || dataInside))
+          return json(res, 400, { error: 'Choose the folder with Browse…' });
         try {
-          return json(
-            res,
-            200,
-            await storage.move({
-              configDir: String(body.configDir || ''),
-              dataDir: String(body.dataDir || ''),
-            }),
-          );
+          return json(res, 200, await storage.move(to));
         } catch (err) {
           return json(res, 400, { error: err.message });
         }
@@ -449,6 +497,13 @@ export async function startServer({
           .then((t) => JSON.parse(t || '{}'))
           .catch(() => ({}));
         const dir = String(body.dir || '').trim();
+        // in the app: the folder window's choice, the folder as it is set, or the usual place
+        if (dir && storage && !isPicked(dir)) {
+          const same = (d) => d && cleanDir(d) === cleanDir(dir);
+          const info = chatLogInfo();
+          if (![info.dir, info.auto, info.reading].some(same))
+            return json(res, 400, { error: 'Choose the folder with Browse…' });
+        }
         if (dir) {
           let st = null;
           try {

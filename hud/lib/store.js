@@ -81,6 +81,7 @@ const DEFAULT_CONFIG = {
   scopes: [],
   compatibilityDate: '2026-08-18',
   userAgent: USER_AGENT,
+  debugDumps: false, // true: raw ESI answers in data/debug/*.json, for troubleshooting
   eveLogDir: '', // EVE's logs folder ('' = the usual place); chatLogDir: the older setting (a Chatlogs folder)
   chatLogDir: '',
   chatChannels: [

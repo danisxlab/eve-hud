@@ -29,6 +29,10 @@ export function h(tag, attrs = {}, ...children) {
   return el;
 }
 
+// Linux without a keyring: said in Settings → Account and on the login screen.
+export const PLAIN_SECRETS =
+  'No system encryption on this computer (no keyring): your EVE login is saved unencrypted, in a file only your user account can read. Install and unlock a keyring (for example gnome-keyring), then restart EVE HUD.';
+
 // replaceChildren() that skips null/undefined/false (conditional children)
 export function fill(el, ...children) {
   el.replaceChildren(...children.flat(Infinity).filter((c) => c !== null && c !== undefined && c !== false));

@@ -87,7 +87,7 @@ export function createControls({ icoFile, pngFile, status, actions }) {
       checked: d.id === s.displayId,
       click: () => actions.moveToDisplay(d.id),
     }));
-    const where = `${s.demo ? 'demo mode · ' : ''}${s.external ? 'using the HUD already running on ' : ''}localhost:${s.port}`;
+    const where = `${s.demo ? 'demo mode · ' : ''}localhost:${s.port}`;
     const files = [
       { label: 'Open config file', click: actions.openConfig },
       { label: 'Open data folder', click: actions.openDataFolder },

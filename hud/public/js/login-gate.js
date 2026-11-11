@@ -2,7 +2,7 @@
 // Before the HUD can show anything: the "Log in with EVE Online" button (the built-in EVE HUD
 // application, or your own), or the form for your own application's Client ID and Secret Key.
 
-import { h, fill } from './util.js';
+import { h, fill, PLAIN_SECRETS } from './util.js';
 import { store } from './store.js';
 
 // ---------------- login gate ----------------
@@ -50,6 +50,7 @@ export function renderGate() {
               )
             : null,
           a.secretProblem ? h('p', { class: 'form-error' }, a.secretProblem) : null,
+          store.config?.plainSecrets ? h('p', { class: 'form-error' }, PLAIN_SECRETS) : null,
           a.ownApp
             ? h(
                 'p',
@@ -258,8 +259,10 @@ export function setupForm() {
     h(
       'p',
       { class: 'fine' },
-      'Saved only on this computer, encrypted with your ',
-      navigator.platform.startsWith('Mac') ? 'macOS Keychain' : 'Windows account',
+      'Saved only on this computer, ',
+      cfg.plainSecrets
+        ? 'not encrypted (this computer has no keyring)'
+        : `encrypted with your ${navigator.platform.startsWith('Mac') ? 'macOS Keychain' : navigator.platform.startsWith('Win') ? 'Windows account' : "system's keyring"}`,
       ', in ',
       h('code', {}, cfg.files?.configFile || 'config.json'),
       '. Settings → Reset EVE HUD removes them again.',

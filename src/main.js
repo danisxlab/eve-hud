@@ -11,11 +11,10 @@
 //   paths.js        where the HUD code is (and --data-dir)
 //   storage.js      where config.json and data/ are kept, and moving them (Settings → Storage)
 //   importer.js     copies config.json + data files from an older HUD folder
-//   privacy.js      in-memory session, EVE-only network rule, permissions
+//   privacy.js      in-memory session, EVE-only network rule, permissions, the API token
 //   window.js       the HUD window: normal / full-screen, monitor, remembered position
 //   tray.js         the tray icon and its menu (Windows), the Settings menu (Mac)
 //   config-edit.js  saves the window mode into config.json without reformatting it
-//   port-check.js   tells another EVE HUD apart from some other program on the port
 //   log.js          the log file (Open log file in the tray / Settings menu)
 //   recovery.js     damaged configuration files: the reset window
 //
@@ -27,6 +26,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { app, dialog, shell, Menu, screen, session, safeStorage, BrowserWindow } from 'electron';
 
@@ -39,7 +39,6 @@ import { createAutostart } from './autostart.js';
 import { buildCommit } from './build-info.js';
 import { setWindowMode } from './config-edit.js';
 import { resolveLocations, checkMove, requestMove, takePendingMove, moveStorage } from './storage.js';
-import { probeHud } from './port-check.js';
 import { readUseGpu, writeUseGpu } from './gpu.js';
 import { configFiles, findDamaged, resetConfig, recoveryPage, RESET_TITLE } from './recovery.js';
 
@@ -51,7 +50,11 @@ const PORT = argv.find((a) => a.startsWith('--port='))?.slice('--port='.length);
 const STARTED_ENV = { EVE_HUD_HOME: process.env.EVE_HUD_HOME, EVE_HUD_DATA: process.env.EVE_HUD_DATA };
 
 let log = console;
-let hudServer = null; // what startServer() returned; null when using a HUD that was already running
+let hudServer = null; // what startServer() returned
+// Only this app's own window may use the HUD's API: a new random token at every start, known to the
+// server and to the window's network filter (privacy.js), and to nothing else (not in a file, not
+// in the page, not in the log).
+const API_TOKEN = crypto.randomBytes(32).toString('base64url');
 let hud = null; // the window
 let tray = null;
 
@@ -77,6 +80,9 @@ async function start() {
   log = createLogger({ dir: app.getPath('logs') });
   log.info(
     `EVE HUD ${app.getVersion()} starting (Electron ${process.versions.electron}, ${process.platform} ${process.arch}${app.isPackaged ? '' : ', development'})`,
+  );
+  log.info(
+    'Before you share this file: it has your character name and ID, and folder paths with your user name. It never has your login tokens or Secret Key.',
   );
   process.on('uncaughtException', (err) => log.error('Unexpected error:', err));
   process.on('unhandledRejection', (err) => log.error('Unexpected error:', err));
@@ -170,6 +176,7 @@ async function start() {
         demo: DEMO,
         port: PORT,
         log,
+        apiToken: API_TOKEN,
         rebuildMap: argv.includes('--rebuild-map'),
         // the setup form (or Reset) moved the HUD to another port: the window and tray follow
         onPortChange: (next) => {
@@ -225,11 +232,6 @@ async function start() {
       log.warn(err.message);
       const choice = await portProblem(err, paths.configFile);
       if (choice === 'retry') continue;
-      if (choice === 'use') {
-        url = `http://localhost:${err.port}/`;
-        log.info(`Using the EVE HUD that is already running at ${url}`);
-        break;
-      }
       return app.quit();
     }
   }
@@ -247,6 +249,7 @@ async function start() {
 
   hud = createHudWindow({
     url,
+    apiToken: API_TOKEN,
     mode: config.window.mode === 'fullscreen' ? 'fullscreen' : 'normal',
     windowConfig: config.window,
     statePath: path.join(paths.dataDir, 'window-state.json'),
@@ -280,7 +283,6 @@ async function start() {
       demo: DEMO,
       port: new URL(url).port,
       url,
-      external: !hudServer,
       mode: hud.mode,
       displayId: hud.currentDisplayId(),
       canImport: Boolean(home), // in development the HUD folder *is* the source
@@ -330,7 +332,7 @@ async function firstRun(home, dataDir) {
       detail:
         `The app keeps its config.json and data in:\n${home}\n\n` +
         'Used the HUD before (the old eve folder with config.json and data/)? Import that folder to keep your EVE login, layout and star map.\n\n' +
-        "Or start fresh: the HUD window then asks for your EVE application's Client ID and Secret Key.",
+        'Or start fresh: the HUD window then shows the EVE Online login.',
       buttons: ['Import from folder…', 'Start fresh', 'Quit'],
       defaultId: 0,
       cancelId: 2,
@@ -409,28 +411,21 @@ async function portProblem(err, configFile) {
     'Another port only works with your own EVE developer application: the EVE HUD application only logs in on port 4747. ' +
     'With your own application, change "port" and "callbackUrl" in config.json and the Callback URL on developers.eveonline.com to the same port. ' +
     'The app never moves to another port by itself, because the EVE login only comes back to the callbackUrl port.';
-  let options;
-  const probe = err.code === 'EADDRINUSE' ? await probeHud(port) : { isHud: false };
-  if (probe.isHud) {
-    options = {
-      message: `Another EVE HUD is already running on port ${port}`,
-      detail:
-        `It's probably another copy of the app, or an old node server.js${probe.demo ? ' (in demo mode)' : ''}. Stop it (quit it, or Ctrl+C in its terminal) and choose Try again.\n\n` +
-        'Or show that HUD in this window. Quitting the app then leaves it running.',
-      buttons: ['Try again', 'Show the running HUD', 'Quit'],
-      actions: ['retry', 'use', 'quit'],
-    };
-  } else {
-    options = {
-      message:
-        err.code === 'EACCES'
-          ? `Port ${port} may not be used on this computer`
-          : `Port ${port} is used by another program`,
-      detail: `${err.code === 'EACCES' ? err.message : 'Close that program and choose Try again.'}\n\n${portHelp}`,
-      buttons: ['Try again', 'Open config file', 'Quit'],
-      actions: ['retry', 'config', 'quit'],
-    };
-  }
+  // Whatever holds the port is never shown in this window, also when it answers like an EVE HUD:
+  // any program can do that, and the window trusts the page it shows.
+  const options = {
+    message:
+      err.code === 'EACCES'
+        ? `Port ${port} may not be used on this computer`
+        : `Port ${port} is used by another program`,
+    detail: `${
+      err.code === 'EACCES'
+        ? err.message
+        : 'Maybe another EVE HUD (a second copy, or one started with npm start). Close that program and choose Try again.'
+    }\n\n${portHelp}`,
+    buttons: ['Try again', 'Open config file', 'Quit'],
+    actions: ['retry', 'config', 'quit'],
+  };
   for (;;) {
     const { response } = await dialog.showMessageBox({
       type: 'warning',

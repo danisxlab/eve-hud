@@ -1,7 +1,7 @@
 {
   "name": "eve-hud-app",
   "productName": "EVE HUD",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "EVE HUD: a live EVE Online second-screen HUD, powered by ESI, as a desktop app.",
   "type": "module",
   "main": "src/main.js",
@@ -23,6 +23,7 @@
     "fresh": "electron . --data-dir=./.test-home",
     "rebuild-map": "electron . --rebuild-map",
     "check": "node scripts/check.js",
+    "checksums": "node scripts/checksums.js",
     "site": "node scripts/build-site.js _site",
     "site:preview": "node scripts/build-site.js _site --preview",
     "version:patch": "npm version patch --no-git-tag-version",

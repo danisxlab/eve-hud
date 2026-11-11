@@ -60,7 +60,7 @@
   "_hazardsHelp": "Star map hazard overlay. pvpKillThreshold: minimum ship + pod kills in the last hour before a system gets an orange diamond.",
   "hazards": { "pvpKillThreshold": 3 },
 
-  "_notificationsHelp": "ignoreTypes: notification types to hide completely, e.g. [\"NPCStandingsLost\"]. The exact type names are in data/debug/notifications.json.",
+  "_notificationsHelp": "ignoreTypes: notification types to hide completely, e.g. [\"NPCStandingsLost\"]. The exact type names are in data/debug/notifications.json (with \"debugDumps\": true).",
   "notifications": { "ignoreTypes": [] },
 
   "_rateLimitHelp": "reserve: fraction of each ESI rate-limit group's tokens to always keep unused (0.25 = 25%). maxWaitSeconds: longest a request may wait for tokens before the feed retries later instead.",
@@ -68,6 +68,9 @@
 
   "_windowHelp": "mode: \"normal\" = a resizable window that remembers its size, position and monitor; \"fullscreen\" = borderless, fills one monitor. F11 and the tray menu switch between them (and update this value). display: the monitor at start-up: \"last\" (where it was last time), \"portrait\" (the first portrait monitor) or \"primary\".",
   "window": { "mode": "normal", "display": "last" },
+
+  "_debugDumpsHelp": "true: saves raw ESI answers and feed timings to data/debug/*.json, for troubleshooting. They can hold game details such as industry jobs and notifications, so it is off unless you turn it on.",
+  "debugDumps": false,
 
   "eveLogDir": "",
   "chatPollMs": 1000,

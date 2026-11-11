@@ -18,12 +18,12 @@ It covers installing, every module and setting, `config.json`, privacy, building
 - **Top bar:** alerts (skill queue, industry jobs, expiring orders), EVE notifications, mail, Tranquility status, EVE time, and ESI health.
 - **Light on ESI:** only what's on screen is polled, at ESI's own cache times, within its rate limits.
 - **Update Ready:** a new release on GitHub shows in the top bar, with its release notes (checked once an hour; can be turned off).
-- **Private:** the tokens that give access to your character information are only stored on your computer, encrypted. EVE HUD doesn't send or use your data other than to make the app work, and connects only to CCP/Fenris Creations's servers, plus GitHub for the hourly update check. See [Data and privacy](https://danisxlab.github.io/eve-hud/documentation/#data-privacy).
+- **Private:** the tokens that give access to your character information are only stored on your computer, encrypted. EVE HUD doesn't send or use your data other than to make the app work, and connects only to CCP/Fenris Creations's servers, plus GitHub for the hourly update check. Its local server only answers EVE HUD's own window. See [Data and privacy](https://danisxlab.github.io/eve-hud/documentation/#data-privacy).
 - **EVE on another computer:** works through a shared logs folder.
 
 ## Quick start
 
-Download the installer for your system from [Releases](https://github.com/danisxlab/eve-hud/releases/latest).
+Download the installer for your system from [Releases](https://github.com/danisxlab/eve-hud/releases/latest). Each release has a `SHA256SUMS.txt` to check your download with ([Verify your download](https://danisxlab.github.io/eve-hud/documentation/#verify-your-download)).
 
 On the first start click **LOG IN with EVE Online** and log in in your browser. No developer account is needed: EVE HUD logs in through its own EVE application, and the tokens go straight from EVE to your computer ([The EVE HUD application](https://danisxlab.github.io/eve-hud/documentation/#eve-hud-application)).
 
@@ -54,6 +54,7 @@ npm run dist:win-zip   # Windows, no installer: dist/EVE HUD-<version>-win.zip
 npm run dist:mac       # macOS (Apple silicon + Intel): dist/EVE HUD-<version>-universal.dmg
 npm run dist:mac-dev   # the same, signed with your own Apple Development certificate
 npm run dist:linux     # Linux: dist/EVE HUD-<version>-x86_64.AppImage and dist/eve-hud_<version>_amd64.deb
+npm run checksums      # dist/SHA256SUMS.txt: SHA-256 of the files above, for the release
 ```
 
 ## License

@@ -5,6 +5,10 @@
 //   FAKE_STEPS    JSON array of things to do once the window has loaded (see below)
 // Prints one line "RESULT <json>" with what happened, then exits.
 
+import fs from 'node:fs';
+import net from 'node:net';
+import path from 'node:path';
+
 const options = JSON.parse(process.env.FAKE_OPTIONS || '{}');
 // the tests describe Windows unless they say otherwise ('darwin' for the Mac menu, 'linux'), on
 // whatever computer runs them
@@ -35,10 +39,20 @@ await sleep(150);
 const win = f.windows[0];
 result.url = win?.webContents.url || null;
 
+// A request as the HUD window makes it: with the headers the app's network filter adds (the API token).
+const windowHeaders = (url, headers = {}) =>
+  new Promise((resolve) => {
+    const fn = win.webContents.session.beforeSendHeaders;
+    if (!fn) return resolve(headers);
+    fn({ url: String(url), requestHeaders: headers }, (r) => resolve(r.requestHeaders));
+  });
+const hudFetch = async (url, init = {}) =>
+  fetch(url, { ...init, headers: await windowHeaders(url, init.headers) });
+
 if (win && result.url) {
   for (const step of steps) {
     if (step === 'fetchState') {
-      const r = await fetch(new URL('/api/state', result.url));
+      const r = await hudFetch(new URL('/api/state', result.url));
       const body = await r.json();
       result.steps.fetchState = {
         status: r.status,
@@ -162,24 +176,70 @@ if (win && result.url) {
       const log = nav(new URL('/__app/log', result.url).href);
       await sleep(50);
       result.steps.appActions = { log, opened: f.opened.slice(before) };
+    } else if (step === 'apiToken') {
+      // /api/* only answers the app's own window; the EVE login pages and the page's files stay open
+      const u = (p) => new URL(p, result.url);
+      const sent = await windowHeaders(u('/api/state'));
+      const token = sent['X-EVE-HUD-Token'];
+      const status = async (p, init) => (await fetch(u(p), { redirect: 'manual', ...init })).status;
+      result.steps.apiToken = {
+        tokenLength: (token || '').length,
+        inLog:
+          Boolean(token) &&
+          fs.readFileSync(path.join(options.paths.logs, 'eve-hud.log'), 'utf8').includes(token),
+        withToken: (await hudFetch(u('/api/state'))).status,
+        without: await status('/api/state'),
+        wrong: await status('/api/state', { headers: { 'X-EVE-HUD-Token': 'x'.repeat(43) } }),
+        stream: await status('/api/stream'),
+        post: await status('/api/logout', { method: 'POST' }),
+        page: await status('/'),
+        script: await status('/js/app.js'),
+        login: await status('/login'),
+        badUrl: await new Promise((resolve) => {
+          // "GET //" isn't an address: a plain answer, and the server keeps running
+          const s = net.connect(Number(u('/').port), '127.0.0.1', () =>
+            s.write(`GET // HTTP/1.1\r\nHost: 127.0.0.1:${u('/').port}\r\nConnection: close\r\n\r\n`),
+          );
+          let got = '';
+          s.on('data', (d) => (got += d));
+          s.on('close', () => resolve(Number(got.split(' ')[1]) || 0));
+          s.on('error', () => resolve(0));
+        }),
+        after: (await hudFetch(u('/api/state'))).status,
+        // the token only goes to the HUD's own API, from the HUD's own address
+        toStatic: Object.keys(await windowHeaders(u('/js/app.js'))),
+        toEve: Object.keys(await windowHeaders('https://images.evetech.net/types/34/icon')),
+        toOtherPort: Object.keys(await windowHeaders('http://127.0.0.1:9999/api/state')),
+        toLocalhostName: Object.keys(await windowHeaders(`http://localhost:${u('/').port}/api/state`)),
+        // a token the page tries to set itself is dropped
+        forged: await windowHeaders('https://images.evetech.net/x', { 'x-eve-hud-token': 'mine' }),
+      };
     } else if (step === 'storage') {
-      // Settings → Storage: read the folders, ask for a move; the app restarts to do it
-      const st = await fetch(new URL('/api/storage', result.url)).then((r) => r.json());
+      // Settings → Storage: read the folders, choose new ones with Browse…, ask for a move; the app
+      // restarts to do it
+      const post = (p, body) =>
+        hudFetch(new URL(p, result.url), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      const st = await hudFetch(new URL('/api/storage', result.url)).then((r) => r.json());
       const to = JSON.parse(process.env.FAKE_MOVE_TO);
-      const bad = await fetch(new URL('/api/storage', result.url), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ configDir: 'not/absolute', dataDir: to.dataDir }),
-      });
-      const r = await fetch(new URL('/api/storage', result.url), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(to),
-      });
+      const bad = await post('/api/storage', { configDir: 'not/absolute', dataDir: to.dataDir });
+      // a folder that wasn't chosen in the folder window is refused, also a network share
+      const typed = await post('/api/storage', to);
+      const share = await post('/api/chatlogs', { dir: '\\\\server\\share\\logs' });
+      const picked = [];
+      for (const which of ['config', 'data'])
+        picked.push((await post('/api/storage/browse', { which }).then((r) => r.json())).folder);
+      const r = await post('/api/storage', to);
       await until(() => f.relaunched, 3000);
       result.steps.storage = {
         st,
         badStatus: bad.status,
+        typedStatus: typed.status,
+        shareStatus: share.status,
+        picked,
         status: r.status,
         relaunched: f.relaunched,
         relaunchEnv: f.relaunchEnv,
