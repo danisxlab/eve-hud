@@ -111,10 +111,15 @@ export default {
               .map((q) => q.level),
           );
           const lvls = h('div', { class: 'lvls' });
+          let bolt = null; // the level being trained: its bolt pulses
           for (let L = 1; L <= e.level; L++) {
             const cls = L === e.level && i === activeIdx ? 'now' : queuedLevels.has(L) ? 'q' : 'have';
-            lvls.append(h('i', { class: cls }));
+            const sq = h('i', { class: cls });
+            if (cls === 'now') bolt = sq;
+            lvls.append(sq);
           }
+          const stars = i === activeIdx ? h('span', { class: 'sk-stars' }) : null;
+          const chev = i === activeIdx ? h('span', { class: 'sk-chev' }) : null;
           const tm = h('span', { class: 'tm' });
           const row = h(
             'div',
@@ -125,8 +130,8 @@ export default {
             paused && i === 0 ? h('span', { class: 'sk-chev' }) : null, // the chevrons (standing still)
             i === activeIdx
               ? [
-                  h('span', { class: 'sk-stars' }),
-                  h('span', { class: 'sk-chev' }),
+                  stars,
+                  chev,
                   h('span', { class: 'sk-fill' }),
                   h('span', { class: 'sk-sweep' }),
                   h('span', { class: 'sk-edge' }),
@@ -142,7 +147,7 @@ export default {
             const now = Date.now();
             row.style.setProperty('--sk-t', `${-(now % 7000)}ms`);
           }
-          return { row, tm, e };
+          return { row, tm, e, stars, chev, bolt };
         });
         const detail = h('div', { class: 'detail' });
         const children = rows.map((r) => r.row);
@@ -187,12 +192,12 @@ export default {
       for (let i = 0; i < rows.length; i++) {
         const { tm, e, row } = rows[i];
         if (!e.start || !e.finish) {
-          tm.textContent = 'Paused';
+          setText(tm, 'Paused');
           continue;
         }
         const remaining = e.finish - Math.max(now, e.start);
         const shown = i === activeIdx ? remaining : e.finish - e.start;
-        tm.textContent = fmt.duration(shown);
+        setText(tm, fmt.duration(shown));
         remainingTotal += Math.max(0, remaining);
         segs.push(Math.max(0, remaining));
         const from = i === activeIdx ? liveSp(e, now) : (e.trainingStartSp ?? e.levelStartSp);
@@ -203,23 +208,27 @@ export default {
             e.levelEndSp && e.levelStartSp !== null
               ? (liveSp(e, now) - e.levelStartSp) / (e.levelEndSp - e.levelStartSp)
               : p;
-          row.style.setProperty('--p', `${(Math.max(0, Math.min(1, levelFrac)) * 100).toFixed(2)}%`);
+          const pct = `${(Math.max(0, Math.min(1, levelFrac)) * 100).toFixed(2)}%`;
+          if (rows[i].pct !== pct) row.style.setProperty('--p', (rows[i].pct = pct));
           const sp = liveSp(e, now);
           const rate =
             e.levelEndSp !== null
               ? ((e.levelEndSp - (e.trainingStartSp ?? e.levelStartSp)) / (e.finish - e.start)) * 3600_000
               : null;
-          if (rows.detail)
+          const dKey = `${fmt.int(sp)}|${e.levelEndSp}|${rate ? fmt.int(rate) : ''}|${e.finish}`;
+          if (rows.detail && rows.detailKey !== dKey) {
+            rows.detailKey = dKey; // rebuilt only when a number in it changed
             fill(
               rows.detail,
               h('span', {}, h('b', {}, fmt.int(sp)), ` / ${fmt.int(e.levelEndSp)} SP`),
               rate ? h('span', {}, h('b', {}, fmt.int(rate)), ' SP/h') : null,
               h('span', {}, 'Done ', h('b', {}, fmt.date(e.finish))),
             );
+          }
         }
       }
-      total.textContent = fmt.long(remainingTotal);
-      endsMini.textContent = queue.at(-1)?.finish ? `ends ${fmt.date(queue.at(-1).finish)}` : '';
+      setText(total, fmt.long(remainingTotal));
+      setText(endsMini, queue.at(-1)?.finish ? `ends ${fmt.date(queue.at(-1).finish)}` : '');
       if (force || timeline.childElementCount !== segs.length) {
         timeline.replaceChildren(
           ...segs.map((ms, i) =>
@@ -232,22 +241,34 @@ export default {
       }
       const sum = segs.reduce((x, y) => x + y, 0) || 1;
       [...timeline.children].forEach((el, i) => {
-        el.style.flex = `${Math.max(segs[i] / sum, 0.004)} 0 0`;
+        const flex = `${Math.max(segs[i] / sum, 0.004).toFixed(4)} 0 0`;
+        if (el.dataset.flex !== flex) el.style.flex = el.dataset.flex = flex;
       });
       const last = queue.at(-1);
-      fill(
-        spLine,
-        h('span', {}, `${fmt.int(Math.round(spQueued))} skill points in queue`),
-        last?.finish ? h('span', {}, `Queue ends ${fmt.date(last.finish)}`) : null,
-      );
+      const spKey = `${fmt.int(Math.round(spQueued))}|${last?.finish || ''}`;
+      if (force || spKey !== lastSpKey) {
+        lastSpKey = spKey;
+        fill(
+          spLine,
+          h('span', {}, `${fmt.int(Math.round(spQueued))} skill points in queue`),
+          last?.finish ? h('span', {}, `Queue ends ${fmt.date(last.finish)}`) : null,
+        );
+      }
+    }
+    let lastSpKey = '';
+    // text that didn't change isn't written again (writing it makes the browser lay the row out anew)
+    function setText(el, text) {
+      if (el.textContent !== text) el.textContent = text;
     }
 
     const off = store.on('feed:skills', build);
     build();
     // The always-running motion (chevrons, stars, the level bolt, the timeline shimmer), set from here
-    // on the HUD's shared clock (30 frames a second; 10 with Animations: Limited, when the stars stand
+    // on the HUD's shared clock (25 frames a second; 10 with Animations: Limited, when the stars stand
     // still): running CSS animations would make the browser draw the whole window at the screen's
     // rate, 120 a second on a ProMotion Mac. Everything follows the clock, so a rebuilt row carries on.
+    // Each value is set on the one small element that moves (not on the row, which would make the
+    // browser work out the style of everything in the row again, 25 times a second).
     const ease = (a, b, k) => a + (b - a) * (0.5 - 0.5 * Math.cos(Math.PI * k));
     const twinkle = (t, d) => {
       // 0.35 → 0.9 → 0.6 → 1 and back, over d ms each way
@@ -260,29 +281,26 @@ export default {
           : ease(0.6, 1, (k - 0.55) / 0.45);
     };
     function motion() {
-      const row = activeIdx >= 0 ? rows[activeIdx]?.row : null;
+      const r = activeIdx >= 0 ? rows[activeIdx] : null;
       if (motionReduced()) return; // Off: everything stands still
       const t = Date.now();
       const cur = timeline.querySelector('i.cur');
       if (cur) cur.style.setProperty('--tl', ((t % 2200) / 2200).toFixed(4));
-      if (!row) return;
-      row.style.setProperty('--chev', ((t % 1100) / 1100).toFixed(4));
-      row.style.setProperty('--bolt', (0.725 + 0.275 * Math.cos((2 * Math.PI * t) / 1600)).toFixed(3));
-      if (motionLimited()) return;
-      row.style.setProperty('--far', ((t % 34000) / 34000).toFixed(5));
-      row.style.setProperty('--near', ((t % 26000) / 26000).toFixed(5));
-      row.style.setProperty('--tw1', twinkle(t, 4300).toFixed(3));
-      row.style.setProperty('--tw2', twinkle(t + 2200, 6100).toFixed(3));
+      if (!r) return;
+      r.chev?.style.setProperty('--chev', ((t % 1100) / 1100).toFixed(4));
+      r.bolt?.style.setProperty('--bolt', (0.725 + 0.275 * Math.cos((2 * Math.PI * t) / 1600)).toFixed(3));
+      if (motionLimited() || !r.stars) return;
+      r.stars.style.setProperty('--far', ((t % 34000) / 34000).toFixed(5));
+      r.stars.style.setProperty('--near', ((t % 26000) / 26000).toFixed(5));
+      r.stars.style.setProperty('--tw1', twinkle(t, 4300).toFixed(3));
+      r.stars.style.setProperty('--tw2', twinkle(t + 2200, 6100).toFixed(3));
     }
 
-    let lastTick = 0;
     return {
-      tick(now) {
-        motion();
-        if (now - lastTick < 1000) return;
-        lastTick = now;
-        tick(Date.now());
-      },
+      tick: () => tick(Date.now()), // once a second: the countdowns
+      // frames only while a skill is training (and animations aren't off)
+      animating: () => !motionReduced() && activeIdx >= 0 && rows.length > 0,
+      frame: motion,
       destroy: off,
     };
   },

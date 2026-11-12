@@ -73,7 +73,7 @@
   background: center / 8px 12px no-repeat
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 8 12'%3E%3Cpath d='M5 0 1 7h3l-1 5 4-7H4z' fill='%23fff'/%3E%3C/svg%3E");
   opacity: var(--bolt, 1);
-  will-change: opacity; /* pulsed by skills.js on the HUD's 30-a-second clock */
+  will-change: opacity; /* pulsed by skills.js on the HUD's animation clock */
 }
 
 /* active skill: chevron strip racing to the right, progress fill underneath */
@@ -126,7 +126,7 @@
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='38' viewBox='0 0 22 38'%3E%3Cpath d='M0 0h7l12 19L7 38H0l12-19z' fill='%237cc6ee' fill-opacity='0.16'/%3E%3C/svg%3E");
   background-size: 22px 100%;
   background-repeat: repeat-x;
-  transform: translateX(calc(var(--chev, 0) * 22px)); /* moved by skills.js on the HUD's 30-a-second clock */
+  transform: translateX(calc(var(--chev, 0) * 22px)); /* moved by skills.js on the HUD's animation clock */
 }
 
 .sk-row.active > * {
@@ -407,7 +407,7 @@
    (near ones faster) and softly twinkling, behind the fill and the chevrons. Animations: Full; with
    Limited or Off they stand still.
    These always-running effects (stars, chevrons, bolt, timeline shimmer, wallet pulse) are moved from
-   script on the HUD's shared 30-frames-a-second clock instead of CSS animations: running CSS
+   script on the HUD's shared 25-frames-a-second clock instead of CSS animations: running CSS
    animations make the browser draw the whole window at the screen's rate (120 a second on a
    ProMotion Mac, measured with a performance trace). */
 .sk-row.active > .sk-stars {

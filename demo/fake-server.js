@@ -8,6 +8,7 @@
 // from hud/public/index.html.
 import { createDemo, demoUniverse, demoShowInfo, DEMO_ITEM_NAMES } from '../hud/lib/demo.js';
 import { createRouter } from '../hud/lib/route.js';
+import { createLinker } from '../hud/lib/itemlinks.js';
 import { compactPayload, isKSpace, linkSystems } from '../hud/lib/universe-data.js';
 
 const SETTINGS_KEY = 'eve-hud-demo-settings';
@@ -71,7 +72,9 @@ function publish(name, payload) {
   latest[name] = payload;
   broadcast('feed', { name, ...payload });
 }
+const linker = createLinker(); // item and system names in chat become links, as in the app's server
 function publishChat(channel, messages) {
+  messages.forEach(linker.link);
   (chatBuffers[channel] ||= []).push(...messages);
   if (chatBuffers[channel].length > 300) chatBuffers[channel].splice(0, chatBuffers[channel].length - 300);
   broadcast('chat', { channel, messages, initial: false });
@@ -169,8 +172,6 @@ async function api(p, q, method, init) {
       return json(200, { ok: true });
     case '/api/universe':
       return json(200, universe.payload());
-    case '/api/linknames':
-      return json(200, universe.linkNames());
     case '/api/demand':
       return json(200, { ok: true, active: null });
     case '/api/refresh':
@@ -222,5 +223,6 @@ window.EventSource = DemoEventSource;
 
 // ---------------- the sample data: the same as `npm run demo` ----------------
 const demo = createDemo(universe, publish);
-for (const [ch, msgs] of Object.entries(demo.chat)) chatBuffers[ch] = msgs;
+linker.setNames(universe.linkNames());
+for (const [ch, msgs] of Object.entries(demo.chat)) chatBuffers[ch] = msgs.map(linker.link);
 demo.start(publishChat);

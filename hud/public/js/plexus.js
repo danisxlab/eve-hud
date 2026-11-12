@@ -6,12 +6,12 @@
 // Animated (Settings → Appearance → "Animate background", off by default): every point
 // wanders slowly around its place, so lines and triangles come and go. Nothing pops: each line and
 // face fades in and out over about three seconds, and every face glows and dims on its own slow
-// rhythm. A few faces are a deeper green or a pale mint. It's redrawn 30 times a second (Animations: Full), 24 times a second
+// rhythm. A few faces are a deeper green or a pale mint. It's redrawn 25 times a second (Animations: Full), 24 times a second
 // (Limited), or not at all (Off, or the switch off: then it stands still).
 //
 // The layout comes from a fixed seed, so it looks the same every time you open the HUD.
 
-import { onFrame, motionReduced, motionLimited } from './util.js';
+import { onFrame, motionReduced, motionLimited, FPS } from './util.js';
 
 const SEED = 0x5eed42;
 
@@ -471,8 +471,9 @@ export function startPlexus(canvas, { on, animate }) {
   });
   repaint();
 
-  // 30 frames a second with Animations: Full, 24 with Limited, on the HUD's shared clock (which only
-  // wakes the page when a frame is due); nothing while it stands still or the window is hidden.
+  // 25 frames a second with Animations: Full, 24 with Limited, on the HUD's shared clock (which only
+  // wakes the page when a frame is due). While it stands still it only looks once a second whether
+  // that changed; nothing while the window is hidden.
   let lastDraw = -Infinity;
   onFrame(
     (tms) => {
@@ -484,7 +485,7 @@ export function startPlexus(canvas, { on, animate }) {
       lastDraw = tms;
       px.draw(now(), 1 - Math.exp(-dt / 1600)); // lines and faces fade in and out over about 3 seconds
     },
-    { fps: () => (motionLimited() ? 24 : 30) },
+    { fps: () => (canvas.hidden || !animate() || motionReduced() ? 1 : motionLimited() ? 24 : FPS) },
   );
   const run = () => {};
   const repaintAndRun = () => {

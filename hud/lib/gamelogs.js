@@ -12,7 +12,7 @@
 // works on a network share too.
 import fs from 'node:fs';
 import path from 'node:path';
-import { candidateDirs, logsRootFor } from './chatlogs.js';
+import { candidateDirs, logsRootFor, newestCandidates, mtimeSync, mtimeAsync } from './chatlogs.js';
 
 // every log line: [ 2026.11.02 19:01:12 ] (type) text
 const LINE_RE = /^\[\s*(\d{4})\.(\d{2})\.(\d{2}) (\d{2}):(\d{2}):(\d{2})\s*\]\s*\((\w+)\)\s?(.*)$/;
@@ -85,33 +85,43 @@ export function createGameLogs(
   let health = { ok: true, dir, error: null }; // can the game log folder be read? (the "EVE logs" window)
   let idleMs = idleSecondsOf(config.combatIdleSeconds) * 1000;
 
+  // The newest game log: the folder is listed, and of the few files with the newest date in their
+  // name (the logged-in character's first) the one written last is taken.
+  const txt = (names) =>
+    newestCandidates(
+      names.filter((f) => f.endsWith('.txt')),
+      getCharacterId(),
+    );
+  const newestOf = (stats, inDir) => {
+    const f = stats.sort((x, y) => y.mtime - x.mtime)[0]?.f;
+    return f ? path.join(inDir, f) : null;
+  };
   function newestFile() {
-    let entries;
+    let names;
     try {
-      entries = fs.readdirSync(dir);
+      names = fs.readdirSync(dir);
     } catch (err) {
       setHealth(false, reason(err, dir));
       return null;
     }
     setHealth(true, null);
-    const charId = getCharacterId();
-    const all = entries
-      .filter((f) => f.endsWith('.txt'))
-      .map((f) => {
-        const full = path.join(dir, f);
-        let mtime = 0;
-        try {
-          mtime = fs.statSync(full).mtimeMs;
-        } catch {
-          /* ignore */
-        }
-        return { f, full, mtime };
-      });
-    // newer clients add the character ID to the name: prefer the logged-in character's logs
-    const mine = charId ? all.filter((x) => x.f.endsWith(`_${charId}.txt`)) : [];
-    const pool = mine.length ? mine : all;
-    pool.sort((a, b) => b.mtime - a.mtime);
-    return pool[0]?.full || null;
+    return newestOf(
+      txt(names).map((f) => ({ f, mtime: mtimeSync(path.join(dir, f)) })),
+      dir,
+    );
+  }
+  async function newestFileAsync(inDir) {
+    let names;
+    try {
+      names = await fs.promises.readdir(inDir);
+    } catch (err) {
+      if (inDir === dir) setHealth(false, reason(err, inDir));
+      return null;
+    }
+    if (inDir === dir) setHealth(true, null);
+    const stats = [];
+    for (const f of txt(names)) stats.push({ f, mtime: await mtimeAsync(path.join(inDir, f)) });
+    return newestOf(stats, inDir);
   }
 
   function setHealth(ok, error) {
@@ -152,8 +162,24 @@ export function createGameLogs(
     onCombat({ active, t: now() });
   }
 
+  // scan(): at once (the start, a new folder). scanAsync(): the look every 5 seconds, which doesn't
+  // hold up the app while a big folder or a slow network share answers.
   function scan() {
-    const f = newestFile();
+    return useFile(newestFile());
+  }
+  let scanning = false;
+  async function scanAsync() {
+    if (scanning) return;
+    scanning = true;
+    const inDir = dir;
+    try {
+      const f = await newestFileAsync(inDir);
+      if (inDir === dir) useFile(f); // (not when another folder was chosen meanwhile)
+    } finally {
+      scanning = false;
+    }
+  }
+  function useFile(f) {
     if (!f || f === file) return health;
     file = f;
     remainder = '';
@@ -191,22 +217,7 @@ export function createGameLogs(
           fs.readSync(fd, buf, 0, buf.length, offset);
           fs.closeSync(fd);
           offset = size;
-          const text = encoding === 'utf16le' ? buf.toString('utf16le') : buf.toString('utf8');
-          const lines = (remainder + text).split(/\r?\n/);
-          remainder = lines.pop() ?? '';
-          for (const raw of lines) {
-            const m = raw.replace(/^\uFEFF/, '').match(LINE_RE);
-            if (!m) continue;
-            const [, Y, M, D, h, mi, s, type, rest] = m;
-            const t = Date.UTC(+Y, +M - 1, +D, +h, +mi, +s); // EVE time is UTC
-            if (Math.abs(now() - t) > 120_000) continue; // an old line (a copied file, a wrong clock)
-            const text = rest.replace(/<[^>]*>/g, '').trim();
-            if (type === 'combat') {
-              if (FRIENDLY_RE.test(text)) continue;
-              lastHit = now();
-              setActive(true);
-            } else readAutopilot(type, text);
-          }
+          take(buf);
         } catch {
           /* try again next time */
         }
@@ -214,11 +225,74 @@ export function createGameLogs(
     }
     if (active && now() - lastHit > idleMs) setActive(false);
   }
+  // The same for the look every second, without holding up the app while the disk (or a network
+  // share) answers.
+  let polling = false;
+  async function pollAsync() {
+    if (polling) return; // the last look is still waiting for the disk
+    polling = true;
+    try {
+      const f = file;
+      if (f) {
+        let size = -1;
+        try {
+          size = (await fs.promises.stat(f)).size;
+        } catch {
+          /* gone: below */
+        }
+        if (file === f) {
+          if (size < 0) file = null;
+          else {
+            if (size < offset) offset = 0; // replaced
+            if (size > offset) {
+              const from = offset;
+              const buf = Buffer.alloc(size - from);
+              let handle = null;
+              try {
+                handle = await fs.promises.open(f, 'r');
+                await handle.read(buf, 0, buf.length, from);
+                if (file === f && offset === from) {
+                  offset = size;
+                  take(buf);
+                }
+              } catch {
+                /* try again next time */
+              } finally {
+                await handle?.close().catch(() => {});
+              }
+            }
+          }
+        }
+      }
+      if (active && now() - lastHit > idleMs) setActive(false);
+    } finally {
+      polling = false;
+    }
+  }
+  // the bytes just read: combat lines and the autopilot's
+  function take(buf) {
+    const text = encoding === 'utf16le' ? buf.toString('utf16le') : buf.toString('utf8');
+    const lines = (remainder + text).split(/\r?\n/);
+    remainder = lines.pop() ?? '';
+    for (const raw of lines) {
+      const m = raw.replace(/^\uFEFF/, '').match(LINE_RE);
+      if (!m) continue;
+      const [, Y, M, D, h, mi, s, type, rest] = m;
+      const t = Date.UTC(+Y, +M - 1, +D, +h, +mi, +s); // EVE time is UTC
+      if (Math.abs(now() - t) > 120_000) continue; // an old line (a copied file, a wrong clock)
+      const line = rest.replace(/<[^>]*>/g, '').trim();
+      if (type === 'combat') {
+        if (FRIENDLY_RE.test(line)) continue;
+        lastHit = now();
+        setActive(true);
+      } else readAutopilot(type, line);
+    }
+  }
 
   function start() {
     scan();
-    setInterval(poll, Math.max(250, Number(config.chatPollMs) || 1000)).unref();
-    setInterval(scan, 5000).unref();
+    setInterval(() => pollAsync().catch(() => {}), Math.max(250, Number(config.chatPollMs) || 1000)).unref();
+    setInterval(() => scanAsync().catch(() => {}), 5000).unref();
     if (dir) log.info?.(`[combat] Watching game logs in ${dir}`);
   }
 
@@ -245,5 +319,7 @@ export function createGameLogs(
     autopilot: () => autopilot,
     poll,
     scan,
+    scanAsync,
+    pollAsync,
   };
 }

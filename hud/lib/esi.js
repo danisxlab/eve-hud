@@ -7,6 +7,12 @@ import { createRateLimiter } from './ratelimit.js';
 
 const BASE = 'https://esi.evetech.net';
 const NAMES_FILE = dataPath('names.json');
+// The answer cache is kept small: answers that expired this long ago are dropped, and when there
+// are still too many, the ones not used for the longest go (a map built from ESI alone asks for
+// thousands of systems once).
+const CACHE_KEEP_MS = 30 * 60_000;
+const CACHE_MAX = 1500;
+const CACHE_SWEEP_MS = 5 * 60_000;
 const STRUCTURE_ID_MIN = 1e11; // player structures have very large IDs and are not resolvable via /universe/names
 
 export class EsiError extends Error {
@@ -20,7 +26,16 @@ export class EsiError extends Error {
 
 export function createEsi(config, auth, { log = console } = {}) {
   const limiter = createRateLimiter({ reserve: config.rateLimit?.reserve ?? 0.25, log });
-  const cache = new Map(); // key -> { etag, expires, data, pages }
+  const cache = new Map(); // key -> { etag, expires, data, pages, used }
+  function sweepCache(now = Date.now()) {
+    for (const [key, hit] of cache) if (hit.expires < now - CACHE_KEEP_MS) cache.delete(key);
+    if (cache.size > CACHE_MAX) {
+      const oldest = [...cache].sort((a, b) => a[1].used - b[1].used);
+      for (const [key] of oldest.slice(0, cache.size - CACHE_MAX)) cache.delete(key);
+    }
+    return cache.size;
+  }
+  setInterval(sweepCache, CACHE_SWEEP_MS).unref();
   let pausedUntil = 0;
   const names = new Map(Object.entries(readJson(NAMES_FILE, {})).map(([k, v]) => [Number(k), v]));
   let namesDirty = false;
@@ -43,11 +58,13 @@ export function createEsi(config, auth, { log = console } = {}) {
       body = null,
       force = false,
       waitAsLongAsNeeded = false,
+      shape = null, // (data) => what to keep and return instead of the raw answer (always the same for a path)
     } = {},
   ) {
     const qs = query ? `?${new URLSearchParams(query)}` : '';
     const key = `${authed ? auth.characterId : 'pub'} ${method} ${path}${qs} ${body ? JSON.stringify(body) : ''}`;
     const hit = cache.get(key);
+    if (hit) hit.used = Date.now();
     if (hit && !force && method === 'GET' && Date.now() < hit.expires) {
       return { data: hit.data, expires: hit.expires, pages: hit.pages, cached: true };
     }
@@ -146,8 +163,12 @@ export function createEsi(config, auth, { log = console } = {}) {
       }
       const text = await res.text();
       if (!res.ok) throw new EsiError(res.status, path, text);
-      const data = text ? JSON.parse(text) : null;
-      if (method === 'GET') cache.set(key, { etag: res.headers.get('etag'), expires, data, pages });
+      const raw = text ? JSON.parse(text) : null;
+      const data = shape ? shape(raw) : raw;
+      if (method === 'GET') {
+        cache.set(key, { etag: res.headers.get('etag'), expires, data, pages, used: Date.now() });
+        if (cache.size > CACHE_MAX * 2) sweepCache();
+      }
       return { data, expires, pages, cached: false };
     }
   }
@@ -261,5 +282,24 @@ export function createEsi(config, auth, { log = console } = {}) {
     return names.get(id)?.name || `#${id}`;
   }
 
-  return { request, requestAll, requestCursor, resolveNames, nameOf, rateStatus: () => limiter.status() };
+  return {
+    request,
+    requestAll,
+    requestCursor,
+    resolveNames,
+    nameOf,
+    rateStatus: () => limiter.status(),
+    sweepCache, // (tests)
+  };
+}
+
+// Average market prices for every item (one public request, cached by ESI for about an hour), kept
+// once: the ESI cache holds this map instead of the raw answer, and everything that needs a price
+// (asset and kill values, the chat's item window) reads the same one.
+//   typeId -> [average_price, adjusted_price]  (null when ESI gives none)
+const priceMap = (rows) =>
+  new Map((rows || []).map((p) => [p.type_id, [p.average_price ?? null, p.adjusted_price ?? null]]));
+export async function marketPrices(esi) {
+  const r = await esi.request('/markets/prices', { shape: priceMap });
+  return { map: r.data instanceof Map ? r.data : priceMap(r.data), expires: r.expires };
 }

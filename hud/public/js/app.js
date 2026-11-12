@@ -149,7 +149,24 @@ async function main() {
       watchUpdates();
       watchUpdate(); // a newer EVE HUD on GitHub: its release notes open once by themselves
       hud.grid.sync();
-      onFrame((t) => hud.grid.tick(t)); // the modules' own animations, on the shared clock
+      // Countdowns once a second. The modules' own animations run on the shared clock, which is
+      // only asked for frames while a module has something moving (a skill in training, the
+      // wallet's pulse): a HUD where nothing moves doesn't wake the page 25 times a second.
+      let stopFrames = null;
+      const beat = () => {
+        if (document.hidden) return;
+        hud.grid.tick(performance.now());
+        const moving = hud.grid.animating();
+        if (moving && !stopFrames) stopFrames = onFrame(hud.grid.frame);
+        else if (!moving && stopFrames) {
+          stopFrames();
+          stopFrames = null;
+        }
+      };
+      setInterval(beat, 1000);
+      document.addEventListener('visibilitychange', beat);
+      store.on('settings', beat); // Animations switched, a module shown or hidden
+      beat();
     }
     renderGate();
     sendDemand(true); // on every (re)connect: the server may have restarted and forgotten this page

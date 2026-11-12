@@ -1,7 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Particle star map of New Eden (k-space). Canvas 2D: a cached static layer (lanes, stars, labels)
 // plus a per-frame overlay (dust, twinkles, location pulse, neighbourhood ring, hover).
-import { h, fill, svg, fmt, secColor, displaySec, motionReduced, onFrame, hoverPop } from '../util.js';
+import {
+  h,
+  fill,
+  svg,
+  fmt,
+  secColor,
+  displaySec,
+  motionReduced,
+  motionLimited,
+  onFrame,
+  kickFrames,
+  hoverPop,
+  FPS,
+} from '../util.js';
 import { store } from '../store.js';
 import { ICONS } from '../glyphs.js';
 import { secChip } from './character.js';
@@ -2030,8 +2043,9 @@ export default {
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
 
-    // On the HUD's shared clock (30 frames a second, nothing while the window is hidden). With
-    // animations off, only redraw when something changed (view, data, hover) or twice a second.
+    // On the HUD's shared clock (25 frames a second, nothing while the window is hidden). With
+    // animations off, only redraw when something changed (view, data, hover) or twice a second:
+    // the clock then runs at 2 a second for the map, and at full speed only while you use it.
     let lastFrame = 0;
     let lastHover = -2;
     const loop = (t) => {
@@ -2041,7 +2055,16 @@ export default {
         lastHover = hover;
       }
     };
-    const stopLoop = onFrame(loop);
+    const busy = () => dirty || Boolean(anim) || Boolean(drag) || hover !== lastHover;
+    const stopLoop = onFrame(loop, {
+      fps: () => (motionReduced() ? (busy() ? FPS : 2) : motionLimited() ? 10 : FPS),
+    });
+    // animations off: the map idles at 2 frames a second, so wake the clock when you touch it
+    const wake = () => {
+      if (motionReduced()) setTimeout(kickFrames, 0); // after the handlers that change the view
+    };
+    for (const type of ['pointermove', 'pointerdown', 'pointerup', 'wheel', 'click', 'keydown'])
+      ctx.body.addEventListener(type, wake, { passive: true, capture: true });
 
     async function tryLoad() {
       if (!data) await load();

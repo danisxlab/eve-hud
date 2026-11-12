@@ -186,13 +186,15 @@ export function sparkline(
 }
 
 // One animation clock for the whole HUD, instead of a requestAnimationFrame loop per part: at most
-// FPS frames a second (plenty for slow drifts and pulses; the screen's 60+ would double the work),
-// and nothing at all while the window is minimised or completely hidden (document.hidden). Losing
-// the focus doesn't count: the HUD keeps going while you play.
+// FPS frames a second (plenty for slow drifts and pulses; the screen's 60+ would more than double
+// the work), and nothing at all while the window is minimised or completely hidden
+// (document.hidden). Losing the focus doesn't count: the HUD keeps going while you play.
+// The clock only runs while a part is registered: parts that have nothing to move stop their
+// function (or give a low rate with opts.fps), so a HUD that stands still doesn't wake the page.
 //   const stop = onFrame((t) => …)   t: ms timestamp like requestAnimationFrame's
-export const FPS = 30;
+export const FPS = 25;
 const LIMITED_FPS = 10; // Settings → Animations → Limited
-// fn -> { fps (optional function), slot }: each part can have its own rate (the plexus: 30 / 24)
+// fn -> { fps (optional function), slot }: each part can have its own rate (the starfield: half)
 const frameFns = new Map();
 let rafId = 0;
 let timer = 0;
@@ -234,11 +236,18 @@ function schedule() {
   else rafId = requestAnimationFrame(pump);
 }
 document.addEventListener('visibilitychange', schedule);
-// opts.fps: a function returning this part's frames per second (default: 30, 10 with Limited)
+// opts.fps: a function returning this part's frames per second (default: FPS, 10 with Limited)
 export function onFrame(fn, opts = {}) {
   frameFns.set(fn, { fps: opts.fps || null, slot: -1 });
-  schedule();
+  kickFrames();
   return () => frameFns.delete(fn);
+}
+// A part's rate just went up (it idled at a low rate and something happened): don't wait for the
+// slow beat it was on.
+export function kickFrames() {
+  clearTimeout(timer);
+  timer = 0;
+  schedule();
 }
 
 // A small hover box in the style of the top bar's (.tb-pop): dark, thin border, corner ticks,

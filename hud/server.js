@@ -45,6 +45,7 @@ import {
 } from './lib/chatlogs.js';
 import { createGameLogs, idleSecondsOf } from './lib/gamelogs.js';
 import { createDemo, demoUniverse, demoShowInfo, DEMO_ITEM_NAMES } from './lib/demo.js';
+import { createLinker } from './lib/itemlinks.js';
 import { createShowInfo } from './lib/showinfo.js';
 import { createRouter } from './lib/route.js';
 import { createUpdateCheck } from './lib/updates.js';
@@ -276,7 +277,10 @@ export async function startServer({
     esi,
     userAgent: config.userAgent,
     log,
-    onProgress: (s) => broadcast('universe', s),
+    onProgress: (s) => {
+      broadcast('universe', s);
+      if (s.ready) relinkChat();
+    },
   });
   const showInfo = DEMO ? demoShowInfo(universe) : createShowInfo({ esi, universe, log });
   const feeds = createFeeds({
@@ -320,7 +324,28 @@ export async function startServer({
     demo: DEMO,
     game: logsHealth, // can the game logs (combat) be read? null in demo mode
   });
+  // Item and system names in chat become links here (lib/itemlinks.js): the page gets them ready-made.
+  const linker = createLinker();
+  // true when the names changed (the star map and item list were just built, or updated)
+  function syncLinker() {
+    const base = universe.linkVersion();
+    const demoNames = DEMO && base.startsWith('none|'); // the demo without an item list: its own few names
+    const version = base + (demoNames ? '|demo' : '');
+    if (version === linker.version) return false;
+    const names = universe.linkNames();
+    return linker.setNames({ ...names, version, items: demoNames ? DEMO_ITEM_NAMES : names.items });
+  }
+  // the names changed: the messages already read get their links, and the page gets them again
+  function relinkChat() {
+    if (!syncLinker()) return;
+    for (const [channel, messages] of Object.entries(chatBuffers)) {
+      messages.forEach(linker.link);
+      broadcast('chat', { channel, messages, initial: true });
+    }
+  }
   function publishChat(channel, messages, initial = false) {
+    syncLinker();
+    messages.forEach(linker.link);
     if (initial) chatBuffers[channel] = [];
     (chatBuffers[channel] ||= []).push(...messages);
     if (chatBuffers[channel].length > 300) chatBuffers[channel].splice(0, chatBuffers[channel].length - 300);
@@ -556,20 +581,6 @@ export async function startServer({
       if (p === '/api/universe') {
         const data = universe.payload();
         return data ? json(res, 200, data) : json(res, 503, universe.state);
-      }
-      if (p === '/api/linknames') {
-        const ln = universe.linkNames();
-        if (DEMO && !ln.items.length) {
-          ln.items = DEMO_ITEM_NAMES;
-          ln.version += '|demo';
-        }
-        const etag = `"${Buffer.from(ln.version).toString('base64url')}"`;
-        if (req.headers['if-none-match'] === etag) {
-          res.writeHead(304, { ETag: etag });
-          return res.end();
-        }
-        res.writeHead(200, { 'Content-Type': MIME['.json'], 'Cache-Control': 'no-cache', ETag: etag });
-        return res.end(JSON.stringify({ version: ln.version, items: ln.items, systems: ln.systems }));
       }
       if (p === '/api/showinfo') {
         try {
@@ -874,7 +885,8 @@ export async function startServer({
       await universe.ensure().catch(() => {});
       if (!universe.state.ready) universe.loadExternal(demoUniverse());
       const demo = createDemo(universe, publish);
-      for (const [ch, msgs] of Object.entries(demo.chat)) chatBuffers[ch] = msgs;
+      syncLinker();
+      for (const [ch, msgs] of Object.entries(demo.chat)) chatBuffers[ch] = msgs.map(linker.link);
       chatStatus = {
         dir: '(demo)',
         found: true,

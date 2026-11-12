@@ -10,6 +10,7 @@
 // The pages tell the server what they show (setDemand); a feed that becomes needed runs at once,
 // one that is no longer needed stops polling and keeps its last data.
 import { dataPath, readJson, writeJson } from './store.js';
+import { marketPrices } from './esi.js';
 import { dumpDebug } from './feeds/shapes.js';
 import { publicFeeds } from './feeds/public-feeds.js';
 import { characterFeeds } from './feeds/character-feeds.js';
@@ -77,14 +78,16 @@ export function createFeeds({
 
   // Average market prices for every item (one public request, cached by ESI for about an hour).
   // Estimates only: CCP/Fenris Creations's average over recent trades, as the game's "estimated price".
-  let priceCache = { map: null, expires: 0 };
+  // get(typeId): the average price (the adjusted one when there's no average), from the one price
+  // map the ESI client keeps (esi.js marketPrices)
   async function prices() {
-    if (priceCache.map && Date.now() < priceCache.expires) return priceCache.map;
-    const r = await esi.request('/markets/prices');
-    const map = new Map();
-    for (const p of r.data || []) map.set(p.type_id, p.average_price ?? p.adjusted_price ?? 0);
-    priceCache = { map, expires: r.expires };
-    return map;
+    const { map } = await marketPrices(esi);
+    return {
+      get(typeId) {
+        const p = map.get(typeId);
+        return p ? (p[0] ?? p[1] ?? 0) : undefined;
+      },
+    };
   }
 
   // typeId -> categoryId (6 = ship), via /universe/types + /universe/groups, cached for good in

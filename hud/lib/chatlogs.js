@@ -95,6 +95,34 @@ export function autoDir() {
 // config.eveLogDir: EVE's logs folder somewhere else, e.g. a network share the game PC's logs are on
 // (\\gamepc\EVE\logs, /Volumes/evelogs); the chat is read from its Chatlogs. Empty: the usual place.
 // Read by polling (not file watching), which also works on network shares.
+// The log files worth looking at: EVE puts the date and time a session started in the file name
+// (Local_20261112_180000_<character ID>.txt, game logs: 20261112_180000_<character ID>.txt), so
+// only the few newest by name are checked for the one written last, not every file of years of
+// logs. Newer clients append the listener's character ID: the logged-in character's files go first.
+const STAMP = /(?:^|_)(\d{8}_\d{6})(?:_\d+)?\.txt$/;
+export function newestCandidates(names, charId, max = 4) {
+  const mine = charId ? names.filter((f) => f.endsWith(`_${charId}.txt`)) : [];
+  const pool = mine.length ? mine : names;
+  const stamped = pool.map((f) => ({ f, stamp: f.match(STAMP)?.[1] || '' }));
+  if (stamped.some((x) => !x.stamp)) return pool; // a name without a date: look at them all
+  stamped.sort((a, b) => (a.stamp < b.stamp ? 1 : a.stamp > b.stamp ? -1 : 0));
+  return stamped.slice(0, max).map((x) => x.f);
+}
+export function mtimeSync(file) {
+  try {
+    return fs.statSync(file).mtimeMs;
+  } catch {
+    return 0;
+  }
+}
+export async function mtimeAsync(file) {
+  try {
+    return (await fs.promises.stat(file)).mtimeMs;
+  } catch {
+    return 0;
+  }
+}
+
 export function createChatLogs(
   config,
   {
@@ -137,32 +165,23 @@ export function createChatLogs(
     return Object.fromEntries([...channels.values()].map((c) => [c.cfg.id, c.buffer]));
   }
 
-  function pickFile(prefix) {
-    let entries;
-    try {
-      entries = fs.readdirSync(dir);
-    } catch {
-      return null;
-    }
-    const charId = getCharacterId();
-    const matches = entries
-      .filter((f) => f.startsWith(`${prefix}_`) && f.endsWith('.txt'))
-      .map((f) => {
-        const full = path.join(dir, f);
-        let mtime = 0;
-        try {
-          mtime = fs.statSync(full).mtimeMs;
-        } catch {
-          /* ignore */
-        }
-        return { f, full, mtime };
-      });
-    if (!matches.length) return null;
-    // Newer clients append the listener's character ID; prefer files for the logged-in character.
-    const mine = charId ? matches.filter((m) => m.f.endsWith(`_${charId}.txt`)) : [];
-    const pool = mine.length ? mine : matches;
-    pool.sort((a, b) => b.mtime - a.mtime);
-    return pool[0].full;
+  // The channel's newest log file among the folder's file names (statOf: name -> mtime in ms).
+  // Only the few files with the newest date in their name are looked at, not years of logs.
+  function candidates(names, prefix) {
+    const matches = names.filter((f) => f.startsWith(`${prefix}_`) && f.endsWith('.txt'));
+    return newestCandidates(matches, getCharacterId());
+  }
+  const newestOf = (stats) => stats.sort((x, y) => y.mtime - x.mtime)[0]?.f || null;
+  function pickFile(prefix, names) {
+    const f = newestOf(candidates(names, prefix).map((f) => ({ f, mtime: mtimeSync(path.join(dir, f)) })));
+    return f ? path.join(dir, f) : null;
+  }
+  async function pickFileAsync(prefix, names, inDir) {
+    const stats = [];
+    for (const f of candidates(names, prefix))
+      stats.push({ f, mtime: await mtimeAsync(path.join(inDir, f)) });
+    const f = newestOf(stats);
+    return f ? path.join(inDir, f) : null;
   }
 
   function parseLines(ch, text) {
@@ -244,6 +263,42 @@ export function createChatLogs(
     const fd = fs.openSync(ch.file, 'r');
     fs.readSync(fd, buf, 0, len, start);
     fs.closeSync(fd);
+    take(ch, buf, start, len, initial);
+  }
+
+  // The same for the look every second, without holding up the app while the disk (or a network
+  // share) answers: what EVE wrote to the channel's file since the last look.
+  async function readNewAsync(ch) {
+    const file = ch.file;
+    let stat;
+    try {
+      stat = await fs.promises.stat(file);
+    } catch {
+      return;
+    }
+    if (ch.file !== file) return; // another file or folder meanwhile
+    if (stat.size < ch.offset) ch.offset = 0; // truncated / replaced
+    if (stat.size === ch.offset) return;
+    const start = ch.offset;
+    let len = stat.size - start;
+    if (ch.encoding === 'utf16le' && len % 2) len -= 1; // wait for the second byte of a char
+    if (len <= 0) return;
+    const buf = Buffer.alloc(len);
+    let handle = null;
+    try {
+      handle = await fs.promises.open(file, 'r');
+      await handle.read(buf, 0, len, start);
+    } catch {
+      return; // the next look tries again
+    } finally {
+      await handle?.close().catch(() => {});
+    }
+    if (ch.file !== file || ch.offset !== start) return; // read meanwhile (a new session, another folder)
+    take(ch, buf, start, len, false);
+  }
+
+  // the bytes just read become messages
+  function take(ch, buf, start, len, initial) {
     ch.offset = start + len;
     let text = decode(buf, ch.encoding);
     if (initial && start > 0) text = text.slice(text.indexOf('\n') + 1); // drop partial first line
@@ -260,11 +315,10 @@ export function createChatLogs(
     onMessages(ch.cfg.id, msgs, initial);
   }
 
-  function scan() {
-    if (!dir) return;
+  // a channel's newest file changed (EVE started, a new session): read from that one
+  function useFiles(picks) {
     let changed = false;
-    for (const ch of channels.values()) {
-      const file = pickFile(ch.cfg.filePrefix);
+    for (const [ch, file] of picks) {
       if (file && file !== ch.file) {
         ch.file = file;
         ch.offset = 0;
@@ -276,9 +330,46 @@ export function createChatLogs(
     }
     if (changed) onStatus(status());
   }
+  // Looks for each channel's newest log file: the folder is listed once for all channels.
+  // scan(): at once (the start, a new folder). scanAsync(): the look every 5 seconds, which doesn't
+  // hold up the app while a big folder or a slow network share answers.
+  function scan() {
+    if (!dir) return;
+    let names;
+    try {
+      names = fs.readdirSync(dir);
+    } catch {
+      return;
+    }
+    useFiles([...channels.values()].map((ch) => [ch, pickFile(ch.cfg.filePrefix, names)]));
+  }
+  let scanning = false;
+  async function scanAsync() {
+    if (!dir || scanning) return;
+    scanning = true;
+    const inDir = dir;
+    try {
+      const names = await fs.promises.readdir(inDir);
+      const picks = [];
+      for (const ch of channels.values())
+        picks.push([ch, await pickFileAsync(ch.cfg.filePrefix, names, inDir)]);
+      if (inDir === dir) useFiles(picks); // (not when another folder was chosen meanwhile)
+    } catch {
+      /* the folder can't be read right now: the next look tries again */
+    } finally {
+      scanning = false;
+    }
+  }
 
-  function poll() {
-    for (const ch of channels.values()) if (ch.file) readNew(ch, false);
+  let polling = false;
+  async function pollAsync() {
+    if (polling) return; // the last look is still waiting for the disk
+    polling = true;
+    try {
+      for (const ch of [...channels.values()]) if (ch.file) await readNewAsync(ch);
+    } finally {
+      polling = false;
+    }
   }
 
   function start() {
@@ -290,8 +381,8 @@ export function createChatLogs(
     scan();
     onStatus(status());
     // keeps polling even without a folder: a network share may come online later
-    setInterval(poll, Math.max(250, Number(config.chatPollMs) || 1000)).unref();
-    setInterval(scan, 5000).unref();
+    setInterval(() => pollAsync().catch(() => {}), Math.max(250, Number(config.chatPollMs) || 1000)).unref();
+    setInterval(scanAsync, 5000).unref();
   }
 
   // Settings → Storage → EVE chat logs: read from another folder from now on ('' = the usual place).
@@ -307,5 +398,5 @@ export function createChatLogs(
     onStatus(status());
   }
 
-  return { start, status, snapshot, rescan: scan, setDir };
+  return { start, status, snapshot, rescan: scan, scanAsync, pollAsync, setDir };
 }

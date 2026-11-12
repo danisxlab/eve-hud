@@ -3,7 +3,6 @@ import { h, fmt, emptyState } from '../util.js';
 import { store } from '../store.js';
 import { switchTab } from '../fx.js';
 import { ICONS } from '../glyphs.js';
-import { messageParts, loadLinkNames } from '../itemlinks.js';
 import { renderParts, close as closeLink } from '../showinfo.js';
 
 export default {
@@ -67,10 +66,8 @@ export default {
         h(
           'span',
           { class: 'tx' },
-          (() => {
-            const parts = messageParts(m);
-            return parts ? renderParts(parts) : m.text;
-          })(),
+          // item and system names arrive as links, made where the chat is read (lib/itemlinks.js)
+          m.parts ? renderParts(m.parts) : m.text,
         ),
       );
     }
@@ -140,12 +137,6 @@ export default {
       } else renderTabs();
     });
     const offSnap = store.on('snapshot', renderAll);
-    // item names arrive once (and again after a static data update): re-render so they turn orange
-    const offNames = store.on('linknames', renderAll);
-    const offUni = store.on('universe', (u) => {
-      if (u.ready) loadLinkNames();
-    });
-    loadLinkNames();
 
     renderTabs();
     renderAll();
@@ -156,8 +147,6 @@ export default {
         offStatus();
         offChar();
         offSnap();
-        offNames();
-        offUni();
         closeLink();
       },
     };

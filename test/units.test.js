@@ -12,7 +12,14 @@ import { hudHomeDir } from '../src/paths.js';
 import { isAllowedRequest, SESSION_PARTITION } from '../src/privacy.js';
 import { readUseGpu, writeUseGpu, OPTIONS_FILE } from '../src/gpu.js';
 import { createGameLogs, gamelogDirFor } from '../hud/lib/gamelogs.js';
-import { chatDirFor, logsRootFor, configuredLogsDir } from '../hud/lib/chatlogs.js';
+import {
+  chatDirFor,
+  logsRootFor,
+  configuredLogsDir,
+  newestCandidates,
+  createChatLogs,
+} from '../hud/lib/chatlogs.js';
+import { createLinker } from '../hud/lib/itemlinks.js';
 import { configFiles, findDamaged, resetConfig, recoveryPage } from '../src/recovery.js';
 import { buildSite } from '../scripts/build-site.js';
 import { createAutostart, autostartDesktopFile } from '../src/autostart.js';
@@ -469,7 +476,7 @@ test('website: the documentation and the demo, with only browser code in the dem
   assert.doesNotMatch(page, /(?:src|href)="\/(?!\/)/);
   // hud/lib: only what the demo imports, and none of it may need Node.js
   const lib = fs.readdirSync(path.join(out, 'hud/lib')).sort();
-  assert.deepEqual(lib, ['demo.js', 'evehtml.js', 'route.js', 'universe-data.js']);
+  assert.deepEqual(lib, ['demo.js', 'evehtml.js', 'itemlinks.js', 'route.js', 'universe-data.js']);
   for (const f of lib)
     assert.doesNotMatch(fs.readFileSync(path.join(out, 'hud/lib', f), 'utf8'), /from ['"]node:/, f);
   assert.doesNotMatch(
@@ -533,4 +540,134 @@ test('About: the commit the app was built from, from its package.json or the .gi
   // the installed app: package.json's gitCommit (electron-builder.config.cjs) wins
   fs.writeFileSync(path.join(repo, 'package.json'), JSON.stringify({ gitCommit: 'abcdef1' }));
   assert.equal(buildCommit(repo), 'abcdef1');
+});
+
+test('chat links: item and system names become links where the chat is read', () => {
+  const linker = createLinker();
+  const plain = { text: 'WTS  Damage Control II  and  Tritanium  , convo me' };
+  assert.equal(linker.link(plain).parts, undefined, 'no names yet: plain text');
+  assert.equal(
+    linker.setNames({
+      version: 'a',
+      items: [
+        [2048, 'Damage Control II'],
+        [34, 'Tritanium'],
+        [1, 'Damage Control'],
+      ],
+      systems: [[30000142, 'Jita']],
+    }),
+    true,
+  );
+  assert.equal(linker.setNames({ version: 'a', items: [], systems: [] }), false, 'the same version: kept');
+  // the names came later: the same message gets its links (the longest name wins)
+  assert.deepEqual(
+    linker.link(plain).parts.filter((p) => p.href),
+    [
+      { text: 'Damage Control II', href: 'showinfo:2048' },
+      { text: 'Tritanium', href: 'showinfo:34' },
+    ],
+  );
+  assert.equal(
+    linker
+      .link(plain)
+      .parts.map((p) => p.text)
+      .join(''),
+    plain.text,
+    'linking again changes nothing',
+  );
+  // a one-word name only when it stands on its own; a system links to its info
+  assert.equal(linker.link({ text: 'going to Jita now' }).parts, undefined);
+  assert.deepEqual(linker.link({ text: 'Jita' }).parts, [{ text: 'Jita', href: 'showinfo:5//30000142' }]);
+  // a link EVE wrote itself stays, the text around it is still looked at
+  const mixed = { text: 'x Tritanium', parts: [{ text: 'x', href: 'showinfo:9' }, { text: '  Tritanium' }] };
+  assert.deepEqual(
+    linker
+      .link(mixed)
+      .parts.filter((p) => p.href)
+      .map((p) => p.href),
+    ['showinfo:9', 'showinfo:34'],
+  );
+});
+
+test('EVE logs: only the few newest files by name are looked at, and the folder scan can run async', async () => {
+  const names = [];
+  for (let d = 1; d <= 28; d++) names.push(`Local_202610${String(d).padStart(2, '0')}_180000_42.txt`);
+  names.push('Local_20261101_090000_7.txt', 'Local_20261102_090000_7.txt');
+  assert.deepEqual(newestCandidates(names, 42), [
+    'Local_20261028_180000_42.txt',
+    'Local_20261027_180000_42.txt',
+    'Local_20261026_180000_42.txt',
+    'Local_20261025_180000_42.txt',
+  ]);
+  assert.deepEqual(newestCandidates(names, 7), [
+    'Local_20261102_090000_7.txt',
+    'Local_20261101_090000_7.txt',
+  ]);
+  assert.equal(newestCandidates(names, null).length, 4, 'no character: the newest of all');
+  assert.equal(newestCandidates(['a.txt', 'Local_20261028_180000.txt'], null).length, 2, 'no date: all');
+
+  // the periodic (async) scan finds a new session's file, as the scan at the start does
+  const root = fs.mkdtempSync(path.join(tmp, 'chatlogs-'));
+  const dir = path.join(root, 'Chatlogs');
+  fs.mkdirSync(dir);
+  const log = (name, line) =>
+    fs.writeFileSync(
+      path.join(dir, name),
+      Buffer.from(`\uFEFF[ 2026.11.12 18:00:00 ] Demo Pilot > ${line}\r\n`, 'utf16le'),
+    );
+  log('Local_20261112_170000_42.txt', 'first');
+  const got = [];
+  const chat = createChatLogs(
+    { eveLogDir: root, chatChannels: [{ id: 'local', label: 'Local', filePrefix: 'Local' }] },
+    { getCharacterId: () => 42, onMessages: (ch, msgs) => got.push(...msgs.map((m) => m.text)), log: {} },
+  );
+  chat.rescan();
+  assert.deepEqual(got, ['first']);
+  assert.equal(chat.status().channels[0].file, 'Local_20261112_170000_42.txt');
+  log('Local_20261112_180000_42.txt', 'second');
+  await chat.scanAsync();
+  assert.equal(chat.status().channels[0].file, 'Local_20261112_180000_42.txt');
+  assert.deepEqual(got, ['first', 'second']);
+  // the look every second (async) reads what EVE wrote since
+  fs.appendFileSync(
+    path.join(dir, 'Local_20261112_180000_42.txt'),
+    Buffer.from('[ 2026.11.12 18:00:05 ] Demo Pilot > third\r\n', 'utf16le'),
+  );
+  await Promise.all([chat.pollAsync(), chat.pollAsync()]); // two at once: read only once
+  assert.deepEqual(got, ['first', 'second', 'third']);
+  await chat.pollAsync();
+  assert.deepEqual(got, ['first', 'second', 'third'], 'nothing new: nothing read');
+});
+
+test('game logs: the look every second (async) reads combat like the direct one', async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'gamelogs-async-'));
+  const games = path.join(root, 'Gamelogs');
+  fs.mkdirSync(path.join(root, 'Chatlogs'));
+  fs.mkdirSync(games);
+  const file = path.join(games, '20261102_190000_123.txt');
+  let clock = Date.UTC(2026, 10, 2, 19, 0, 0);
+  fs.writeFileSync(file, '------\n');
+  const events = [];
+  const g = createGameLogs(
+    { combatIdleSeconds: 15 },
+    {
+      chatDir: path.join(root, 'Chatlogs'),
+      onCombat: (c) => events.push(c.active),
+      log: {},
+      now: () => clock,
+    },
+  );
+  await g.scanAsync();
+  assert.equal(g.status().file, '20261102_190000_123.txt');
+  await g.pollAsync();
+  assert.deepEqual(events, []);
+  fs.appendFileSync(file, '[ 2026.11.02 19:00:00 ] (combat) <b>32</b> to Guristas Arrogator - Hits\n');
+  await Promise.all([g.pollAsync(), g.pollAsync()]); // two at once: read only once
+  assert.deepEqual(events, [true]);
+  clock += 16_000;
+  await g.pollAsync();
+  assert.deepEqual(events, [true, false]);
+  fs.rmSync(path.join(games, '20261102_190000_123.txt'));
+  await g.pollAsync(); // the file is gone: no error
+  fs.rmSync(root, { recursive: true, force: true });
 });

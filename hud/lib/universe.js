@@ -335,23 +335,23 @@ export function createUniverse({ esi, userAgent, log = console, onProgress = () 
   }
 
   // Names the chat module recognises: items (from the SDE) and k-space systems.
-  function linkNames() {
+  function linkVersion() {
     if (!itemNameData) {
       const n = readJson(NAMES_FILE, null);
       itemNameData = n?.names?.length ? n : { names: [], build: null, builtAt: null };
     }
-    const systems = linkSystems(data);
-    return {
-      version: `${itemNameData.builtAt || 'none'}|${data?.builtAt || 'none'}`,
-      items: itemNameData.names,
-      systems,
-    };
+    return `${itemNameData.builtAt || 'none'}|${data?.builtAt || 'none'}`;
+  }
+  function linkNames() {
+    const version = linkVersion();
+    return { version, items: itemNameData.names, systems: linkSystems(data) };
   }
 
   return {
     ensure,
     payload,
     linkNames,
+    linkVersion, // changes when the item names or the map did
     get state() {
       return state;
     },

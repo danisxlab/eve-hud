@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The slow starfield behind the modules, so the see-through panels have depth.
 
-import { $, motionReduced, motionLimited, onFrame } from './util.js';
+import { $, motionReduced, motionLimited, onFrame, FPS } from './util.js';
 import { store } from './store.js';
 
 // ---------------- backdrop: slow starfield so translucent panels have depth ----------------
@@ -10,8 +10,7 @@ export function startBackdrop() {
   const g = c.getContext('2d');
   let W,
     H,
-    stars = [],
-    nebula = null;
+    stars = [];
   const resize = () => {
     // On a Retina / HiDPI screen (2× or more) the starfield is drawn at normal density: a quarter of
     // the pixels, and you can't tell behind the see-through panels. Other screens: as before.
@@ -28,41 +27,31 @@ export function startBackdrop() {
     while (stars.length < want)
       stars.push({ x: Math.random(), y: Math.random(), z: Math.random(), p: Math.random() * Math.PI * 2 });
     stars.length = want;
-    // the two faint faction-coloured nebula washes never change: drawn once per size, then copied
-    nebula = document.createElement('canvas');
-    nebula.width = c.width;
-    nebula.height = c.height;
-    const ng = nebula.getContext('2d');
-    ng.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const n1 = ng.createRadialGradient(W * 0.18, H * 0.3, 0, W * 0.18, H * 0.3, W * 0.9);
-    n1.addColorStop(0, 'rgba(79,176,143,0.07)');
-    n1.addColorStop(1, 'rgba(79,176,143,0)');
-    ng.fillStyle = n1;
-    ng.fillRect(0, 0, W, H);
-    const n2 = ng.createRadialGradient(W * 0.85, H * 0.78, 0, W * 0.85, H * 0.78, W * 0.8);
-    n2.addColorStop(0, 'rgba(79,163,214,0.06)');
-    n2.addColorStop(1, 'rgba(79,163,214,0)');
-    ng.fillStyle = n2;
-    ng.fillRect(0, 0, W, H);
+    // (the two faint faction-coloured nebula washes behind the stars are a CSS background of this
+    // canvas, base.css: they never change, and that way they need no window-sized picture)
   };
   addEventListener('resize', resize);
   resize();
-  // The stars drift slowly, so they're redrawn about 10 times a second (once a second with
-  // animations off), not every frame: that also spares the blurred panels in front of them, which
+  // The stars drift slowly, so they're redrawn about 12 times a second (twice with Animations:
+  // Limited; with animations off only after a change), not every frame: that also spares the blurred panels in front of them, which
   // the graphics card has to blur again every time the stars behind them change.
   let last = -Infinity;
-  let lastSlot = -1;
+  let drawn = ''; // what the canvas shows while nothing moves
+  // draws a second. Full: every second beat of the shared clock (12.5), so the stars need no
+  // frames of their own between the other parts' frames.
+  const rate = () => (motionReduced() ? 1 : motionLimited() ? 2 : FPS / 2);
   const draw = (t) => {
-    const every = motionReduced() ? 1000 : motionLimited() ? 500 : 100;
-    const slot = Math.floor(t / every); // about every third tick of the shared clock
-    if (slot === lastSlot) return;
-    lastSlot = slot;
+    const every = 1000 / rate();
+    const mode = store.settings?.appearance.backdrop || 'stars';
+    c.classList.toggle('none', mode === 'none');
+    // nothing moves (animations off, or no stars): draw once, then only after a change
+    const key = motionReduced() || mode === 'none' ? `${mode}|${W}|${H}` : '';
+    if (key && key === drawn) return;
+    drawn = key;
     const dt = Math.min(1000, t - (Number.isFinite(last) ? last : t - every)); // ms since the last draw
     last = t;
-    const mode = store.settings?.appearance.backdrop || 'stars';
     g.clearRect(0, 0, W, H);
     if (mode !== 'none') {
-      g.drawImage(nebula, 0, 0, W, H);
       const still = motionReduced();
       const step = dt / 16.7; // the drift speeds were per 60 Hz frame
       for (const s of stars) {
@@ -82,7 +71,9 @@ export function startBackdrop() {
   };
   addEventListener('resize', () => {
     last = -Infinity;
-    lastSlot = -1;
-  }); // redraw at once after a resize
-  onFrame(draw);
+    drawn = '';
+    draw(performance.now()); // redraw at once after a resize (which empties the canvas)
+  });
+  // on the shared clock at its own, low rate: the page isn't woken for the frames in between
+  onFrame(draw, { fps: rate });
 }

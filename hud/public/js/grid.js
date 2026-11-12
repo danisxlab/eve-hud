@@ -526,9 +526,16 @@ export function createGrid(root, registry, { toast }) {
 
   new ResizeObserver(() => layout()).observe(root);
 
+  // A module's api can have:
+  //   tick(now)   once a second: countdowns and "x minutes ago" texts
+  //   frame(t)    on the HUD's animation clock, but only while animating() says something moves
   function tick(now) {
     for (const m of mounted.values()) m.api.tick?.(now);
   }
+  function frame(t) {
+    for (const m of mounted.values()) if (m.api.frame && m.api.animating?.() !== false) m.api.frame(t);
+  }
+  const animating = () => [...mounted.values()].some((m) => m.api.frame && m.api.animating?.() !== false);
 
   // After a resize: the content (dimmed while you drag) comes back with a quick double blink as it
   // settles into its new size, like a HUD redrawing a panel. Not with Animations: Off.
@@ -598,6 +605,8 @@ export function createGrid(root, registry, { toast }) {
     setVisible,
     cancelReplace,
     tick,
+    frame,
+    animating,
     pulse,
     setHealth,
     remountAll() {

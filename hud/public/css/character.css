@@ -245,7 +245,7 @@
   pointer-events: none;
   will-change: transform, opacity;
   opacity: 0;
-} /* pulsed by character.js on the HUD's 30-a-second clock */
+} /* pulsed by character.js on the HUD's animation clock */
 
 /* Character: the wallet chart gets a scan line across when the balance changes */
 .char .wallet .chart.fx-scan::after {

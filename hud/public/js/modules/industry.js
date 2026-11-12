@@ -104,7 +104,8 @@ export default {
         const paused = j.status === 'paused';
         const frac = ready ? 1 : Math.max(0, Math.min(1, (now - j.start) / (j.end - j.start)));
         it.row.classList.toggle('ready', ready);
-        it.when.textContent = ready ? 'Ready to deliver' : paused ? 'Paused' : fmt.clock(j.end - now);
+        const when = ready ? 'Ready to deliver' : paused ? 'Paused' : fmt.clock(j.end - now);
+        if (it.when.textContent !== when) it.when.textContent = when;
         const pct = Math.round(frac * 400); // redraw dial in 0.25% steps
         if (force || pct !== it.last) {
           it.last = pct;
@@ -117,14 +118,8 @@ export default {
 
     const off = store.on('feed:industry', build);
     build();
-    let lastTick = 0;
     return {
-      tick(now) {
-        if (now - lastTick >= 1000) {
-          lastTick = now;
-          tick();
-        }
-      },
+      tick: () => tick(), // once a second (grid.js)
       destroy: off,
     };
   },

@@ -3,6 +3,7 @@
 //   GET /api/showinfo?type=<typeID>[&item=<itemID>]
 // All public ESI endpoints (no scopes); ESI's own cache headers keep repeat clicks free.
 import { cleanText } from './evehtml.js';
+import { marketPrices } from './esi.js';
 
 const CHARACTER_TYPES = new Set([
   1373, 1374, 1375, 1376, 1377, 1378, 1379, 1380, 1381, 1382, 1383, 1384, 1385, 1386, 34574,
@@ -13,20 +14,17 @@ const DESCRIPTION_MAX = 900;
 
 export function createShowInfo({ esi, universe, log = console }) {
   const memo = new Map(); // small result cache on top of ESI's, so a popular link doesn't re-resolve names
-  let prices = { at: 0, byType: null };
+  let lastPrices = null; // the price map last read (the same one the ESI client keeps), if ESI fails
 
   async function marketPrice(typeId) {
-    if (!prices.byType || Date.now() - prices.at > 3600_000) {
-      try {
-        const { data } = await esi.request('/markets/prices'); // every type in one request, cached by ESI for an hour
-        prices = { at: Date.now(), byType: new Map(data.map((p) => [p.type_id, p])) };
-      } catch (err) {
-        log.warn?.(`[showinfo] market prices: ${err.message}`);
-        if (!prices.byType) return null;
-      }
+    try {
+      lastPrices = (await marketPrices(esi)).map; // every type in one request, cached by ESI for an hour
+    } catch (err) {
+      log.warn?.(`[showinfo] market prices: ${err.message}`);
+      if (!lastPrices) return null;
     }
-    const p = prices.byType.get(typeId);
-    return p ? { average: p.average_price ?? null, adjusted: p.adjusted_price ?? null } : null;
+    const p = lastPrices.get(typeId);
+    return p ? { average: p[0], adjusted: p[1] } : null;
   }
 
   async function typeCard(typeId) {

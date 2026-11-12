@@ -111,7 +111,7 @@
   color: var(--ink);
   background: rgba(0, 0, 0, 0.55);
   border: 1px solid var(--line);
-  backdrop-filter: blur(6px);
+  backdrop-filter: var(--panel-backdrop, blur(6px)); /* none with Background blur 0 */
   outline: none;
 }
 
@@ -168,7 +168,7 @@
   padding: 3px 0;
   background: rgba(8, 12, 14, 0.95);
   border: 1px solid var(--line-2);
-  backdrop-filter: blur(10px);
+  backdrop-filter: var(--panel-backdrop, blur(10px)); /* none with Background blur 0 */
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
 }
 
@@ -340,7 +340,7 @@
   display: inline-flex;
   border: 1px solid var(--line);
   background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(6px);
+  backdrop-filter: var(--panel-backdrop, blur(6px)); /* none with Background blur 0 */
 }
 
 .mode-switch button {
@@ -376,7 +376,7 @@
   padding: 6px 9px 5px;
   background: rgba(0, 0, 0, 0.55);
   border: 1px solid var(--line);
-  backdrop-filter: blur(6px);
+  backdrop-filter: var(--panel-backdrop, blur(6px)); /* none with Background blur 0 */
 }
 
 .fac-row {
@@ -438,7 +438,7 @@
   padding: 8px 10px 6px;
   background: rgba(0, 0, 0, 0.62);
   border: 1px solid var(--line);
-  backdrop-filter: blur(6px);
+  backdrop-filter: var(--panel-backdrop, blur(6px)); /* none with Background blur 0 */
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -577,7 +577,7 @@
   padding: 8px 10px 9px;
   background: rgba(0, 0, 0, 0.62);
   border: 1px solid var(--line);
-  backdrop-filter: blur(6px);
+  backdrop-filter: var(--panel-backdrop, blur(6px)); /* none with Background blur 0 */
   color: var(--ink);
   font-size: 12px;
   display: flex;

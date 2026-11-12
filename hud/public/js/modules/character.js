@@ -401,8 +401,8 @@ export default {
 
     return {
       // the wallet graph's end dot pulses (Animations: Full; hidden otherwise), on the shared clock
-      tick() {
-        if (!motionFull()) return;
+      animating: () => motionFull() && Boolean(chart.querySelector('.w-pulse')),
+      frame() {
         const dot = chart.querySelector('.w-pulse');
         if (!dot) return;
         const p = (Date.now() % 2800) / 2800;

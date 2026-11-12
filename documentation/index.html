@@ -992,7 +992,9 @@
                           modules. It's the most expensive effect while the background moves: the graphics
                           card has to blur every module again for each frame of the plexus and starfield. At 0
                           it's switched off completely, which (measured on a Mac with the background animating)
-                          takes about a third off the CPU of the GPU process and most of its GPU time.
+                          takes about a third off the CPU of the GPU process and most of its GPU time. The
+                          smaller blurs follow the same setting: the top bar and its hover boxes, the star
+                          map's search, legends and buttons, and the chat's item window.
                         </li>
                         <li>
                           <strong>Display background:</strong> a low-poly constellation mesh background, busiest
@@ -1005,7 +1007,7 @@
                           costs a game on the other screen many frames a second): the points wander slowly, so
                           lines and triangles connect and disconnect, each fading in and out over about three
                           seconds, and every triangle glows and dims on its own slow rhythm; a few are a
-                          deeper green or a pale mint. It redraws 30 times a second (24 with Animations:
+                          deeper green or a pale mint. It redraws 25 times a second (24 with Animations:
                           Limited); switched off, or with Animations: Off, it stands still and costs nothing.
                         </li>
                         <li>
@@ -1025,7 +1027,7 @@
                           <strong>Animations:</strong>
                           <ul>
                             <li>
-                              <em>Full</em> (default): everything moves smoothly, at up to 30 frames a second.
+                              <em>Full</em> (default): everything moves smoothly, at up to 25 frames a second.
                               Only with <em>Full</em>, data changes animate too: bars ease to their new length
                               with a bright head on the moving edge; a new row (an ore in the Mining Ledger, a
                               killmail, a wallet source) fades in while the rows below glide down; switching a
@@ -1044,8 +1046,8 @@
                               CSS animations in steps). Much less CPU.
                             </li>
                             <li>
-                              <em>Off</em>: no motion at all; EVE HUD only redraws when something changes. The
-                              least CPU and battery.
+                              <em>Off</em>: no motion at all; EVE HUD only redraws when something changes
+                              (and counts its countdowns once a second). The least CPU and battery.
                             </li>
                             <li>
                               Whatever the setting, EVE HUD pauses while its window is minimised or completely
@@ -3938,6 +3940,7 @@ hud/                   EVE HUD (server and page; no dependencies)
   lib/chatlogs.js      chat log tailing (UTF-16), the EVE logs folder
   lib/gamelogs.js      the game logs: combat (ATTACK) and the autopilot's next jump
   lib/evehtml.js       EVE markup: plain text and links
+  lib/itemlinks.js     recognises item and system names in chat (also used by the demo website)
   lib/showinfo.js      lookups for the chat link window (/api/showinfo)
   lib/demo.js          sample data for --demo
   public/              the page (plain JavaScript modules, no build step)
@@ -3958,7 +3961,6 @@ hud/                   EVE HUD (server and page; no dependencies)
     js/glyphs.js       the line icons (ICONS)
     js/fx.js           data-change animations
     js/alerts.js       the top-bar alerts
-    js/itemlinks.js    recognises item and system names in chat
     js/showinfo.js     the chat link window
     js/hud-context.js  what the parts share (the grid)
     js/modules/        one file per module, index.js lists them (common.js: shared parts of the list
@@ -4015,9 +4017,12 @@ demo/fake-server.js    the demo website: answers the EVE HUD page in the browser
                 </li>
                 <li>
                   <strong>Animations</strong> run on one shared clock (<code>onFrame()</code> in
-                  <code>js/util.js</code>) at 30 frames a second (fewer with Animations: Limited, none with
-                  Off). Continuous effects are driven from JavaScript through CSS variables instead of CSS
-                  animations, which keeps the window cheap to draw.
+                  <code>js/util.js</code>) at 25 frames a second (fewer with Animations: Limited, none with
+                  Off). The clock only runs while something moves: a module's <code>frame()</code> is
+                  called while its <code>animating()</code> says so, and its <code>tick()</code> once a
+                  second for countdowns. Continuous effects are driven from JavaScript through CSS
+                  variables, set on the small element that moves, instead of CSS animations, which keeps
+                  the window cheap to draw.
                 </li>
                 <li>
                   <strong>Formatting:</strong> <a href="https://prettier.io">Prettier</a> with
@@ -4237,11 +4242,6 @@ demo/fake-server.js    the demo website: answers the EVE HUD page in the browser
                 On Windows and macOS, compare the result with the line for that file in
                 <code>SHA256SUMS.txt</code> (capital or small letters make no difference). GitHub also shows
                 a <code>sha256</code> value next to each file on the release page.
-              </p>
-              <p>
-                <strong>For your own release:</strong> after building, <code>npm run checksums</code> writes
-                <code>dist/SHA256SUMS.txt</code> for the files of the current version. Attach it to the
-                release with the installers.
               </p>
             </div>
             <div class="section">
