@@ -17,6 +17,7 @@ const SERVER = path.join(APP, 'test', 'run-server.js'); // the server on its own
 // lib/store.js reads EVE_HUD_HOME once, at import: point it at a temp folder before importing lib/
 const home = fs.mkdtempSync(path.join(os.tmpdir(), 'eve-hud-test-'));
 process.env.EVE_HUD_HOME = home;
+delete process.env.EVE_HUD_DATA; // data/ in the temp folder too, whatever the shell has set
 const { createFeeds, categoryOfRef, summarizeKillmail } = await import('../hud/lib/feeds.js');
 const { createRouter } = await import('../hud/lib/route.js');
 const { loadConfig } = await import('../hud/lib/store.js');
@@ -357,10 +358,6 @@ test('new feeds against ESI-shaped answers: activity, mining, assets, standings,
         is_singleton: false,
       },
     ],
-    '/universe/types/626': { group_id: 26 },
-    '/universe/groups/26': { category_id: 6 },
-    '/universe/types/2048': { group_id: 60 },
-    '/universe/groups/60': { category_id: 7 },
     '/characters/1/assets/names': [{ item_id: 1001, name: 'Bessie' }],
     '/characters/1/standings': [
       { from_id: 500004, from_type: 'faction', standing: 3.2 },
@@ -392,7 +389,8 @@ test('new feeds against ESI-shaped answers: activity, mining, assets, standings,
   const feeds = createFeeds({
     esi,
     auth: fakeAuth,
-    universe: fakeUniverse,
+    // ships are spotted from the static data's item categories (statics.js), not ESI
+    universe: { ...fakeUniverse, statics: { categoryOfType: (id) => ({ 626: 6, 2048: 7 })[id] ?? null } },
     publish: (n, p) => {
       got[n] = p;
     },
@@ -807,7 +805,7 @@ test('security: other websites in the browser get nothing from the API; pending 
 
   // at most 20 logins waiting: the oldest is forgotten
   const { createAuth } = await import('../hud/lib/auth.js');
-  const auth = createAuth(
+  const auth = await createAuth(
     { scopes: ['publicData'], clientId: '', port: 4747 },
     { log: { info() {}, warn() {} } },
   );
@@ -838,14 +836,14 @@ test('a Client ID that cannot be one (typed into config.json): the EVE HUD appli
       store.CONFIG_FILE,
       JSON.stringify({ ...example, clientId: 'test12345', clientSecret: 'test12345' }, null, 2),
     );
-    const cfg = store.loadConfig();
+    const cfg = await store.loadConfig();
     assert.equal(cfg.ownApp, false);
     assert.equal(cfg.clientId, '');
     assert.match(cfg.secretProblem, /doesn't look like one/);
     assert.equal(store.loginApp(cfg).builtin, true);
     // a real-looking one is your own application
     fs.writeFileSync(store.CONFIG_FILE, JSON.stringify({ ...example, clientId: 'd'.repeat(32) }, null, 2));
-    const own = store.loadConfig();
+    const own = await store.loadConfig();
     assert.equal(own.ownApp, true);
     assert.equal(own.secretProblem, null);
 
@@ -868,11 +866,21 @@ test('a Client ID that cannot be one (typed into config.json): the EVE HUD appli
       'my-fork/2.0 (me@example.com)',
     ]) {
       fs.writeFileSync(store.CONFIG_FILE, JSON.stringify({ ...example, userAgent: ua, port: 4747 }, null, 2));
-      assert.equal(store.loadConfig().userAgent, store.USER_AGENT, ua);
+      assert.equal((await store.loadConfig()).userAgent, store.USER_AGENT, ua);
       const file = JSON.parse(fs.readFileSync(store.CONFIG_FILE, 'utf8'));
       assert.equal(file.userAgent, undefined, 'taken out of config.json');
       assert.equal(file.port, 4747, 'the rest stays');
     }
+    // the ESI version date too: the code is written for one date (older config.json files have one)
+    assert.equal(example.compatibilityDate, undefined, 'not in config.example.json');
+    fs.writeFileSync(
+      store.CONFIG_FILE,
+      JSON.stringify({ ...example, compatibilityDate: '2026-08-18', port: 4747 }, null, 2),
+    );
+    assert.equal((await store.loadConfig()).compatibilityDate, '2026-11-19');
+    const file = JSON.parse(fs.readFileSync(store.CONFIG_FILE, 'utf8'));
+    assert.equal(file.compatibilityDate, undefined, 'taken out of config.json');
+    assert.equal(file.port, 4747, 'the rest stays');
 
     // Settings → Account names the application the login was made with, not the one in config.json
     const quiet = { info() {}, warn() {} };
@@ -886,11 +894,11 @@ test('a Client ID that cannot be one (typed into config.json): the EVE HUD appli
       scopes: [],
     };
     write({ ...t, clientId: store.BUILTIN_CLIENT_ID });
-    assert.equal(createAuth(own, { log: quiet }).status().loginOwnApp, false);
+    assert.equal((await createAuth(own, { log: quiet })).status().loginOwnApp, false);
     write({ ...t, clientId: 'd'.repeat(32) });
-    assert.equal(createAuth(own, { log: quiet }).status().loginOwnApp, true);
+    assert.equal((await createAuth(own, { log: quiet })).status().loginOwnApp, true);
     write(t); // older logins: your own application, the only kind there was
-    assert.equal(createAuth(own, { log: quiet }).status().loginOwnApp, true);
+    assert.equal((await createAuth(own, { log: quiet })).status().loginOwnApp, true);
     fs.rmSync(store.dataPath('tokens.json'));
   } finally {
     if (before) fs.writeFileSync(store.CONFIG_FILE, before);
@@ -898,10 +906,34 @@ test('a Client ID that cannot be one (typed into config.json): the EVE HUD appli
   }
 });
 
+test('Settings → Storage knows every file the HUD keeps in data/ (only those move)', async () => {
+  const { DATA_FILES, DEBUG_DUMPS } = await import('../src/storage.js');
+  const { DUMP_NAMES } = await import('../hud/lib/feeds/shapes.js');
+  const { DATA_FILES: IMPORTED } = await import('../src/importer.js');
+  assert.deepEqual([...DEBUG_DUMPS].sort(), [...DUMP_NAMES].sort());
+  const used = new Set(['window-state.json']); // src/main.js (the window's place and size)
+  const walk = (dir) => {
+    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, e.name);
+      if (e.isDirectory()) walk(p);
+      else if (p.endsWith('.js'))
+        for (const m of fs.readFileSync(p, 'utf8').matchAll(/(?:dataPath|useSettingsFile)\('([^']+)'\)/g))
+          used.add(m[1]);
+    }
+  };
+  walk(ROOT);
+  // debug/ is a folder (DEBUG_DUMPS); sde-download.zip only exists during a download
+  for (const name of used)
+    if (!['debug', 'sde-download.zip'].includes(name))
+      assert.ok(DATA_FILES.includes(name), `${name} is missing in DATA_FILES (src/storage.js)`);
+  for (const name of IMPORTED)
+    assert.ok(DATA_FILES.includes(name), `${name} (importer) is missing in DATA_FILES`);
+});
+
 test('debug files (data/debug/*.json) are only written with "debugDumps": true; off removes the ones an earlier version left', async () => {
   const { dumpDebug, setDebugDumps, DEBUG_DIR } = await import('../hud/lib/feeds/shapes.js');
   const store = await import('../hud/lib/store.js');
-  assert.equal(store.loadConfig().debugDumps, false, 'off unless you turn it on');
+  assert.equal((await store.loadConfig()).debugDumps, false, 'off unless you turn it on');
   fs.mkdirSync(DEBUG_DIR, { recursive: true });
   fs.writeFileSync(path.join(DEBUG_DIR, 'industry.json'), '{"old":true}'); // from an earlier version
   fs.writeFileSync(path.join(DEBUG_DIR, 'mine.txt'), 'not ours');
@@ -1029,34 +1061,37 @@ test('secrets: Client ID, Secret Key and login are stored encrypted; values from
         2,
       ),
     );
-    let cfg = store.loadConfig();
+    let cfg = await store.loadConfig();
     assert.equal(cfg.clientSecret, 'plain-secret-value-123456');
     assert.equal(cfg.ownApp, true);
     const text = fs.readFileSync(store.CONFIG_FILE, 'utf8');
     assert.doesNotMatch(text, /plain-secret|abcdefabcdef/, 'encrypted on first load');
     assert.match(JSON.parse(text).clientSecret, /^enc:/);
     assert.equal(JSON.parse(text).port, 4747, 'other values untouched');
-    assert.equal(store.loadConfig().clientSecret, 'plain-secret-value-123456', 'reads back');
+    assert.equal((await store.loadConfig()).clientSecret, 'plain-secret-value-123456', 'reads back');
 
     fs.writeFileSync(
       store.dataPath('tokens.json'),
       JSON.stringify({ characterId: 7, characterName: 'Pilot', refreshToken: 'rt-plain' }),
     );
-    assert.equal(createAuth(cfg, { log: quiet }).status().characterName, 'Pilot');
+    assert.equal((await createAuth(cfg, { log: quiet })).status().characterName, 'Pilot');
     assert.doesNotMatch(
       fs.readFileSync(store.dataPath('tokens.json'), 'utf8'),
       /rt-plain|Pilot/,
       'login encrypted on first load',
     );
-    assert.equal(createAuth(cfg, { log: quiet }).status().characterName, 'Pilot', 'reads back');
+    assert.equal((await createAuth(cfg, { log: quiet })).status().characterName, 'Pilot', 'reads back');
 
     key.v = 'pc2'; // the same files on another computer
-    cfg = store.loadConfig();
+    cfg = await store.loadConfig();
     assert.equal(cfg.ownApp, false, 'falls back to the built-in application');
     assert.equal(cfg.configured, true, 'and can still log in');
     assert.match(cfg.secretProblem, /another computer/);
     const warns = [];
-    assert.equal(createAuth(cfg, { log: { ...quiet, warn: (m) => warns.push(m) } }).status().loggedIn, false);
+    assert.equal(
+      (await createAuth(cfg, { log: { ...quiet, warn: (m) => warns.push(m) } })).status().loggedIn,
+      false,
+    );
     assert.match(warns[0], /could not be decrypted/);
   } finally {
     secrets.useSecretBox(null);
@@ -1091,7 +1126,7 @@ test('ESI health: each feed gets the worst state of its routes; parameters and v
   );
 });
 
-test('chat: an older config.json with only Local and Corp still gets the Militia channel (shown while enlisted)', () => {
+test('chat: an older config.json with only Local and Corp still gets the Militia channel (shown while enlisted)', async () => {
   fs.writeFileSync(
     path.join(home, 'config.json'),
     JSON.stringify({
@@ -1101,7 +1136,7 @@ test('chat: an older config.json with only Local and Corp still gets the Militia
       ],
     }),
   );
-  const cfg = loadConfig();
+  const cfg = await loadConfig();
   assert.deepEqual(
     cfg.chatChannels.map((c) => c.id),
     ['local', 'corp', 'militia'],
@@ -1171,7 +1206,7 @@ test('login: the built-in EVE HUD application uses PKCE (no Secret Key); your ow
       scopes: ['a', 'b'],
       userAgent: 'test',
     };
-    const auth = createAuth(cfg, { log: quiet });
+    const auth = await createAuth(cfg, { log: quiet });
     auth.logout();
     assert.equal(auth.status().ownApp, false);
     const u = new URL(auth.loginUrl());
@@ -1200,7 +1235,7 @@ test('login: the built-in EVE HUD application uses PKCE (no Secret Key); your ow
     auth.logout();
     // your own application with a Secret Key: Basic auth, no PKCE
     const own = { ...cfg, clientId: 'b'.repeat(32), clientSecret: 'eat_OwnSecretOwnSecretOwnSecret12' };
-    const auth3 = createAuth(own, { log: quiet });
+    const auth3 = await createAuth(own, { log: quiet });
     const u3 = new URL(auth3.loginUrl());
     assert.equal(u3.searchParams.get('client_id'), 'b'.repeat(32));
     assert.equal(u3.searchParams.get('code_challenge'), null);
@@ -1212,5 +1247,195 @@ test('login: the built-in EVE HUD application uses PKCE (no Secret Key); your ow
     auth3.logout();
   } finally {
     globalThis.fetch = real;
+  }
+});
+
+test('login: a refused token request without an error message gives one plain sentence, not a web page', async () => {
+  const { createAuth } = await import('../hud/lib/auth.js');
+  const real = globalThis.fetch;
+  let reply;
+  globalThis.fetch = async () => reply();
+  const quiet = { warn() {}, info() {} };
+  const cfg = {
+    clientId: '',
+    clientSecret: '',
+    callbackUrl: 'http://localhost:4747/callback',
+    scopes: ['a'],
+    userAgent: 'test',
+  };
+  const attempt = async () => {
+    const auth = await createAuth(cfg, { log: quiet });
+    const u = new URL(auth.loginUrl());
+    return auth.handleCallback({ code: 'c', state: u.searchParams.get('state') });
+  };
+  try {
+    // EVE's login page (HTML) with 401
+    reply = () =>
+      new Response('<!DOCTYPE html>\n<html lang="en"><head><script src="x.js"></script></head></html>', {
+        status: 401,
+        headers: { 'Content-Type': 'text/html' },
+      });
+    await assert.rejects(attempt(), (err) => {
+      assert.equal(err.message, "EVE's login server refused the login (401). Log in again from the HUD.");
+      assert.equal(err.status, 401);
+      return true;
+    });
+    // a server error page
+    reply = () => new Response('<html>Bad gateway</html>', { status: 502 });
+    await assert.rejects(attempt(), /did not answer properly \(502\)\. Try again in a few minutes\.$/);
+    // EVE's own error message stays as it was
+    reply = () =>
+      new Response(JSON.stringify({ error: 'invalid_grant', error_description: 'Invalid refresh token.' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    await assert.rejects(attempt(), (err) => {
+      assert.equal(err.message, 'SSO token request failed (400): Invalid refresh token.');
+      assert.equal(err.code, 'invalid_grant');
+      return true;
+    });
+  } finally {
+    globalThis.fetch = real;
+  }
+});
+
+test('item data: built from the static data (SDE), read back one item at a time', async () => {
+  const { buildStatics, saveStatics, createStatics } = await import('../hud/lib/statics.js');
+  const { dataPath } = await import('../hud/lib/store.js');
+  const jsonl = (rows) => Buffer.from(rows.map((r) => JSON.stringify(r)).join('\n'));
+  const fillers = Array.from({ length: 1200 }, (_, i) => ({
+    _key: 100_000 + i,
+    groupID: 18,
+    name: { en: `Filler ${i}` },
+    published: false,
+  }));
+  const built = buildStatics({
+    typesBuf: jsonl([
+      ...fillers,
+      {
+        _key: 587,
+        groupID: 25,
+        name: { en: 'Rifter', de: 'Rifter' },
+        description: { en: 'A frigate.\nFast.', de: 'Eine Fregatte.' },
+        packagedVolume: 2500,
+        volume: 27289,
+        mass: 1067000,
+        published: true,
+        marketGroupID: 64,
+        techLevel: 1,
+        metaLevel: 0,
+      },
+      {
+        _key: 34,
+        groupID: 18,
+        name: { en: 'Tritanium ✓' },
+        volume: 0.01,
+        published: true,
+        marketGroupID: 1857,
+      },
+    ]),
+    groupsBuf: jsonl([
+      { _key: 25, categoryID: 6, name: { en: 'Frigate' } },
+      { _key: 18, categoryID: 4, name: { en: 'Mineral' } },
+    ]),
+    categoriesBuf: jsonl([
+      { _key: 6, name: { en: 'Ship' } },
+      { _key: 4, name: { en: 'Material' } },
+    ]),
+    factionsBuf: jsonl([{ _key: 500001, name: { en: 'Caldari State' } }]),
+    stationsBuf: jsonl([{ _key: 60003760, solarSystemID: 30000142, operationID: 26 }]),
+    operationsBuf: jsonl([{ _key: 26, services: [1, 2, 3] }]),
+  });
+  saveStatics(built, { build: 1, builtAt: 'now' });
+  const s = createStatics({ log: { warn() {} } });
+  assert.equal(s.ready(), true);
+  assert.deepEqual(s.type(587), {
+    id: 587,
+    name: 'Rifter',
+    groupId: 25,
+    volume: 2500, // the packaged volume, like ESI's
+    mass: 1067000,
+    published: true,
+    marketGroupId: 64,
+    techLevel: 1,
+    metaLevel: 0,
+    description: 'A frigate.\nFast.',
+  });
+  assert.equal(s.type(34).name, 'Tritanium ✓', 'non-ASCII text: lines are found by byte, not character');
+  assert.equal(s.type(100_000 + 1199).name, 'Filler 1199', 'the last line');
+  assert.equal(s.type(99), null);
+  assert.deepEqual(s.group(25), { id: 25, name: 'Frigate', categoryId: 6 });
+  assert.equal(s.category(6), 'Ship');
+  assert.equal(s.categoryOfType(587), 6);
+  assert.equal(s.categoryOfType(34), 4);
+  assert.equal(s.categoryOfType(99), null);
+  assert.deepEqual(s.station(60003760), { id: 60003760, systemId: 30000142, services: 3 });
+  assert.equal(s.station(1), null);
+  assert.deepEqual(s.factionNames(), { 500001: 'Caldari State' });
+  // items.jsonl doesn't match statics.json (an interrupted write): not used, so it's built again
+  fs.appendFileSync(dataPath('items.jsonl'), 'x');
+  s.reload();
+  assert.equal(s.ready(), false);
+  assert.equal(s.type(587), null);
+  assert.equal(s.categoryOfType(587), null);
+  fs.rmSync(dataPath('items.jsonl'));
+  fs.rmSync(dataPath('statics.json'));
+});
+
+test('login: saves are encrypted asynchronously, and a slower older save never overwrites a newer one', async () => {
+  const { createAuth } = await import('../hud/lib/auth.js');
+  const secrets = await import('../hud/lib/secrets.js');
+  const store = await import('../hud/lib/store.js');
+  const file = store.dataPath('tokens.json');
+  const jwt = (name) =>
+    `x.${Buffer.from(JSON.stringify({ sub: 'CHARACTER:EVE:7', name, scp: [], exp: Math.floor(Date.now() / 1000) + 1200 })).toString('base64url')}.y`;
+  // a box whose encryption of the first login is slow
+  secrets.useSecretBox({
+    encrypt: async (t) => {
+      await sleep(t.includes('"First"') ? 80 : 5);
+      return Buffer.from(t).toString('base64');
+    },
+    decrypt: async (b) => Buffer.from(b, 'base64').toString(),
+  });
+  const real = globalThis.fetch;
+  let next = 'First';
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ access_token: jwt(next), refresh_token: 'rt', expires_in: 1200 }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  const cfg = { clientId: '', clientSecret: '', callbackUrl: 'http://localhost:4747/callback', scopes: [] };
+  const saved = async () => {
+    const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return raw && JSON.parse(await secrets.unseal(raw.sealed));
+  };
+  try {
+    const auth = await createAuth(cfg, { log: { info() {}, warn() {} } });
+    const login = () =>
+      auth.handleCallback({ code: 'c', state: new URL(auth.loginUrl()).searchParams.get('state') });
+    const first = login(); // its save is slow…
+    await sleep(10);
+    next = 'Second';
+    await login(); // …this newer one finishes first
+    await first;
+    await sleep(100);
+    assert.equal((await saved()).characterName, 'Second', 'the older save did not overwrite the newer one');
+    // a logout while a save is still under way: stays logged out
+    next = 'First';
+    const late = login();
+    await sleep(10);
+    auth.logout();
+    await late.catch(() => {});
+    await sleep(100);
+    assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')), null, 'logged out stays logged out');
+    // and it reads back
+    next = 'Third';
+    await login();
+    assert.equal((await createAuth(cfg, { log: { info() {}, warn() {} } })).status().characterName, 'Third');
+    auth.logout();
+  } finally {
+    globalThis.fetch = real;
+    secrets.useSecretBox(null);
+    fs.rmSync(file, { force: true });
   }
 });

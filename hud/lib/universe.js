@@ -2,9 +2,11 @@
 // Star map data from CCP/Fenris Creations's official Static Data Export (SDE), cached in data/universe.json.
 //   https://developers.eveonline.com/static-data
 // The JSON Lines archive is downloaded once, the three map files are extracted
-// (mapSolarSystems, mapRegions, mapStargates), and the zip is deleted again.
+// (mapSolarSystems, mapRegions, mapStargates), the item names for chat and the item data
+// (statics.js), and the zip is deleted again.
 // On later starts only the tiny latest.jsonl is fetched to see whether CCP/Fenris Creations published a new build.
-// Fallback when the SDE can't be downloaded: crawl ESI (slower, and without jump lanes).
+// The SDE is the only source: ESI no longer has the map and item routes (compatibility date
+// 2026-11-19). If the download fails, the server tries again a few minutes later.
 import fs from 'node:fs';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -12,6 +14,7 @@ import { dataPath, readJson, writeJson } from './store.js';
 import { listEntries, extractEntry } from './zip.js';
 import { netFetch } from './net.js';
 import { isKSpace, compactPayload, linkSystems } from './universe-data.js';
+import { buildStatics, saveStatics, createStatics } from './statics.js';
 
 const FILE = dataPath('universe.json');
 // Item names for recognising items in chat (EVE's chat logs keep only the plain text of links).
@@ -28,7 +31,8 @@ const SDE_LATEST = 'https://developers.eveonline.com/static-data/tranquility/lat
 // Bump when the cached structure changes, so an older data/universe.json is rebuilt once.
 // 2: adds position2D, the schematic layout the in-game 2D map uses.
 // 3: adds data/typenames.json (item names from types.jsonl), built from the same download.
-const CACHE_FORMAT = 3;
+// 4: adds data/items.jsonl + data/statics.json (item data, factions, stations; statics.js).
+const CACHE_FORMAT = 4;
 
 function parseJsonl(buf) {
   const out = [];
@@ -159,74 +163,48 @@ async function buildFromSde(userAgent, progress) {
       stargatesRows: get('mapStargates.jsonl'),
       build,
     });
-    progress('Extracting item names from the static data');
-    const raw = (base) => {
+    progress('Extracting item names and item data from the static data');
+    const raw = (base, optional = false) => {
       const e = entries.find((x) => x.name === base || x.name.endsWith(`/${base}`));
-      if (!e) throw new Error(`${base} not found in the SDE archive`);
+      if (!e) {
+        if (optional) return null;
+        throw new Error(`${base} not found in the SDE archive`);
+      }
       return extractEntry(zip, e);
     };
     let names = null;
+    let statics = null;
+    let typesBuf = null;
+    let groupsBuf = null;
     try {
-      names = itemNames({ typesBuf: raw('types.jsonl'), groupsBuf: raw('groups.jsonl') });
+      typesBuf = raw('types.jsonl');
+      groupsBuf = raw('groups.jsonl');
+      names = itemNames({ typesBuf, groupsBuf });
     } catch (err) {
       progress(`Item names unavailable (${err.message}); chat items won't be highlighted`);
     }
-    return { ...map, names };
+    if (typesBuf && groupsBuf) {
+      try {
+        statics = buildStatics({
+          typesBuf,
+          groupsBuf,
+          categoriesBuf: raw('categories.jsonl', true),
+          factionsBuf: raw('factions.jsonl', true),
+          stationsBuf: raw('npcStations.jsonl', true),
+          operationsBuf: raw('stationOperations.jsonl', true),
+        });
+      } catch (err) {
+        progress(`Item data unavailable (${err.message}); the item window shows names only`);
+      }
+    }
+    return { ...map, names, statics };
   } finally {
     fs.rmSync(zip, { force: true });
   }
 }
 
-async function buildFromEsi(esi, progress) {
-  const { data: ids } = await esi.request('/universe/systems');
-  const systems = [];
-  const constellationIds = new Set();
-  let done = 0;
-  const queue = [...ids];
-  async function worker() {
-    while (queue.length) {
-      const id = queue.shift();
-      try {
-        const { data: s } = await esi.request(`/universe/systems/${id}`, { waitAsLongAsNeeded: true });
-        systems.push({
-          id,
-          name: s.name,
-          constellationId: s.constellation_id,
-          x: s.position.x,
-          y: s.position.y,
-          z: s.position.z,
-          sec: s.security_status,
-        });
-        constellationIds.add(s.constellation_id);
-      } catch {
-        /* skip */
-      }
-      if (++done % 200 === 0) progress(`Building star map from ESI: ${done}/${ids.length} systems`);
-    }
-  }
-  await Promise.all(Array.from({ length: 16 }, worker));
-  const constToRegion = new Map();
-  const cq = [...constellationIds];
-  async function cworker() {
-    while (cq.length) {
-      const id = cq.shift();
-      try {
-        const { data: c } = await esi.request(`/universe/constellations/${id}`, { waitAsLongAsNeeded: true });
-        constToRegion.set(id, c.region_id);
-      } catch {
-        /* skip */
-      }
-    }
-  }
-  progress('Building star map from ESI: constellations');
-  await Promise.all(Array.from({ length: 16 }, cworker));
-  for (const s of systems) s.regionId = constToRegion.get(s.constellationId) || 0;
-  const regionIds = [...new Set(systems.map((s) => s.regionId).filter(Boolean))];
-  const nameOf = await esi.resolveNames(regionIds);
-  return { source: 'esi', regions: regionIds.map((id) => ({ id, name: nameOf(id) })), systems, jumps: [] };
-}
-
-export function createUniverse({ esi, userAgent, log = console, onProgress = () => {} }) {
+export function createUniverse({ userAgent, log = console, onProgress = () => {} }) {
+  const statics = createStatics({ log });
   let data = null;
   let byId = new Map();
   let state = { ready: false, message: 'Star map not loaded' };
@@ -262,24 +240,21 @@ export function createUniverse({ esi, userAgent, log = console, onProgress = () 
     try {
       built = await buildFromSde(userAgent, progress);
     } catch (err) {
-      log.warn?.(
-        `[map] CCP/Fenris Creations static data download failed (${err.message}); falling back to ESI (takes a few minutes, no jump lanes)`,
-      );
-      try {
-        built = await buildFromEsi(esi, progress);
-      } catch (err2) {
-        setState({ ready: false, message: `Star map unavailable: ${err2.message}`, error: true });
-        return false;
-      }
+      log.warn?.(`[map] CCP/Fenris Creations static data download failed (${err.message})`);
+      setState({ ready: false, message: `Star map unavailable: ${err.message}`, error: true });
+      return false;
     }
     built.builtAt = new Date().toISOString();
-    const { names, ...mapData } = built;
-    if (built.source === 'ccp-sde') {
-      // written even when empty, so a missing types.jsonl doesn't trigger a rebuild on every start
-      writeJson(NAMES_FILE, { build: built.build ?? null, builtAt: built.builtAt, names: names || [] });
-      itemNameData = null;
-      log.info?.(`[map] ${names?.length || 0} item names saved for chat links`);
+    const { names, statics: items, ...mapData } = built;
+    // written even when empty, so a missing types.jsonl doesn't trigger a rebuild on every start
+    writeJson(NAMES_FILE, { build: built.build ?? null, builtAt: built.builtAt, names: names || [] });
+    itemNameData = null;
+    log.info?.(`[map] ${names?.length || 0} item names saved for chat links`);
+    if (items) {
+      saveStatics(items, { build: built.build ?? null, builtAt: built.builtAt });
+      log.info?.(`[map] Item data saved: ${items.statics.count} item types`);
     }
+    statics.reload();
     built = mapData;
     writeJson(FILE, built);
     index(built);
@@ -299,14 +274,13 @@ export function createUniverse({ esi, userAgent, log = console, onProgress = () 
         if (!(await build())) index(keep);
       } else if (
         data?.source === 'ccp-sde' &&
-        ((data.format ?? 1) < CACHE_FORMAT || !fs.existsSync(NAMES_FILE))
+        ((data.format ?? 1) < CACHE_FORMAT || !fs.existsSync(NAMES_FILE) || !statics.ready())
       ) {
-        log.info?.(
-          '[map] Updating the cached static data: in-game 2D map layout and item names for chat (one download)',
-        );
+        log.info?.('[map] Updating the cached static data: item names and item data (one download)');
         const keep = data;
         if (!(await build())) index(keep);
       } else if (latest && data && data.source !== 'ccp-sde') {
+        // a map built from ESI by older versions (they fell back to it when the download failed)
         log.info?.('[map] Replacing the fallback star map with CCP/Fenris Creations static data');
         const keep = data;
         if (!(await build())) index(keep);
@@ -352,6 +326,7 @@ export function createUniverse({ esi, userAgent, log = console, onProgress = () 
     payload,
     linkNames,
     linkVersion, // changes when the item names or the map did
+    statics, // item types, groups, categories, factions, NPC stations (statics.js)
     get state() {
       return state;
     },

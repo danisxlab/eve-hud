@@ -38,6 +38,7 @@
 
 const env = process.env;
 const { execFileSync } = require('node:child_process');
+const path = require('node:path');
 
 // The commit you build from goes into the app's package.json as "gitCommit", for About
 // (v1.0.3_8f2c1d0). Build from the commit your GitHub release (its tag) points to, and the two match.
@@ -82,6 +83,15 @@ module.exports = {
   // otherwise make them for the GitHub repository it finds) and no .blockmap files next to the
   // installers (the pieces an updater downloads). dist/ then holds just what you share.
   publish: null,
+  // Windows: the uninstaller's list of EVE HUD's own program files (scripts/uninstall-files.cjs), made
+  // from the app just built. build/installer.nsh reads it from dist/uninstall-files.nsh.
+  afterPack: (context) => {
+    if (context.electronPlatformName !== 'win32') return;
+    require('./scripts/uninstall-files.cjs').writeUninstallList(
+      context.appOutDir,
+      path.join(context.outDir, 'uninstall-files.nsh'),
+    );
+  },
   extraMetadata: { gitCommit: gitCommit() },
   // Electron "fuses": switches in the app's own program file, set once at build time. With these the
   // program can't be started as plain Node (ELECTRON_RUN_AS_NODE, NODE_OPTIONS, --inspect), and it

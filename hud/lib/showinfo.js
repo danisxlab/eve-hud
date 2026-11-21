@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Looks up what an EVE chat link points at, for the item window in the HUD.
 //   GET /api/showinfo?type=<typeID>[&item=<itemID>]
-// All public ESI endpoints (no scopes); ESI's own cache headers keep repeat clicks free.
+// Items, groups, categories and stations come from CCP/Fenris Creations's static data (statics.js);
+// characters, corporations, alliances, names and prices from public ESI endpoints (no scopes),
+// whose own cache headers keep repeat clicks free.
 import { cleanText } from './evehtml.js';
 import { marketPrices } from './esi.js';
 
@@ -9,7 +11,6 @@ const CHARACTER_TYPES = new Set([
   1373, 1374, 1375, 1376, 1377, 1378, 1379, 1380, 1381, 1382, 1383, 1384, 1385, 1386, 34574,
 ]);
 const TYPE = { corporation: 2, alliance: 16159, region: 3, constellation: 4, system: 5, faction: 30 };
-const ATTR = { techLevel: 422, metaLevel: 633 };
 const DESCRIPTION_MAX = 900;
 
 export function createShowInfo({ esi, universe, log = console }) {
@@ -27,38 +28,57 @@ export function createShowInfo({ esi, universe, log = console }) {
     return p ? { average: p[0], adjusted: p[1] } : null;
   }
 
+  const statics = universe.statics;
+
+  // Without the item data (not downloaded yet): just the name, from ESI's name lookup.
+  async function nameOnlyCard(typeId) {
+    const name = (await esi.resolveNames([typeId]))(typeId);
+    if (name === `#${typeId}`) throw Object.assign(new Error('Unknown item'), { status: 404 });
+    return {
+      kind: 'type',
+      typeId,
+      name,
+      group: null,
+      category: null,
+      categoryId: null,
+      image: 'icon',
+      techLevel: null,
+      metaLevel: null,
+      volume: null,
+      mass: null,
+      published: true,
+      price: await marketPrice(typeId),
+      description: '',
+    };
+  }
+
   async function typeCard(typeId) {
-    const { data: t } = await esi.request(`/universe/types/${typeId}`);
-    const { data: g } = await esi.request(`/universe/groups/${t.group_id}`);
-    let category = null;
-    try {
-      category = (await esi.request(`/universe/categories/${g.category_id}`)).data;
-    } catch {
-      /* optional */
-    }
-    const attr = (id) => t.dogma_attributes?.find((a) => a.attribute_id === id)?.value ?? null;
-    let description = cleanText(t.description || '', { keepBreaks: true })
+    if (!statics?.ready()) return nameOnlyCard(typeId);
+    const t = statics.type(typeId);
+    if (!t) throw Object.assign(new Error('Unknown item'), { status: 404 });
+    const g = statics.group(t.groupId);
+    let description = cleanText(t.description, { keepBreaks: true })
       .replace(/\r/g, '')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
     if (description.length > DESCRIPTION_MAX)
       description = `${description.slice(0, DESCRIPTION_MAX).replace(/\s+\S*$/, '')}…`;
-    const categoryId = g.category_id;
+    const categoryId = g?.categoryId ?? null;
     return {
       kind: 'type',
       typeId,
       name: t.name,
-      group: g.name,
-      category: category?.name ?? null,
+      group: g?.name ?? null,
+      category: categoryId !== null ? statics.category(categoryId) : null,
       categoryId,
       // ships and structures have 3D renders; blueprints their own art; everything else an icon
       image: categoryId === 6 || categoryId === 65 ? 'render' : categoryId === 9 ? 'bp' : 'icon',
-      techLevel: attr(ATTR.techLevel),
-      metaLevel: attr(ATTR.metaLevel),
-      volume: t.packaged_volume ?? t.volume ?? null,
+      techLevel: t.techLevel,
+      metaLevel: t.metaLevel,
+      volume: t.volume,
       mass: t.mass || null,
-      published: t.published !== false,
-      price: t.published !== false && t.market_group_id ? await marketPrice(typeId) : null,
+      published: t.published,
+      price: t.published && t.marketGroupId ? await marketPrice(typeId) : null,
       description,
     };
   }
@@ -126,17 +146,19 @@ export function createShowInfo({ esi, universe, log = console }) {
   }
 
   async function station(id, typeId) {
-    const { data: st } = await esi.request(`/universe/stations/${id}`);
-    const s = universe.system(st.system_id);
+    const st = statics?.station(id) ?? null; // system and number of services
+    const name = (await esi.resolveNames([id]))(id);
+    if (!st && name === `#${id}`) throw Object.assign(new Error('Unknown station'), { status: 404 });
+    const s = st ? universe.system(st.systemId) : null;
     return {
       kind: 'station',
       id,
       typeId,
-      name: st.name,
+      name,
       system: s
         ? { id: s.id, name: s.name, securityStatus: s.sec, region: s.regionName || null }
-        : { id: st.system_id, name: null },
-      services: st.services?.length ?? null,
+        : { id: st?.systemId ?? null, name: null },
+      services: st?.services ?? null,
     };
   }
 
@@ -187,7 +209,7 @@ export function createShowInfo({ esi, universe, log = console }) {
       return data;
     } catch (err) {
       if (err.status === 404 || /404/.test(err.message)) {
-        const e = new Error("ESI doesn't know this item");
+        const e = new Error("EVE doesn't know this item");
         e.status = 404;
         throw e;
       }

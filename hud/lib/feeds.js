@@ -9,7 +9,6 @@
 //   'map:hazards' / 'map:faction'      the star map with its hazard overlay / Faction colouring on
 // The pages tell the server what they show (setDemand); a feed that becomes needed runs at once,
 // one that is no longer needed stops polling and keeps its last data.
-import { dataPath, readJson, writeJson } from './store.js';
 import { marketPrices } from './esi.js';
 import { dumpDebug } from './feeds/shapes.js';
 import { publicFeeds } from './feeds/public-feeds.js';
@@ -90,26 +89,10 @@ export function createFeeds({
     };
   }
 
-  // typeId -> categoryId (6 = ship), via /universe/types + /universe/groups, cached for good in
-  // data/typecats.json (item categories don't change).
-  const TYPECATS_FILE = dataPath('typecats.json');
-  const typeCats = new Map(Object.entries(readJson(TYPECATS_FILE, {})).map(([k, v]) => [Number(k), v]));
-  const groupCats = new Map();
-  async function categoryOf(typeIds) {
-    let dirty = false;
-    for (const id of [...new Set(typeIds)].filter((t) => !typeCats.has(t)).slice(0, 80)) {
-      try {
-        const t = (await esi.request(`/universe/types/${id}`)).data;
-        if (!groupCats.has(t.group_id))
-          groupCats.set(t.group_id, (await esi.request(`/universe/groups/${t.group_id}`)).data.category_id);
-        typeCats.set(id, groupCats.get(t.group_id));
-        dirty = true;
-      } catch {
-        /* try again next time */
-      }
-    }
-    if (dirty) writeJson(TYPECATS_FILE, Object.fromEntries(typeCats));
-    return (id) => typeCats.get(id) ?? null;
+  // typeId -> categoryId (6 = ship), from CCP/Fenris Creations's static data (statics.js; ESI no
+  // longer has /universe/types and /universe/groups). null until the item data is downloaded.
+  async function categoryOf() {
+    return (id) => universe.statics?.categoryOfType(id) ?? null;
   }
 
   // every feed, by name (feeds/*.js)

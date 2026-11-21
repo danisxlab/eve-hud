@@ -38,7 +38,8 @@ class App extends EventEmitter {
     return 'EVE HUD';
   }
   getPath(name) {
-    const base = opt.paths?.[name];
+    // exe: the program itself (Node, here) unless a test sets it
+    const base = opt.paths?.[name] ?? (name === 'exe' ? process.execPath : undefined);
     if (!base) throw new Error(`fake getPath(${name}) not configured`);
     return base;
   }
@@ -205,6 +206,10 @@ class WebContents extends EventEmitter {
   setZoomLevel(z) {
     this.zoom = z;
   }
+  executeJavaScript(code) {
+    (this.scripts ||= []).push(code);
+    return Promise.resolve();
+  }
 }
 export class BrowserWindow extends EventEmitter {
   constructor(options) {
@@ -234,6 +239,13 @@ export class BrowserWindow extends EventEmitter {
   }
   show() {
     this.visible = true;
+  }
+  // the title bar (src/window.js frameOptions): Windows / Linux buttons, Mac buttons
+  setTitleBarOverlay(o) {
+    this.titleBarOverlay = o;
+  }
+  setWindowButtonPosition(p) {
+    this.trafficLights = p;
   }
   focus() {}
   restore() {}
@@ -358,13 +370,14 @@ export const shell = {
 // from another "computer" can't be decrypted. options.encryption: false = none available.
 const osKey = () => String(opt.osKey || 'this-computer');
 export const safeStorage = {
-  isEncryptionAvailable: () => opt.encryption !== false,
-  encryptString: (s) => Buffer.from(`${osKey()}|${s}`, 'utf8').reverse(),
-  decryptString: (buf) => {
+  // only the asynchronous functions: the synchronous ones are deprecated (Electron 45)
+  isAsyncEncryptionAvailable: async () => opt.encryption !== false,
+  encryptStringAsync: async (s) => Buffer.from(`${osKey()}|${s}`, 'utf8').reverse(),
+  decryptStringAsync: async (buf) => {
     const text = Buffer.from(buf).reverse().toString('utf8');
     if (!text.startsWith(`${osKey()}|`))
-      throw new Error('Error while decrypting the ciphertext provided to safeStorage.decryptString.');
-    return text.slice(osKey().length + 1);
+      throw new Error('Error while decrypting the ciphertext provided to safeStorage.decryptStringAsync.');
+    return { shouldReEncrypt: false, result: text.slice(osKey().length + 1) };
   },
 };
 

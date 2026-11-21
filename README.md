@@ -9,6 +9,8 @@ A live EVE Online HUD for a second screen, as a desktop app for Windows, macOS a
 **📖 Documentation: [danisxlab.github.io/eve-hud/documentation](https://danisxlab.github.io/eve-hud/documentation/)**.
 It covers installing, every module and setting, `config.json`, privacy, building and troubleshooting.
 
+EVE HUD is a hobby project. [Use it at your own risk](#use-at-your-own-risk).
+
 ## Features
 
 - **Modules you arrange yourself** on a grid: Character and wallet, Training Queue, Star Map, Chat, Industry, Market Orders, Warfare, and optional Activity & Income, Mining Ledger, Ships & Assets, Standings, and Kills & Losses.
@@ -31,7 +33,7 @@ Prefer your own application from the [EVE developers site](https://developers.ev
 
 ## Development
 
-You need [Node.js](https://nodejs.org) 20 or later. In the project folder:
+You need [Node.js](https://nodejs.org) 22.12 or later. In the project folder:
 
 ```sh
 npm install    # Electron and electron-builder (dev dependencies only)
@@ -56,6 +58,10 @@ npm run dist:mac-dev   # the same, signed with your own Apple Development certif
 npm run dist:linux     # Linux: dist/EVE HUD-<version>-x86_64.AppImage and dist/eve-hud_<version>_amd64.deb
 npm run checksums      # dist/SHA256SUMS.txt: SHA-256 of the files above, for the release
 ```
+
+## Use at your own risk
+
+**EVE HUD is a hobby project. Use it at your own risk.** It's made in spare time and shared for free, as it is. It comes without any warranty, not even that it works correctly or is fit for a particular purpose, and its authors aren't liable for any damage or loss that comes from using it, or from not being able to use it, as far as the law allows (sections 15 and 16 of the [`LICENSE`](LICENSE)). Questions and problems go to [Issues](https://github.com/danisxlab/eve-hud/issues), not to CCP/Fenris Creations.
 
 ## License
 

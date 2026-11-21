@@ -7,7 +7,7 @@
   position: fixed;
   left: 0;
   right: 0;
-  top: 0;
+  top: var(--titlebar-h);
   height: var(--topbar-h);
   display: flex;
   align-items: center;
@@ -823,4 +823,41 @@
     opacity: 0;
     filter: none;
   }
+}
+
+/* ---------------------------------------------------------------- the app's title bar */
+
+/* Above the top bar, in the app window and not in full screen (html.titled, src/window.js): drag it
+   to move the window, double-click it to maximize. The window buttons sit on it: Mac at the left,
+   Windows and Linux at the right (drawn by the system, see-through). */
+#titlebar {
+  display: none;
+}
+
+html.titled #titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: var(--titlebar-h);
+  z-index: 21;
+  background: rgba(var(--panel-rgb), 0.92);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-3);
+  font-size: 10.5px;
+  letter-spacing: 0.32em;
+  padding-left: 0.32em; /* the letter spacing after the last letter: keeps the title centred */
+  text-transform: uppercase;
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+/* Layers that can cover the title bar: clicks there go to them, not to moving the window */
+.modal-overlay,
+#overlay {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }

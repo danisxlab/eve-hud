@@ -30,8 +30,6 @@
     "esi-ui.write_waypoint.v1"
   ],
 
-  "compatibilityDate": "2026-08-18",
-
   "_refreshHelp": "Seconds. Only feeds that something on screen shows are polled (a hidden module's feed pauses). A feed refreshes as soon as ESI's cache for it expires, but never sooner than min or later than max. Raise min to poll less often. Going below ESI's own cache time has no effect. Set \"enabled\": false to switch a feed off.",
   "refresh": {
     "status": { "min": 30, "max": 120 },

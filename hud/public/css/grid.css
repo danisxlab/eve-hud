@@ -5,7 +5,7 @@
 
 #grid {
   position: fixed;
-  top: calc(var(--topbar-h) + var(--gap));
+  top: calc(var(--titlebar-h) + var(--topbar-h) + var(--gap));
   left: var(--gap);
   right: var(--gap);
   bottom: var(--gap);
@@ -31,7 +31,7 @@
 .replace-bar {
   position: fixed;
   left: 50%;
-  top: 44px;
+  top: calc(var(--titlebar-h) + 44px);
   transform: translateX(-50%);
   z-index: 60;
   display: flex;

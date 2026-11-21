@@ -59,12 +59,27 @@ export function findDamaged(files) {
 }
 
 // Deletes every configuration file (the damaged ones and the rest), so the next start is a fresh
-// one. Returns the files it deleted.
+// one. Returns the files it deleted. Files only: a folder in a file's place goes only when it is
+// empty. A folder with something in it is never emptied: then nothing is deleted, and it throws.
 export function resetConfig(files) {
+  const kind = (f) => {
+    try {
+      return fs.lstatSync(f).isDirectory() ? 'folder' : 'file';
+    } catch {
+      return null; // not there
+    }
+  };
+  const full = files.filter((f) => kind(f) === 'folder' && fs.readdirSync(f).length);
+  if (full.length)
+    throw new Error(
+      `${full.join(', ')} ${full.length === 1 ? 'is a folder' : 'are folders'} with files in it, which EVE HUD doesn't delete. Move or rename ${full.length === 1 ? 'it' : 'them'} yourself.`,
+    );
   const removed = [];
   for (const file of files) {
-    if (!fs.existsSync(file)) continue;
-    fs.rmSync(file, { recursive: true, force: true });
+    const k = kind(file);
+    if (!k) continue;
+    if (k === 'folder') fs.rmdirSync(file);
+    else fs.rmSync(file, { force: true });
     removed.push(file);
   }
   return removed;

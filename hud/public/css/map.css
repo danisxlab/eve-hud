@@ -682,15 +682,18 @@
   border-color: var(--gal-hi);
 }
 
-/* Star map: a soft, see-through dark backdrop behind the system info (top left) and the legend +
-   colour switch (bottom right), fading out at the edges, so the text stays readable over thousands
-   of systems. A faint shadow on the text helps where a system dot is right behind a letter. */
+/* Star map: a soft, see-through dark backdrop behind the system info (top left), the buttons (top
+   right) and the legend + colour switch (bottom right), fading out at the edges, so they stay
+   readable over thousands of systems. A faint shadow on the text helps where a system dot is right
+   behind a letter. */
 .map .hud.tl,
+.map .hud.tr,
 .map .hud.br {
   z-index: 1;
 }
 
 .map .hud.tl::before,
+.map .hud.tr::before,
 .map .hud.br::before {
   content: '';
   position: absolute;
@@ -702,6 +705,17 @@
   inset: -30px -80px -36px -40px;
   background: radial-gradient(
     ellipse farthest-side at 36% 45%,
+    rgba(var(--panel-rgb), 0.92) 0%,
+    rgba(var(--panel-rgb), 0.84) 50%,
+    rgba(var(--panel-rgb), 0.5) 76%,
+    rgba(var(--panel-rgb), 0) 100%
+  );
+}
+
+.map .hud.tr::before {
+  inset: -24px -20px -30px -70px;
+  background: radial-gradient(
+    ellipse farthest-side at 60% 42%,
     rgba(var(--panel-rgb), 0.92) 0%,
     rgba(var(--panel-rgb), 0.84) 50%,
     rgba(var(--panel-rgb), 0.5) 76%,

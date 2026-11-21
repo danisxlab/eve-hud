@@ -13,7 +13,7 @@
 #drawer {
   position: fixed;
   right: 0;
-  top: var(--topbar-h);
+  top: calc(var(--titlebar-h) + var(--topbar-h));
   bottom: 0;
   width: min(360px, 100vw);
   z-index: 31;
@@ -22,6 +22,10 @@
   backdrop-filter: blur(12px);
   padding: 16px 18px 24px;
   overflow-y: auto;
+  /* a thin scrollbar in the HUD's colours, like the modules' (Windows otherwise shows its own
+     white and grey one) */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--gal-rgb), 0.35) transparent;
 }
 
 /* slides in only when it opens (class set and removed by toggleDrawer): as a permanent animation,

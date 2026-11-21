@@ -97,19 +97,18 @@ export function characterFeeds({ esi, auth, universe, characterId, requireScope,
               systemId = s.data.solar_system_id;
               expires = Math.min(expires, s.expires);
             } else {
-              const s = await esi.request(`/universe/stations/${id}`);
-              name = s.data.name;
-              systemId = s.data.system_id;
-              expires = Math.min(expires, s.expires);
+              // NPC station: the name from ESI's name lookup, the system from the static data
+              name = (await esi.resolveNames([id]))(id);
+              systemId = universe.statics?.station(id)?.systemId ?? null;
             }
           } catch {
-            name = isStructure ? `Structure ${id}` : (await esi.resolveNames([id]))(id); // no docking access, or lookup failed
+            name = isStructure ? `Structure ${id}` : `#${id}`; // no docking access, or lookup failed
           }
           let system = systemId ? universe.system(systemId) : null;
           if (systemId && !system) {
+            // the star map isn't loaded (yet): just the name
             try {
-              const s = await esi.request(`/universe/systems/${systemId}`);
-              system = { name: s.data.name, sec: s.data.security_status };
+              system = { name: (await esi.resolveNames([systemId]))(systemId), sec: null };
             } catch {
               /* ignore */
             }
@@ -256,17 +255,9 @@ export function characterFeeds({ esi, auth, universe, characterId, requireScope,
             z: sys.z,
           };
         } else {
-          const r = await esi.request(`/universe/systems/${sysId}`);
-          system = {
-            id: sysId,
-            name: r.data.name,
-            sec: r.data.security_status,
-            regionId: null,
-            regionName: '',
-            x: r.data.position?.x,
-            y: r.data.position?.y,
-            z: r.data.position?.z,
-          };
+          // the star map isn't loaded (yet): just the name
+          const nameOf = await esi.resolveNames([sysId]);
+          system = { id: sysId, name: nameOf(sysId), sec: null, regionId: null, regionName: '' };
         }
         system.wormhole = sysId >= 31000000 && sysId < 32000000;
         const dockedId = loc.data.station_id || loc.data.structure_id || null;

@@ -2,8 +2,9 @@
 // Encryption of the secrets on disk: the Client ID and Secret Key in config.json, and the EVE login
 // in data/tokens.json.
 //
-// The app (src/main.js) hands in a "box" built on Electron's safeStorage: Windows' built-in data
-// protection (DPAPI) or the macOS Keychain. The key belongs to your user account on this computer
+// The app (src/main.js) hands in a "box" built on Electron's safeStorage (its asynchronous
+// functions, so seal and unseal return promises): Windows' built-in data protection (DPAPI) or the
+// macOS Keychain. The key belongs to your user account on this computer
 // and is kept by the operating system, never in a file. Encrypted values look like "enc:<base64>".
 //
 // Plain values (from an older version, or an imported folder) are read as they are and encrypted the
@@ -21,13 +22,13 @@ export function useSecretBox(next) {
 export const canEncrypt = () => Boolean(box);
 export const isSealed = (v) => typeof v === 'string' && v.startsWith(PREFIX);
 
-export function seal(text) {
+export async function seal(text) {
   if (!box || typeof text !== 'string' || !text || isSealed(text)) return text;
-  return PREFIX + box.encrypt(text);
+  return PREFIX + (await box.encrypt(text));
 }
 
-// Throws when the value can't be decrypted here.
-export function unseal(value) {
+// Rejects when the value can't be decrypted here.
+export async function unseal(value) {
   if (!isSealed(value)) return value;
   if (!box) throw new Error('encrypted, and encryption is not available');
   return box.decrypt(value.slice(PREFIX.length));

@@ -5,7 +5,7 @@
 
 .gate {
   position: fixed;
-  inset: var(--topbar-h) 0 0 0;
+  inset: calc(var(--titlebar-h) + var(--topbar-h)) 0 0 0;
   z-index: 25;
   display: grid;
   place-items: center;
@@ -153,6 +153,8 @@
   margin-top: 4px;
   max-height: 160px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--gal-rgb), 0.35) transparent;
 }
 
 .gate .copy {
@@ -474,6 +476,13 @@
 
 .modal.about summary {
   cursor: pointer;
+}
+
+/* the About text and the font licence scroll with the HUD's thin green scrollbar */
+.modal.about .modal-scroll,
+.modal.about pre.license {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--gal-rgb), 0.35) transparent;
 }
 
 .modal.about pre.license {

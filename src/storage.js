@@ -13,12 +13,58 @@
 // location.pending.json, the app restarts, and main.js calls moveStorage(). Moving copies the files
 // first, checks them, and only then removes the old ones. It refuses a folder that already holds a
 // config.json or HUD data, so nothing gets overwritten.
+//
+// Only EVE HUD's own files move: config.json and the files in DATA_FILES, by name. Anything else
+// in those folders (your own files) is never copied, moved or deleted, and a folder is only removed
+// when it is empty.
 
 import fs from 'node:fs';
 import path from 'node:path';
 
 export const POINTER = 'location.json';
 export const PENDING = 'location.pending.json';
+
+// Every file EVE HUD keeps in its data folder (test/hud.test.js checks this against the HUD code).
+// debug/: only with "debugDumps" in config.json (lib/feeds/shapes.js).
+export const DEBUG_DUMPS = [
+  'feeds-status',
+  'hazards',
+  'industry',
+  'meta-status',
+  'notifications',
+  'objectives',
+  'sovereignty',
+];
+export const DATA_FILES = [
+  'settings.json',
+  'settings-demo.json',
+  'tokens.json',
+  'window-state.json',
+  'universe.json',
+  'typenames.json',
+  'items.jsonl',
+  'statics.json',
+  'names.json',
+  'killmails.json',
+  ...DEBUG_DUMPS.map((n) => `debug/${n}.json`),
+];
+
+// EVE HUD's own files in a data folder (relative paths), as far as they're there
+export function ownDataFiles(dataDir) {
+  return DATA_FILES.filter((f) => {
+    try {
+      return fs.lstatSync(path.join(dataDir, f)).isFile();
+    } catch {
+      return false;
+    }
+  });
+}
+
+// The folder the app is installed in (updated with every new version): no place for config.json or data/
+export function programFolder(platform, exe) {
+  const i = platform === 'darwin' ? exe.indexOf('.app/') : -1;
+  return i > 0 ? exe.slice(0, i + 4) : path.dirname(exe);
+}
 
 export function readPointer(userData) {
   try {
@@ -55,13 +101,23 @@ const nonEmpty = (dir) => {
 };
 
 // Throws with a readable message when `to` can't be used. Returns what would move.
-export function checkMove({ from, to }) {
+// installDir: programFolder() in the installed app (null when started with npm start).
+export function checkMove({ from, to, installDir = null }) {
   for (const k of ['configDir', 'dataDir']) {
     if (!to[k] || !path.isAbsolute(to[k]))
       throw new Error(`Choose a full folder path for ${k === 'configDir' ? 'the settings' : 'the data'}.`);
   }
   const moveConfig = !same(from.configDir, to.configDir);
   const moveData = !same(from.dataDir, to.dataDir);
+  for (const [k, moving] of [
+    ['configDir', moveConfig],
+    ['dataDir', moveData],
+  ]) {
+    if (moving && installDir && (same(to[k], installDir) || inside(to[k], installDir)))
+      throw new Error(
+        `${to[k]} is inside EVE HUD's program folder, which is updated with every new version of EVE HUD. Choose another folder.`,
+      );
+  }
   if (moveData && (inside(to.dataDir, from.dataDir) || inside(from.dataDir, to.dataDir))) {
     throw new Error("The new data folder can't be inside the old one (or the other way round).");
   }
@@ -97,38 +153,39 @@ export function takePendingMove(userData) {
 // Moves config.json and/or data/ from `from` to `to` ({ configDir, dataDir } each) and records the
 // new place in location.json. Returns the list of what moved. Throws with a readable message when
 // a folder can't be used (then nothing changed).
-export function moveStorage({ userData, from, to }) {
-  const { moveConfig, moveData } = checkMove({ from, to });
+export function moveStorage({ userData, from, to, installDir = null }) {
+  const { moveConfig, moveData } = checkMove({ from, to, installDir });
   const oldConfig = path.join(from.configDir, 'config.json');
   const newConfig = path.join(to.configDir, 'config.json');
-  const moved = [];
-  // 1. copy and check; on any problem, remove the copies again and leave everything as it was
+  const files = moveData ? ownDataFiles(from.dataDir) : [];
+  const moved = [moveConfig && 'config.json', moveData && 'data'].filter(Boolean);
+  // 1. copy and check; on any problem, remove the copies (only those) and the folders this move
+  // made (only when empty), and leave everything as it was
+  const copies = [];
+  const madeDirs = [];
+  const makeDir = (dir) => {
+    const missing = [];
+    for (let d = path.resolve(dir); !fs.existsSync(d) && d !== path.dirname(d); d = path.dirname(d))
+      missing.unshift(d);
+    fs.mkdirSync(dir, { recursive: true });
+    madeDirs.push(...missing);
+  };
+  const copy = (src, dst, name) => {
+    makeDir(path.dirname(dst));
+    fs.copyFileSync(src, dst, fs.constants.COPYFILE_EXCL); // never over an existing file
+    copies.push(dst);
+    if (!fs.readFileSync(dst).equals(fs.readFileSync(src)))
+      throw new Error(`Copying ${name} failed: the copy differs.`);
+  };
   try {
-    if (moveConfig) {
-      fs.mkdirSync(to.configDir, { recursive: true });
-      fs.copyFileSync(oldConfig, newConfig, fs.constants.COPYFILE_EXCL);
-      moved.push('config.json');
-      if (!fs.readFileSync(newConfig).equals(fs.readFileSync(oldConfig)))
-        throw new Error('Copying config.json failed: the copy differs.');
-    }
+    if (moveConfig) copy(oldConfig, newConfig, 'config.json');
     if (moveData) {
-      fs.mkdirSync(to.dataDir, { recursive: true });
-      moved.push('data');
-      if (fs.existsSync(from.dataDir))
-        fs.cpSync(from.dataDir, to.dataDir, { recursive: true, errorOnExist: true, force: false });
-      const count = (d) => {
-        try {
-          return fs.readdirSync(d, { recursive: true }).length;
-        } catch {
-          return 0;
-        }
-      };
-      if (count(to.dataDir) < count(from.dataDir))
-        throw new Error('Copying the data folder failed: files are missing in the copy.');
+      makeDir(to.dataDir);
+      for (const f of files) copy(path.join(from.dataDir, f), path.join(to.dataDir, f), f);
     }
   } catch (err) {
-    if (moved.includes('config.json')) fs.rmSync(newConfig, { force: true });
-    if (moved.includes('data')) fs.rmSync(to.dataDir, { recursive: true, force: true });
+    for (const f of copies.reverse()) fs.rmSync(f, { force: true });
+    for (const d of madeDirs.reverse()) removeIfEmpty(d);
     throw err;
   }
   // 2. remember the new place (location.json lives in the app folder, which never moves)
@@ -141,8 +198,22 @@ export function moveStorage({ userData, from, to }) {
       pointer,
       `${JSON.stringify({ configDir: to.configDir, dataDir: to.dataDir }, null, 2)}\n`,
     );
-  // 3. remove the old copies
+  // 3. remove the old copies: only the files that were copied, then the folders if nothing else is
+  // left in them
   if (moveConfig) fs.rmSync(oldConfig, { force: true });
-  if (moveData) fs.rmSync(from.dataDir, { recursive: true, force: true });
+  if (moveData) {
+    for (const f of files) fs.rmSync(path.join(from.dataDir, f), { force: true });
+    removeIfEmpty(path.join(from.dataDir, 'debug'));
+    removeIfEmpty(from.dataDir);
+  }
   return moved;
+}
+
+// fs.rmdirSync only removes an empty folder; anything still in it keeps the folder where it is
+function removeIfEmpty(dir) {
+  try {
+    fs.rmdirSync(dir);
+  } catch {
+    /* not empty, or not there */
+  }
 }

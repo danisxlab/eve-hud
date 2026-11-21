@@ -187,7 +187,9 @@ test('development: demo server starts in-process, window shows it, tray works, c
     otherPort: false,
   });
   assert.deepEqual(p.permissions, { clipboard: true, camera: false, notify: false });
-  assert.deepEqual(p.defaultCleared, ['storage', 'cache'], 'old cookies from earlier versions are removed');
+  // the app's own on-disk session is never touched: even clearing it makes Chromium create an
+  // (empty) Cookies file in the app folder
+  assert.equal(p.defaultUsed, false, 'the default (on-disk) session is left alone');
   assert.match(r.logFile, /Blocked a request to fonts\.googleapis\.com/);
   assert.equal(r.steps.appActions.log, true, '/__app/log is handled by the app');
   assert.equal(r.steps.appActions.opened.length, 1);
@@ -204,14 +206,34 @@ test('window: first start opens on the portrait monitor; F11 / tray switch modes
   const before = fs.readFileSync(path.join(home, 'config.json'), 'utf8');
   const r = await run({
     args: ['--demo', '--port=4795', `--data-dir=${home}`],
-    steps: ['f11', 'normal', 'fullscreen', 'moveToPortrait', 'quit'],
+    steps: ['zoomIn', 'f11', 'normal', 'fullscreen', 'moveToPortrait', 'quit'],
   });
+  // the HUD's own title bar: no system title bar, the window buttons as tall as the HUD's bar, also
+  // when zoomed (Ctrl + twice: 1.2^1 = 1.2 × 28 px = 34 px), and back with Ctrl 0
+  const z = r.steps.zoomIn; // (the fake app runs as Windows here)
+  assert.equal(z.frame.titleBarStyle, 'hidden');
+  assert.deepEqual(z.frame.titleBarOverlay, {
+    color: 'rgba(0, 0, 0, 0)',
+    symbolColor: '#d4d9db',
+    height: 28,
+  });
+  assert.equal(z.zoomed.overlay.height, 34);
+  assert.equal(z.reset.overlay.height, 28);
+  // the page shows the title bar in a normal window, and not in full screen; corner accents only
+  // in a maximized window (resizeThenMaximize below)
+  assert.match(z.atLoad, /c\.toggle\('titled', true\); c\.toggle\('corner-accents', false\)/);
+  assert.match(r.steps.f11.script, /c\.toggle\('titled', false\); c\.toggle\('corner-accents', false\)/);
+  assert.match(z.atLoad, /c\.toggle\('frame-line', false\)/, 'Windows draws the edge itself');
+  assert.equal(z.frame.accentColor, '#0e231c', "the system's border: dark green");
   assert.deepEqual(
     r.firstWindowBounds,
     { x: 2573, y: 0, width: 1175, height: 1880 },
     'fits 1200×1920 into the portrait work area',
   );
-  assert.deepEqual(r.steps.f11, { isFull: true, prevented: true });
+  assert.deepEqual(
+    { isFull: r.steps.f11.isFull, prevented: r.steps.f11.prevented },
+    { isFull: true, prevented: true },
+  );
   assert.equal(r.steps.normal.isFull, false);
   assert.equal(r.steps.fullscreen.isFull, true);
   const after = fs.readFileSync(path.join(home, 'config.json'), 'utf8');
@@ -231,6 +253,24 @@ test('window: first start opens on the portrait monitor; F11 / tray switch modes
   assert.match(r2.logFile, /Window: fullscreen on display 2/);
 });
 
+test('window: when its size has settled the page hears it (the star map centres on your system)', async () => {
+  const home = dir('settle-home');
+  fs.writeFileSync(path.join(home, 'config.json'), fs.readFileSync(path.join(HUD, 'config.example.json')));
+  const r = await run({
+    args: ['--demo', '--port=4789', `--data-dir=${home}`],
+    options: { displays: [MAIN] },
+    steps: ['settle', 'quit'],
+  });
+  const st = r.steps.settle;
+  assert.ok(st, r.output);
+  assert.equal(st.whileDragging, 0, 'not while an edge is being dragged');
+  assert.equal(st.afterDrag, 1, 'once the mouse is let go');
+  assert.equal(st.afterMaximize, 2, 'maximize: once');
+  // + back from maximized, full screen, back from full screen, another resize
+  assert.equal(st.total, 6);
+  assert.match(st.backFrame, /c\.toggle\('corner-accents', false\)/, 'no accents once restored');
+});
+
 test('window: a resized and then maximized window comes back maximized, with its own size to restore to', async () => {
   const home = dir('max-home');
   fs.writeFileSync(path.join(home, 'config.json'), fs.readFileSync(path.join(HUD, 'config.example.json')));
@@ -240,6 +280,12 @@ test('window: a resized and then maximized window comes back maximized, with its
     steps: ['resizeThenMaximize', 'quit'],
   });
   assert.equal(r.steps.resizeThenMaximize.maximized, true, r.output);
+  // the corner accents: only while maximized
+  assert.match(r.steps.resizeThenMaximize.plainFrame, /c\.toggle\('corner-accents', false\)/);
+  assert.match(
+    r.steps.resizeThenMaximize.maxFrame,
+    /c\.toggle\('titled', true\); c\.toggle\('corner-accents', true\)/,
+  );
   const state = JSON.parse(fs.readFileSync(path.join(home, 'data', 'window-state.json'), 'utf8'));
   assert.deepEqual(state, {
     bounds: { x: 300, y: 120, width: 1500, height: 1000 },
@@ -488,7 +534,7 @@ test('Mac: no menu bar icon but a Settings menu; no developer tools, no second f
   const mac = await run({
     options: { platform: 'darwin' },
     args: ['--demo', '--port=4797'],
-    steps: ['menu', 'f12', 'quit'],
+    steps: ['menu', 'zoomIn', 'f12', 'quit'],
   });
   const menu = mac.steps.menu;
   assert.ok(
@@ -499,7 +545,16 @@ test('Mac: no menu bar icon but a Settings menu; no developer tools, no second f
     JSON.stringify(menu),
   );
   assert.ok(!menu.includes('about'), "our own About (the HUD window), not Electron's standard panel");
-  assert.ok(menu.includes('Reload') && menu.includes('zoomIn'));
+  assert.ok(menu.includes('Reload') && menu.includes('Zoom In') && menu.includes('Actual Size'));
+  // Mac: the red, yellow and green buttons centred on the HUD's title bar, also after zooming from
+  // the View menu (1.2 × 28 px = 34 px: y 10), and back at 100%
+  const mz = mac.steps.zoomIn;
+  assert.equal(mz.frame.titleBarStyle, 'hidden');
+  assert.equal(mz.frame.titleBarOverlay, undefined);
+  assert.deepEqual(mz.frame.trafficLightPosition, { x: 13, y: 7 });
+  assert.deepEqual(mz.zoomed.trafficLights, { x: 13, y: 10 });
+  assert.deepEqual(mz.reset.trafficLights, { x: 13, y: 7 });
+  assert.match(mz.atLoad, /c\.toggle\('corner-accents', false\)/, 'no corner accents on a Mac');
   assert.ok(
     !menu.includes('viewMenu') && !menu.includes('toggleDevTools') && !menu.includes('togglefullscreen'),
     JSON.stringify(menu),

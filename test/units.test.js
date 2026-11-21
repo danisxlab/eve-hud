@@ -24,6 +24,7 @@ import { configFiles, findDamaged, resetConfig, recoveryPage } from '../src/reco
 import { buildSite } from '../scripts/build-site.js';
 import { createAutostart, autostartDesktopFile } from '../src/autostart.js';
 import { readGitCommit, buildCommit } from '../src/build-info.js';
+import { frameOptions, frameScript, cornerRadius, TITLEBAR_HEIGHT, FRAME_BORDER } from '../src/window.js';
 
 const APP = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HUD = path.join(APP, 'hud');
@@ -113,6 +114,7 @@ test('importer: project folder or its data folder; never overwrites unless asked
   assert.equal(fs.readFileSync(path.join(home, 'data', 'universe.json'), 'utf8'), '{"u":1}');
   assert.ok(!fs.existsSync(path.join(home, 'data', 'debug.txt')));
   assert.ok(DATA_FILES.includes('typenames.json'));
+  assert.ok(DATA_FILES.includes('items.jsonl') && DATA_FILES.includes('statics.json'), 'item data');
 });
 
 test('importer: an empty folder has nothing to import', () => {
@@ -289,6 +291,82 @@ test('storage: moving copies, checks, records the place and removes the old file
   assert.ok(fs.existsSync(path.join(ud, 'config.json')) && !fs.existsSync(path.join(ud, 'location.json')));
 });
 
+test('storage: only EVE HUD’s own files move or get deleted; your other files stay where they are', async () => {
+  const { resolveLocations, checkMove, moveStorage, programFolder } = await import('../src/storage.js');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'storage-own-'));
+  const ud = path.join(root, 'ud');
+  const write = (f, text) => {
+    fs.mkdirSync(path.dirname(f), { recursive: true });
+    fs.writeFileSync(f, text);
+  };
+  // a data folder that you also put your own files in
+  const old = path.join(root, 'old');
+  write(path.join(ud, 'config.json'), '{}');
+  write(path.join(old, 'tokens.json'), '{"sealed":"enc:x"}');
+  write(path.join(old, 'debug', 'industry.json'), '{}');
+  write(path.join(old, 'holiday.jpg'), 'photo');
+  write(path.join(old, 'debug', 'notes.txt'), 'mine');
+  write(path.join(old, 'Documents', 'letter.txt'), 'mine too');
+  fs.writeFileSync(path.join(ud, 'location.json'), JSON.stringify({ configDir: ud, dataDir: old }));
+  const from = resolveLocations({ userData: ud });
+  const to = { configDir: ud, dataDir: path.join(root, 'new') };
+  moveStorage({ userData: ud, from, to });
+  assert.ok(
+    fs.existsSync(path.join(to.dataDir, 'tokens.json')) &&
+      fs.existsSync(path.join(to.dataDir, 'debug', 'industry.json')),
+  );
+  assert.ok(!fs.existsSync(path.join(to.dataDir, 'holiday.jpg')), 'your files are not copied along');
+  assert.ok(
+    !fs.existsSync(path.join(old, 'tokens.json')) && !fs.existsSync(path.join(old, 'debug', 'industry.json')),
+  );
+  assert.equal(fs.readFileSync(path.join(old, 'holiday.jpg'), 'utf8'), 'photo', 'your files stay');
+  assert.equal(fs.readFileSync(path.join(old, 'debug', 'notes.txt'), 'utf8'), 'mine');
+  assert.equal(fs.readFileSync(path.join(old, 'Documents', 'letter.txt'), 'utf8'), 'mine too');
+
+  // a failed copy removes only what the move made: hidden files already in the chosen folder stay
+  const back = resolveLocations({ userData: ud });
+  const target = path.join(root, 'hidden-only');
+  write(path.join(target, '.secret'), 'keep');
+  fs.chmodSync(path.join(back.dataDir, 'tokens.json'), 0o000); // can't be read: the copy fails
+  const unreadable = (() => {
+    try {
+      fs.readFileSync(path.join(back.dataDir, 'tokens.json'));
+      return false;
+    } catch {
+      return true;
+    }
+  })();
+  if (unreadable) {
+    assert.throws(() => moveStorage({ userData: ud, from: back, to: { configDir: ud, dataDir: target } }));
+    assert.equal(fs.readFileSync(path.join(target, '.secret'), 'utf8'), 'keep');
+    assert.deepEqual(fs.readdirSync(target), ['.secret'], 'the copies are gone again');
+    assert.ok(
+      fs.existsSync(path.join(back.dataDir, 'debug', 'industry.json')),
+      'nothing removed at the old place',
+    );
+  }
+  fs.chmodSync(path.join(back.dataDir, 'tokens.json'), 0o600);
+
+  // never into the program folder (updated with every new version)
+  const exe = path.join(root, 'Programs', 'EVE HUD', 'EVE HUD.exe');
+  const installDir = programFolder('win32', exe);
+  assert.equal(installDir, path.join(root, 'Programs', 'EVE HUD'));
+  assert.equal(
+    programFolder('darwin', '/Applications/EVE HUD.app/Contents/MacOS/EVE HUD'),
+    '/Applications/EVE HUD.app',
+  );
+  assert.throws(
+    () => checkMove({ from: back, to: { configDir: installDir, dataDir: back.dataDir }, installDir }),
+    /program folder/,
+  );
+  assert.throws(
+    () =>
+      checkMove({ from: back, to: { configDir: ud, dataDir: path.join(installDir, 'data') }, installDir }),
+    /program folder/,
+  );
+  fs.rmSync(root, { recursive: true, force: true });
+});
+
 test('Use the graphics card: on by default, saved in app-options.json, keeps other keys', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'evehud-gpu-'));
   assert.equal(readUseGpu(dir), true, 'no file: on');
@@ -383,6 +461,16 @@ test('damaged configuration files are found; a reset deletes them all, caches st
   assert.equal(resetConfig(files).length, 5);
   assert.deepEqual(findDamaged(files), []);
   assert.ok(fs.existsSync(path.join(where.dataDir, 'universe.json')));
+
+  // a folder in a file's place: removed only when empty, never emptied
+  fs.mkdirSync(path.join(ud, 'config.json'));
+  assert.deepEqual(resetConfig(files), [path.join(ud, 'config.json')]);
+  fs.mkdirSync(path.join(ud, 'config.json'));
+  fs.writeFileSync(path.join(ud, 'config.json', 'mine.txt'), 'mine');
+  fs.writeFileSync(path.join(where.dataDir, 'settings.json'), '{}');
+  assert.throws(() => resetConfig(files), /doesn't delete/);
+  assert.equal(fs.readFileSync(path.join(ud, 'config.json', 'mine.txt'), 'utf8'), 'mine');
+  assert.ok(fs.existsSync(path.join(where.dataDir, 'settings.json')), 'then nothing is deleted');
   fs.rmSync(ud, { recursive: true, force: true });
 });
 
@@ -670,4 +758,117 @@ test('game logs: the look every second (async) reads combat like the direct one'
   fs.rmSync(path.join(games, '20261102_190000_123.txt'));
   await g.pollAsync(); // the file is gone: no error
   fs.rmSync(root, { recursive: true, force: true });
+});
+
+test("title bar: the HUD's own title bar, the window buttons as tall as it, gone in full screen", () => {
+  const css = fs.readFileSync(path.join(HUD, 'public/css/base.css'), 'utf8');
+  assert.equal(
+    `${TITLEBAR_HEIGHT}px`,
+    css.match(/html\.titled \{\s*--titlebar-h:\s*([^;]+);/)[1],
+    "the same height as the HUD's title bar",
+  );
+  assert.deepEqual(frameOptions('darwin'), {
+    titleBarStyle: 'hidden',
+    trafficLightPosition: { x: 13, y: 7 }, // the 14 px buttons centred on the 28 px bar
+    transparent: true, // no light line along the top edge
+    backgroundColor: '#00000000',
+  });
+  for (const platform of ['win32', 'linux'])
+    assert.deepEqual(frameOptions(platform), {
+      titleBarStyle: 'hidden',
+      titleBarOverlay: { color: 'rgba(0, 0, 0, 0)', symbolColor: '#d4d9db', height: 28 },
+      // Windows: the system's border in dark green (Linux: the page draws it, frame-line)
+      ...(platform === 'win32' ? { accentColor: FRAME_BORDER } : {}),
+    });
+  assert.equal(
+    FRAME_BORDER,
+    css.match(/--frame-border:\s*([^;]+);/)[1],
+    "the page's window edge (Linux) has the same colour",
+  );
+  assert.equal(frameOptions('win32', 1.2).titleBarOverlay.height, 34, 'zoomed');
+  assert.deepEqual(frameOptions('darwin', 1.2).trafficLightPosition, { x: 13, y: 10 });
+  // the classes the page gets (run on a fake page here)
+  const classes = new Set();
+  const documentElement = {
+    classList: { add: (c) => classes.add(c), toggle: (c, on) => (on ? classes.add(c) : classes.delete(c)) },
+    style: { setProperty() {} },
+  };
+  new Function('document', frameScript({ titled: true, accents: true, buttonsRight: true }))({
+    documentElement,
+  });
+  assert.deepEqual([...classes].sort(), ['buttons-right', 'corner-accents', 'titled']);
+  new Function('document', frameScript({ titled: false, accents: true, buttonsRight: true }))({
+    documentElement,
+  });
+  assert.deepEqual([...classes].sort(), ['buttons-right', 'corner-accents'], 'full screen: no title bar');
+  new Function('document', frameScript({ titled: true, accents: false, buttonsRight: false }))({
+    documentElement,
+  });
+  assert.deepEqual([...classes].sort(), ['titled'], 'Mac: no corner accents');
+  new Function('document', frameScript({ titled: true, accents: false, buttonsRight: true, line: true }))({
+    documentElement,
+  });
+  assert.deepEqual([...classes].sort(), ['buttons-right', 'frame-line', 'titled'], 'Linux: the edge line');
+  // how round the window's corners are, for the corner accents
+  assert.equal(cornerRadius('win32', '10.0.22631'), 8, 'Windows 11');
+  assert.equal(cornerRadius('win32', '10.0.19045'), 0, 'Windows 10');
+  assert.equal(cornerRadius('linux', '6.8.0'), 0);
+});
+
+test('Windows uninstaller: removes only EVE HUD’s own program files, then folders only when empty', async () => {
+  const { nsisRemoveList, writeUninstallList } = (await import('../scripts/uninstall-files.cjs')).default;
+  const app = fs.mkdtempSync(path.join(os.tmpdir(), 'win-unpacked-'));
+  for (const f of [
+    'EVE HUD.exe',
+    'ffmpeg.dll',
+    'locales/en-US.pak',
+    'resources/app.asar',
+    'resources/app.asar.unpacked/x/y.node',
+    'odd $name "q".txt',
+  ]) {
+    fs.mkdirSync(path.dirname(path.join(app, f)), { recursive: true });
+    fs.writeFileSync(path.join(app, f), '');
+  }
+  const lines = nsisRemoveList(app).split('\r\n');
+  const body = lines.filter((l) => l.startsWith('  '));
+  assert.ok(lines.includes('!macro eveHudRemoveProgramFiles') && lines.includes('!macroend'));
+  assert.ok(body.includes('  Delete "$INSTDIR\\EVE HUD.exe"'));
+  assert.ok(body.includes('  Delete "$INSTDIR\\resources\\app.asar.unpacked\\x\\y.node"'));
+  assert.ok(body.includes('  Delete "$INSTDIR\\resources\\elevate.exe"'), 'added by the installer');
+  assert.ok(body.includes('  Delete "$INSTDIR\\odd $$name $\\"q$\\".txt"'), '$ and " written the NSIS way');
+  // only Delete (files) and RMDir without /r (empty folders), always inside the program folder
+  for (const l of body) assert.match(l, /^ {2}(Delete|RMDir) "\$INSTDIR\\[^"]/);
+  assert.ok(!body.some((l) => /RMDir \/r|\*/.test(l)), 'no /r and no wildcards');
+  const rmdirs = body
+    .filter((l) => l.startsWith('  RMDir'))
+    .map((l) => l.slice('  RMDir "$INSTDIR\\'.length, -1));
+  assert.deepEqual(rmdirs, [
+    'resources\\app.asar.unpacked\\x',
+    'resources\\app.asar.unpacked',
+    'locales',
+    'resources',
+  ]);
+  assert.ok(
+    body.indexOf('  RMDir "$INSTDIR\\locales"') > body.findLastIndex((l) => l.startsWith('  Delete')),
+  );
+  // the program folder itself only when empty (build/installer.nsh), and the list is read from
+  // where electron-builder.config.cjs writes it
+  const nsh = fs.readFileSync(path.join(APP, 'build', 'installer.nsh'), 'utf8');
+  assert.match(nsh, /!include "\$\{PROJECT_DIR\}\/dist\/uninstall-files\.nsh"/);
+  assert.match(
+    nsh,
+    /!macro customRemoveFiles[\s\S]*eveHudRemoveProgramFiles[\s\S]*RMDir "\$INSTDIR" ;[\s\S]*!macroend/,
+  );
+  assert.ok(!/RMDir \/r "\$INSTDIR/.test(nsh), 'never the whole program folder');
+  const config = (await import('../electron-builder.config.cjs')).default;
+  assert.equal(config.directories.output, 'dist');
+  const out = fs.mkdtempSync(path.join(os.tmpdir(), 'dist-'));
+  config.afterPack({ electronPlatformName: 'win32', appOutDir: app, outDir: out });
+  assert.equal(fs.readFileSync(path.join(out, 'uninstall-files.nsh'), 'utf8'), nsisRemoveList(app));
+  config.afterPack({ electronPlatformName: 'darwin', appOutDir: app, outDir: path.join(out, 'mac') });
+  assert.ok(!fs.existsSync(path.join(out, 'mac')), 'only for Windows builds');
+  assert.throws(() => nsisRemoveList(out), /not a built Windows app/);
+  writeUninstallList(app, path.join(out, 'again.nsh'));
+  fs.rmSync(app, { recursive: true, force: true });
+  fs.rmSync(out, { recursive: true, force: true });
 });

@@ -27,7 +27,8 @@ const isLinux = () => process.platform === 'linux';
 
 // The Mac menu bar. settings: the items of the Settings menu, or null before the HUD has started
 // (during the first-start questions and port messages).
-export function setMacMenu({ reload, about = null, settings = null }) {
+// zoom(step): 1 bigger, -1 smaller, 0 back to 100% (window.js: the window buttons follow the zoom)
+export function setMacMenu({ reload, zoom = null, about = null, settings = null }) {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
       // the app menu, with our own About: the HUD's About window (version, CCP/Fenris Creations notice, licenses)
@@ -54,9 +55,21 @@ export function setMacMenu({ reload, about = null, settings = null }) {
         submenu: [
           { label: 'Reload', accelerator: 'CmdOrCtrl+R', click: reload },
           { type: 'separator' },
-          { role: 'resetZoom' },
-          { role: 'zoomIn' },
-          { role: 'zoomOut' },
+          ...(zoom
+            ? [
+                { label: 'Actual Size', accelerator: 'CmdOrCtrl+0', click: () => zoom(0) },
+                { label: 'Zoom In', accelerator: 'CmdOrCtrl+Plus', click: () => zoom(1) },
+                // Cmd = (without Shift) as well, as in browsers
+                {
+                  label: 'Zoom In',
+                  accelerator: 'CmdOrCtrl+=',
+                  click: () => zoom(1),
+                  visible: false,
+                  acceleratorWorksWhenHidden: true,
+                },
+                { label: 'Zoom Out', accelerator: 'CmdOrCtrl+-', click: () => zoom(-1) },
+              ]
+            : [{ role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }]),
         ],
       },
       ...(settings ? [{ label: 'Settings', submenu: settings }] : []),
@@ -111,6 +124,7 @@ export function createControls({ icoFile, pngFile, status, actions }) {
     if (mac) {
       setMacMenu({
         reload: actions.reload,
+        zoom: actions.zoom,
         about: actions.about,
         settings: [
           { label: `EVE HUD · ${where}`, enabled: false },

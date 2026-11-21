@@ -211,7 +211,7 @@ export async function startServer({
   onLogin = () => {},
   storage = null,
 } = {}) {
-  const config = loadConfig();
+  const config = await loadConfig();
   const DEMO = Boolean(demo);
   if (DEMO) useSettingsFile('settings-demo.json');
   // data/debug/*.json (raw ESI answers, for troubleshooting): only with "debugDumps": true
@@ -258,7 +258,7 @@ export async function startServer({
   // the character and permissions the feeds were started for
   const feedsKey = (s) => (s?.loggedIn ? `${s.characterId}|${[...(s.scopes || [])].sort().join(' ')}` : '');
   let feedsCharacter = null;
-  const auth = createAuth(config, {
+  const auth = await createAuth(config, {
     log,
     onChange: (s) => {
       latest.auth = s;
@@ -274,7 +274,6 @@ export async function startServer({
   });
   const esi = createEsi(config, auth, { log });
   const universe = createUniverse({
-    esi,
     userAgent: config.userAgent,
     log,
     onProgress: (s) => {
@@ -689,7 +688,7 @@ export async function startServer({
             });
           }
         }
-        setCredentials({ clientId, clientSecret });
+        await setCredentials({ clientId, clientSecret });
         config.scopes = addConfigScopes(knownScopes()); // the setup form listed all of them to enable
         Object.assign(config, { clientId, clientSecret });
         config.ownApp = hasOwnApp(config);
@@ -720,7 +719,7 @@ export async function startServer({
       if (p === '/api/reset' && req.method === 'POST') {
         if (DEMO) return json(res, 400, { error: 'Not available in demo mode' });
         auth.logout();
-        setCredentials({ clientId: '', clientSecret: '' });
+        await setCredentials({ clientId: '', clientSecret: '' });
         Object.assign(config, { clientId: '', clientSecret: '', ownApp: false, secretProblem: null });
         config.configured = isConfigured(config);
         log.info('EVE HUD reset: logged out, Client ID and Secret removed from config.json');

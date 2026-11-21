@@ -18,12 +18,12 @@ function decodeJwt(token) {
 
 // tokens.json holds { "sealed": "enc:…" }: the login, encrypted (lib/secrets.js). A plain file
 // (older version, imported folder) is read once and saved encrypted.
-function readTokens(log) {
+async function readTokens(log) {
   const raw = readJson(TOKENS_FILE, null);
   if (!raw) return null;
   if (typeof raw.sealed === 'string') {
     try {
-      return JSON.parse(unseal(raw.sealed));
+      return JSON.parse(await unseal(raw.sealed));
     } catch {
       log.warn?.(
         '[auth] The saved EVE login could not be decrypted (saved on another computer or user account?). Log in again.',
@@ -31,15 +31,30 @@ function readTokens(log) {
       return null;
     }
   }
-  if (canEncrypt()) saveTokens(raw);
+  if (canEncrypt()) saveTokens(raw, log);
   return raw;
 }
-function saveTokens(t) {
-  writeJson(TOKENS_FILE, t && canEncrypt() ? { sealed: seal(JSON.stringify(t)) } : t);
+// Encrypting takes a moment, so saves can finish out of order: only the newest one is written (a
+// slower, older save never overwrites a newer one, e.g. a logout). Nothing to encrypt (a logout, or
+// no system encryption): written at once.
+let saves = 0;
+function saveTokens(t, log = console) {
+  const n = ++saves;
+  if (!t || !canEncrypt()) {
+    writeJson(TOKENS_FILE, t);
+    return Promise.resolve();
+  }
+  return seal(JSON.stringify(t)).then(
+    (sealed) => {
+      if (n === saves) writeJson(TOKENS_FILE, { sealed });
+    },
+    (err) => log.warn?.(`[auth] The EVE login could not be saved encrypted: ${err.message}`),
+  );
 }
 
-export function createAuth(config, { onChange = () => {}, log = console } = {}) {
-  let tokens = readTokens(log);
+// async: the saved login is decrypted first
+export async function createAuth(config, { onChange = () => {}, log = console } = {}) {
+  let tokens = await readTokens(log);
   const pendingStates = new Map(); // state -> { at, verifier, app }
   let refreshing = null;
 
@@ -103,8 +118,15 @@ export function createAuth(config, { onChange = () => {}, log = console } = {}) 
       /* not json */
     }
     if (!res.ok) {
+      const reason = json?.error_description || json?.error;
+      // No error message from EVE, but a web page (EVE's login page, for a refused application):
+      // one plain sentence instead of the start of that page.
       const err = new Error(
-        `SSO token request failed (${res.status}): ${json?.error_description || json?.error || text.slice(0, 200)}`,
+        reason
+          ? `SSO token request failed (${res.status}): ${reason}`
+          : res.status === 400 || res.status === 401 || res.status === 403
+            ? `EVE's login server refused the login (${res.status}). Log in again from the HUD.`
+            : `EVE's login server did not answer properly (${res.status}). Try again in a few minutes.`,
       );
       err.code = json?.error;
       err.status = res.status;
@@ -113,7 +135,7 @@ export function createAuth(config, { onChange = () => {}, log = console } = {}) 
     return json;
   }
 
-  function storeTokenResponse(json, app) {
+  async function storeTokenResponse(json, app) {
     const claims = decodeJwt(json.access_token);
     const characterId = Number(String(claims.sub).split(':').pop());
     const scopes = Array.isArray(claims.scp) ? claims.scp : claims.scp ? [claims.scp] : [];
@@ -126,7 +148,7 @@ export function createAuth(config, { onChange = () => {}, log = console } = {}) 
       scopes,
       clientId: app.clientId, // refreshes go to the application that made the login
     };
-    saveTokens(tokens);
+    await saveTokens(tokens, log);
     onChange(status());
   }
 
@@ -138,7 +160,7 @@ export function createAuth(config, { onChange = () => {}, log = console } = {}) 
     const body = { grant_type: 'authorization_code', code };
     if (pending.verifier) body.code_verifier = pending.verifier;
     const json = await tokenRequest(body, pending.app);
-    storeTokenResponse(json, pending.app);
+    await storeTokenResponse(json, pending.app);
     log.info?.(`[auth] Logged in as ${tokens.characterName} (${tokens.characterId})`);
     return status();
   }
@@ -182,7 +204,7 @@ export function createAuth(config, { onChange = () => {}, log = console } = {}) 
 
   function logout() {
     tokens = null;
-    saveTokens(null);
+    saveTokens(null, log);
     onChange(status());
   }
 

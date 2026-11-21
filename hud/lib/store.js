@@ -79,7 +79,10 @@ const DEFAULT_CONFIG = {
   port: 4747,
   callbackUrl: 'http://localhost:4747/callback',
   scopes: [],
-  compatibilityDate: '2026-08-18',
+  // ESI version date (X-Compatibility-Date): the route formats this code is written for. Fixed, like
+  // the User-Agent: the code and the date belong together. 2026-11-19: ESI has no static-data
+  // routes any more; items, stations and factions come from the static data (statics.js).
+  compatibilityDate: '2026-11-19',
   userAgent: USER_AGENT,
   debugDumps: false, // true: raw ESI answers in data/debug/*.json, for troubleshooting
   eveLogDir: '', // EVE's logs folder ('' = the usual place); chatLogDir: the older setting (a Chatlogs folder)
@@ -121,13 +124,18 @@ const DEFAULT_CONFIG = {
   window: { mode: 'normal', display: 'last' },
 };
 
-export function loadConfig() {
+// config.json, made from config.example.json when there is none yet
+function ensureConfigFile() {
+  if (fs.existsSync(CONFIG_FILE)) return;
+  const example = path.join(ROOT, 'config.example.json');
+  // read + write instead of copyFileSync: the example sits inside app.asar in the installed app
+  if (fs.existsSync(example)) fs.writeFileSync(CONFIG_FILE, fs.readFileSync(example), PRIVATE);
+}
+
+// async: the Client ID and Secret Key are decrypted (lib/secrets.js)
+export async function loadConfig() {
   const file = CONFIG_FILE;
-  if (!fs.existsSync(file)) {
-    const example = path.join(ROOT, 'config.example.json');
-    // read + write instead of copyFileSync: the example sits inside app.asar in the installed app
-    if (fs.existsSync(example)) fs.writeFileSync(file, fs.readFileSync(example), PRIVATE);
-  }
+  ensureConfigFile();
   const raw = readJson(file, null);
   if (raw === null && fs.existsSync(file)) {
     throw new Error(
@@ -137,6 +145,8 @@ export function loadConfig() {
   const cfg = { ...DEFAULT_CONFIG, ...(raw || {}) };
   cfg.userAgent = USER_AGENT; // fixed: one from config.json (older versions wrote it there) is ignored…
   if (raw && Object.hasOwn(raw, 'userAgent')) removeConfigKey('userAgent'); // …and taken out of the file
+  cfg.compatibilityDate = DEFAULT_CONFIG.compatibilityDate; // the same for the ESI version date
+  if (raw && Object.hasOwn(raw, 'compatibilityDate')) removeConfigKey('compatibilityDate');
   cfg.refresh = { ...DEFAULT_CONFIG.refresh };
   for (const [k, v] of Object.entries(raw?.refresh || {}))
     if (v && typeof v === 'object') cfg.refresh[k] = { ...DEFAULT_CONFIG.refresh[k], ...v };
@@ -157,7 +167,7 @@ export function loadConfig() {
   cfg.secretProblem = null;
   for (const k of CREDENTIALS) {
     try {
-      cfg[k] = unseal(cfg[k]);
+      cfg[k] = await unseal(cfg[k]);
     } catch {
       cfg[k] = '';
       cfg.secretProblem =
@@ -171,7 +181,7 @@ export function loadConfig() {
   const plain = (k) => raw?.[k] && !String(raw[k]).startsWith('PASTE_') && !isSealed(raw[k]);
   if (cfg.ownApp && canEncrypt() && CREDENTIALS.some(plain)) {
     try {
-      setCredentials(cfg);
+      await setCredentials(cfg);
     } catch {
       /* stays plain until the next start */
     }
@@ -195,8 +205,8 @@ const CREDENTIALS = ['clientId', 'clientSecret'];
 export const MILITIA_CHANNEL = { id: 'militia', label: 'Militia', filePrefix: 'Militia', fw: true };
 
 // Saves the Client ID and Secret Key, encrypted. Empty values clear them.
-export function setCredentials({ clientId = '', clientSecret = '' }) {
-  setConfigValues({ clientId: seal(clientId), clientSecret: seal(clientSecret) });
+export async function setCredentials({ clientId = '', clientSecret = '' }) {
+  setConfigValues({ clientId: await seal(clientId), clientSecret: await seal(clientSecret) });
 }
 
 // Changes top-level values (strings, numbers) in config.json (Client ID / Secret from the HUD's setup form,
@@ -204,7 +214,7 @@ export function setCredentials({ clientId = '', clientSecret = '' }) {
 // replaces only those values and keeps your formatting and every other key; only when that isn't
 // possible is the file rewritten with standard formatting. Checked with JSON.parse before writing.
 export function setConfigValues(values) {
-  if (!fs.existsSync(CONFIG_FILE)) loadConfig(); // creates it from config.example.json
+  ensureConfigFile();
   let text = fs.readFileSync(CONFIG_FILE, 'utf8');
   const parsed = JSON.parse(text);
   for (const [key, value] of Object.entries(values)) {
@@ -263,7 +273,7 @@ export function knownScopes() {
 // Adds scopes to the "scopes" list in config.json, in place (one new line per scope, same
 // indentation, nothing else touched). Returns the full list afterwards.
 export function addConfigScopes(add) {
-  if (!fs.existsSync(CONFIG_FILE)) loadConfig();
+  ensureConfigFile();
   const text = fs.readFileSync(CONFIG_FILE, 'utf8');
   const parsed = JSON.parse(text);
   const have = Array.isArray(parsed.scopes) ? parsed.scopes : [];

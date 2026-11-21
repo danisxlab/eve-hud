@@ -582,6 +582,7 @@
             <a href="#legal">License and credits</a>
             <ul>
               <li><a href="#license">License</a></li>
+              <li><a href="#use-at-your-own-risk">Use at your own risk</a></li>
               <li><a href="#licenses-and-credits">Licenses and credits</a></li>
             </ul>
           </li>
@@ -597,6 +598,9 @@
             your character, skill training, industry, market orders, chat, a star map with routes and hazards,
             Faction Warfare and more, from CCP/Fenris Creations's ESI and EVE's own log files. Laid out for a portrait monitor
             such as 1200×1920, but any window size works.
+          </p>
+          <p>
+            EVE HUD is a hobby project. <a href="#use-at-your-own-risk">Use it at your own risk</a>.
           </p>
           <figure>
             <img
@@ -635,7 +639,7 @@
                 <li>
                   <strong>Run it:</strong> install the app (see
                   <a href="#build-the-installer">Build the installer</a>), or from the project folder (a clone
-                  of the repository) with Node.js 20+: <code>npm install</code>, then <code>npm start</code>.
+                  of the repository) with Node.js 22.12+: <code>npm install</code>, then <code>npm start</code>.
                   <code>npm run demo</code> shows sample data without a login. To see it before installing
                   anything,
                   <a href="https://danisxlab.github.io/eve-hud/demo/">try the demo in your browser</a>.
@@ -738,8 +742,9 @@
                     <li><code>config.json</code> (scopes, refresh timings…, and your own application's Client ID and Secret Key, if any)</li>
                     <li><code>data/tokens.json</code> — your EVE login, so you don't have to log in again</li>
                     <li>
-                      <code>data/universe.json</code> + <code>data/typenames.json</code> — the star map and
-                      item names, so nothing is downloaded again
+                      <code>data/universe.json</code>, <code>data/typenames.json</code>,
+                      <code>data/items.jsonl</code> + <code>data/statics.json</code> — the star map, item names
+                      and item data, so nothing is downloaded again
                     </li>
                     <li>
                       <code>data/settings.json</code> + <code>data/settings-demo.json</code> — layout and
@@ -1141,6 +1146,17 @@
               </div>
               <ul>
                 <li>
+                  <strong>Title bar:</strong> a slim bar in EVE HUD's style instead of the system's. Drag it to
+                  move the window, double-click it to maximize. The window buttons are the system's own: the
+                  red, yellow and green ones at the left on a Mac; minimize, maximize and close at the right on
+                  Windows and Linux (Snap Layouts on Windows 11 keep working). In full screen there's no title
+                  bar.
+                </li>
+                <li>
+                  <strong>Frame:</strong> the window's edge is dark green (Windows 11's border; on Linux EVE HUD
+                  draws it). A maximized window has small accents in its corners (Windows, Linux).
+                </li>
+                <li>
                   <strong>Move to monitor</strong> (tray / Settings menu) moves the window (in either mode) to
                   another monitor; it's remembered.
                 </li>
@@ -1476,6 +1492,10 @@
                 <li>
                   The <span class="ui-btn" role="img" aria-label="Center on my location button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="square" stroke-linejoin="miter"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5"/></svg></span> button (<strong>Center on my location</strong>) centres the map on your system at
                   25× zoom; double-click centres it without zooming out.
+                </li>
+                <li>
+                  In the app, the map also glides back to your system (keeping your zoom) when you resize
+                  the window, maximize it or switch to full screen and back.
                 </li>
                 <li>
                   <strong>Search</strong> (bottom left, under the zoom level; press <code>/</code> to jump
@@ -1860,11 +1880,12 @@
                   </ul>
                 </li>
                 <li>
-                  <strong>Data:</strong> item names are saved to <code>data/typenames.json</code> during the
-                  star map download (from <code>types.jsonl</code> and <code>groups.jsonl</code>). Details
-                  come from public ESI routes when you click, with no extra scopes:
-                  <code>/universe/types</code>, <code>/universe/groups</code>,
-                  <code>/universe/categories</code> and <code>/markets/prices</code>.
+                  <strong>Data:</strong> item names (<code>data/typenames.json</code>) and item details
+                  such as group, category, volume and description (<code>data/items.jsonl</code> +
+                  <code>data/statics.json</code>) are saved during the star map download, from the static
+                  data (see <a href="#star-map-data">Star map data</a>). When you click, only the price
+                  (<code>/markets/prices</code>) and names (<code>/universe/names</code>) come from public
+                  ESI routes, with no extra scopes.
                 </li>
               </ul>
             </div>
@@ -2125,7 +2146,7 @@
                     <tr>
                       <td><strong>Ships</strong></td>
                       <td>Every ship you own and where it is (also inside a carrier's ship hangar), with its custom name and value including fitting and cargo; the ship you're flying is marked <em>active</em>.</td>
-                      <td><code>…/assets</code>, <code>…/assets/names</code>, <code>/universe/types</code> + <code>/universe/groups</code> (to spot ships, kept in <code>data/typecats.json</code>)</td>
+                      <td><code>…/assets</code>, <code>…/assets/names</code>, and the item data from the static data (to spot ships)</td>
                     </tr>
                     <tr>
                       <td><strong>Locations</strong></td>
@@ -2368,18 +2389,6 @@
                       <td>
                         ESI permissions requested at login. After changing them, use <em>Log in again</em> in
                         Settings. A module whose scope is missing tells you which one it needs.
-                      </td>
-                    </tr>
-                    <tr>
-                      <td><code>compatibilityDate</code></td>
-                      <td><code>2026-08-18</code></td>
-                      <td>
-                        ESI version date, sent as the <code>X-Compatibility-Date</code> header. Response
-                        formats are frozen at this date. Only move it forward deliberately. Every route EVE
-                        HUD uses exists at this date; changes it brought: <code>/sovereignty/map</code> →
-                        <code>/sovereignty/systems</code>, the route planner is
-                        <code>POST /route/{origin}/{destination}</code>, and military campaign lists are
-                        wrapped objects.
                       </td>
                     </tr>
                     <tr>
@@ -2655,8 +2664,9 @@
                   <em>Data</em> (<code>data/</code>). <strong>Move and restart</strong> restarts the app and
                   moves the files before EVE HUD starts again: it copies them, checks the copies, records the
                   new place in <code>location.json</code> in the default folder above (which stays put), and
-                  then removes the old ones. A folder that already has a <code>config.json</code>, or a data
-                  folder that isn't empty, is refused, so nothing gets overwritten.
+                  then removes the old ones. Only EVE HUD's own files move: anything else in those folders
+                  stays where it is. A folder that already has a <code>config.json</code>, or a data folder that
+                  isn't empty, is refused, so nothing gets overwritten.
                   <strong>Use default folders</strong> moves them back. Folders that sync to the cloud (iCloud
                   Drive, OneDrive) work, but bring no benefit: the encrypted login (and your own Secret Key, if
                   any) only work on this computer.
@@ -2721,6 +2731,14 @@
                       <td>Item names for the orange chat links, from the same SDE download.</td>
                     </tr>
                     <tr>
+                      <td><code>data/items.jsonl</code> + <code>data/statics.json</code></td>
+                      <td>
+                        Item data from the same SDE download: every item type (one line each, read one at a
+                        time), item groups and categories, factions and NPC stations. For the item window,
+                        the Assets module's ships and your home station.
+                      </td>
+                    </tr>
+                    <tr>
                       <td><code>data/names.json</code></td>
                       <td>Cache of names for items, systems, stations and structures. Safe to delete.</td>
                     </tr>
@@ -2740,7 +2758,7 @@
                     </tr>
                     <tr>
                       <td><code>data/typecats.json</code></td>
-                      <td>Item type → category (to spot ships among your assets). Safe to delete.</td>
+                      <td>Only from older versions (item categories); no longer used. Safe to delete.</td>
                     </tr>
                     <tr>
                       <td><code>data/debug/industry.json</code></td>
@@ -2765,7 +2783,7 @@
                     </tr>
                     <tr>
                       <td><code>data/window-state.json</code></td>
-                      <td>The window's last size, position and monitor.</td>
+                      <td>The window's last size, position and monitor, and whether it was maximized.</td>
                     </tr>
                     <tr>
                       <td><code>location.json</code></td>
@@ -3567,6 +3585,13 @@
                   >.
                 </li>
                 <li>
+                  <strong>Why the SDE:</strong> EVE HUD asks ESI for its routes as of 2026-11-19 (the
+                  <code>X-Compatibility-Date</code> header, fixed in the app). From that date ESI has no
+                  static-data routes (systems, item types, groups, stations, factions…), so the star map, item
+                  names and item data all come from the SDE. A <code>compatibilityDate</code> in an older
+                  <code>config.json</code> is removed.
+                </li>
+                <li>
                   <strong>First start:</strong>
                   <ol>
                     <li>
@@ -3579,13 +3604,17 @@
                       shows a progress percentage.
                     </li>
                     <li>
-                      It extracts only <code>mapSolarSystems.jsonl</code>, <code>mapRegions.jsonl</code> and
-                      <code>mapStargates.jsonl</code>. EVE HUD has a small built-in zip reader, so no unzip tool
-                      is needed.
+                      It extracts only the files it needs: <code>mapSolarSystems.jsonl</code>,
+                      <code>mapRegions.jsonl</code> and <code>mapStargates.jsonl</code> for the map, and
+                      <code>types.jsonl</code>, <code>groups.jsonl</code>, <code>categories.jsonl</code>,
+                      <code>factions.jsonl</code>, <code>npcStations.jsonl</code> and
+                      <code>stationOperations.jsonl</code> for item names and item data. EVE HUD has a small
+                      built-in zip reader, so no unzip tool is needed.
                     </li>
                     <li>
-                      It saves the result to <code>data/universe.json</code>, together with the build number,
-                      and deletes the zip. Each system keeps both its real 3D <code>position</code> and its
+                      It saves the result to <code>data/universe.json</code> (with the build number),
+                      <code>data/typenames.json</code>, <code>data/items.jsonl</code> and
+                      <code>data/statics.json</code>, and deletes the zip. Each system keeps both its real 3D <code>position</code> and its
                       schematic <code>position2D</code>.
                     </li>
                   </ol>
@@ -3596,9 +3625,8 @@
                   published a newer build.
                 </li>
                 <li>
-                  <strong>Fallback:</strong> if the SDE can't be downloaded, the map is built from ESI. That
-                  takes a few minutes and has no jump lanes. It's replaced by the SDE version on the next
-                  start where the download works.
+                  <strong>No download:</strong> if the SDE can't be downloaded, there's no star map yet and
+                  the item window shows only names. EVE HUD tries again every 5 minutes.
                 </li>
                 <li>
                   <strong>Force a rebuild:</strong> run <code>npm run rebuild-map</code>, or delete
@@ -3610,7 +3638,8 @@
                 </li>
                 <li>
                   <strong>Success</strong> shows in the log file as
-                  <code>Star map ready: … systems, … jump lanes (CCP/Fenris Creations-sde build …)</code>.
+                  <code>Item data saved: … item types</code> and
+                  <code>Star map ready: … systems, … jump lanes (ccp-sde build …)</code>.
                 </li>
               </ul>
             </div>
@@ -3662,6 +3691,14 @@
                       <td>
                         That host is blocked or unreachable. Run <code>npm run check</code>: it tests each
                         host over IPv4 and IPv6 and prints the reason (DNS, timeout, blocked TLS…).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>A module says <em>EVE's login server refused the login</em></td>
+                      <td>
+                        EVE no longer accepts the saved login. Log in again from EVE HUD. If it keeps
+                        happening, check that you start the newest EVE HUD (an older copy may still be
+                        installed).
                       </td>
                     </tr>
                     <tr>
@@ -3789,8 +3826,9 @@
                     <tr>
                       <td>Map downloads again although you imported</td>
                       <td>
-                        <code>data/universe.json</code> and <code>data/typenames.json</code> both need to be
-                        in the imported folder.
+                        <code>data/universe.json</code>, <code>data/typenames.json</code>,
+                        <code>data/items.jsonl</code> and <code>data/statics.json</code> all need to be in the
+                        imported folder.
                       </td>
                     </tr>
                     <tr>
@@ -3831,7 +3869,7 @@
           <div class="chapter-body">
             <div class="section">
               <h3 id="commands">Commands</h3>
-              <p>Run in the project folder (Node.js 20+, only for developing and building):</p>
+              <p>Run in the project folder (Node.js 22.12+, only for developing and building):</p>
               <div class="table">
                 <table>
                   <thead>
@@ -3910,7 +3948,7 @@
   paths.js             where the EVE HUD code and its config.json + data/ are
   storage.js           where config.json and data/ are kept, and moving them (Settings → Storage)
   importer.js          copies config.json + data files from an older EVE HUD folder
-  window.js            the window: normal / full-screen, monitors, remembered position, keys, links, login
+  window.js            the window: normal / full-screen, title bar, monitors, remembered position, keys, links, login
   privacy.js           in-memory session, EVE-only request filter, permissions
   tray.js              tray icon and menu (Windows, Linux), Settings menu (Mac)
   autostart.js         start at login (Linux: ~/.config/autostart)
@@ -3934,7 +3972,8 @@ hud/                   EVE HUD (server and page; no dependencies)
                        plus health.js (ESI's route health), summaries.js (wallet sources, killmails),
                        shapes.js (helpers for answers of unknown shape)
   lib/route.js         star map routes (ESI POST /route) and Set destination (ESI autopilot waypoint)
-  lib/universe.js      star map from the SDE (fallback: ESI), update check
+  lib/universe.js      star map and item names from the SDE, update check
+  lib/statics.js       item data from the SDE: item types, groups, factions, NPC stations
   lib/universe-data.js the star map in the page's shapes (shared with the demo website)
   lib/zip.js           minimal zip reader for the SDE archive
   lib/chatlogs.js      chat log tailing (UTF-16), the EVE logs folder
@@ -3974,12 +4013,14 @@ build/icon.png         1024 px icon for the Mac build; build/src/*.svg are the s
 build/background*.png  the Mac .dmg window's background (600×460, and @2x for Retina)
 build/installerSidebar.bmp   the Windows installer's side picture (164×314)
 build/entitlements.mac.plist   macOS hardened-runtime permissions (JIT)
-build/installer.nsh    Windows installer extra: the uninstaller's &quot;delete settings and data too?&quot; question
+build/installer.nsh    Windows uninstaller: removes only EVE HUD's own program files, and asks
+                       &quot;delete settings and data too?&quot;
 package.json           version, npm commands (scripts), Electron and electron-builder
 electron-builder.config.cjs    build + signing settings
 scripts/check.js       connection check (npm run check)
 scripts/checksums.js   SHA-256 of the release files (npm run checksums)
 scripts/build-site.js  the GitHub Pages website: this page and the demo (npm run site)
+scripts/uninstall-files.cjs   the uninstaller's list of those files, made at every Windows build
 test/                  tests, the stand-in electron module, run-server.js
 LICENSE                GNU General Public License v3
 README.md              the short introduction on GitHub
@@ -4069,7 +4110,8 @@ demo/fake-server.js    the demo website: answers the EVE HUD page in the browser
                     <li>
                       the window: first start on the portrait monitor, F11 / tray mode switch saved in
                       <code>config.json</code> (only that value changes), move to monitor, remembered on the
-                      next start;
+                      next start; the title bar, corner accents and border colour; the page hearing when the
+                      window's size has settled (the star map recentres);
                     </li>
                     <li>
                       first start: import (secret never logged, values encrypted in place, imported layout
@@ -4085,7 +4127,8 @@ demo/fake-server.js    the demo website: answers the EVE HUD page in the browser
                 <li>
                   <code>test/units.test.js</code>: window placement, importer, paths,
                   <code>config.json</code> edits, the request filter, the game and chat log folders, combat
-                  and autopilot lines in the game log, damaged configuration files.
+                  and autopilot lines in the game log, damaged configuration files, Settings → Storage moving
+                  only EVE HUD's own files, and the Windows uninstaller's list of files.
                 </li>
               </ul>
               <p>They use temporary folders only; your app folder isn't touched.</p>
@@ -4184,7 +4227,7 @@ demo/fake-server.js    the demo website: answers the EVE HUD page in the browser
                   screens), the layout is under <code>dmg</code> in <code>electron-builder.config.cjs</code>.
                 </li>
                 <li>
-                  On the game PC instead: install Node.js 20+ once (just for building), copy or clone this
+                  On the game PC instead: install Node.js 22.12+ once (just for building), copy or clone this
                   folder, then <code>npm install</code> and <code>npm run dist:win</code>.
                 </li>
                 <li>
@@ -4192,11 +4235,12 @@ demo/fake-server.js    the demo website: answers the EVE HUD page in the browser
                   from <code>LICENSE</code>), choose <em>Only for me</em> (no admin rights) or
                   <em>Anyone who uses this computer</em>, choose the folder, and it adds Start-menu and
                   desktop shortcuts, with a <em>Run EVE HUD</em> tick box at the end. Settings → Apps (or
-                  <em>Uninstall EVE HUD</em> in the Start menu) removes it again and asks whether to delete
-                  your settings and data too (EVE login, layout, star map in <code>%APPDATA%\EVE HUD</code>);
-                  the default is to keep them. The installer's settings are under <code>nsis</code> in
-                  <code>electron-builder.config.cjs</code>, the uninstall question in
-                  <code>build/installer.nsh</code>. Its picture, the plexus with the logo in EVE HUD's style
+                  <em>Uninstall EVE HUD</em> in the Start menu) removes it again: only EVE HUD's own program
+                  files, so anything else in the folder you chose stays there, and so does the folder. It
+                  asks whether to delete your settings and data too (EVE login, layout, star map in
+                  <code>%APPDATA%\EVE HUD</code>); the default is to keep them. The installer's settings are
+                  under <code>nsis</code> in <code>electron-builder.config.cjs</code>, the uninstaller's steps
+                  in <code>build/installer.nsh</code>. Its picture, the plexus with the logo in EVE HUD's style
                   down the left of the last page, is <code>build/installerSidebar.bmp</code>.
                 </li>
                 <li>
@@ -4353,7 +4397,7 @@ demo/fake-server.js    the demo website: answers the EVE HUD page in the browser
                 <path d="M8 21h8" /></svg
             ></span>
             <h2 id="legal-title">License and credits</h2>
-            <span class="sub">GPL-3.0-or-later, CCP/Fenris Creations&#x27;s material, the font.</span>
+            <span class="sub">GPL-3.0-or-later, use at your own risk, CCP/Fenris Creations&#x27;s material, the font.</span>
           </header>
           <div class="chapter-body">
             <div class="section">
@@ -4364,8 +4408,9 @@ demo/fake-server.js    the demo website: answers the EVE HUD page in the browser
                 >): you can redistribute it and/or modify it under the terms of the
                 <strong>GNU General Public License, version 3 or (at your option) any later version</strong>
                 (<a href="../LICENSE"><code>LICENSE</code></a
-                >; SPDX <code>GPL-3.0-or-later</code>). It comes with no warranty. The About window (ⓘ in the
-                top bar) says the same.
+                >; SPDX <code>GPL-3.0-or-later</code>). It comes with no warranty and no liability (see
+                <a href="#use-at-your-own-risk">Use at your own risk</a>). The About window (ⓘ in the top
+                bar) says the same.
               </p>
               <p>
                 The GPL covers this project's own code and icons. It doesn't cover CCP/Fenris Creations's material or the font,
@@ -4373,6 +4418,33 @@ demo/fake-server.js    the demo website: answers the EVE HUD page in the browser
                 the EVE HUD application, or your own. CCP/Fenris Creations's EVE Developer License Agreement
                 applies, including its non-commercial rule for CCP/Fenris Creations's data and images.
               </p>
+            </div>
+            <div class="section">
+              <h3 id="use-at-your-own-risk">Use at your own risk</h3>
+              <p>
+                <strong>EVE HUD is a hobby project. Use it at your own risk.</strong> It's made in spare time
+                and shared for free, as it is.
+              </p>
+              <ul>
+                <li>
+                  <strong>No warranty:</strong> it comes without any warranty, not even that it works
+                  correctly or is fit for a particular purpose.
+                </li>
+                <li>
+                  <strong>No liability:</strong> its authors aren't liable for any damage or loss that comes
+                  from using it, or from not being able to use it, as far as the law allows.
+                </li>
+                <li>
+                  This is what the license says too (the GPL's sections 15 and 16, in
+                  <a href="../LICENSE"><code>LICENSE</code></a>). The Windows installer shows the license
+                  before installing, and the About window (ⓘ in the top bar) says it too.
+                </li>
+                <li>
+                  EVE HUD is not made, endorsed or supported by CCP/Fenris Creations: questions and problems
+                  go to <a href="https://github.com/danisxlab/eve-hud/issues">its GitHub page</a>, not to
+                  them.
+                </li>
+              </ul>
             </div>
             <div class="section">
               <h3 id="licenses-and-credits">Licenses and credits</h3>

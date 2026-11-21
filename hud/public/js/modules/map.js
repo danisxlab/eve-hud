@@ -2073,8 +2073,18 @@ export default {
     const legendTimer = setInterval(() => {
       if (mapSettings().hazards) renderHazardLegend(true, store.feed('hazards'));
     }, 60_000);
+    // The app window's size has settled (a resize with the mouse ended, maximized, full screen, or
+    // back: src/window.js): the map glides back to your system, like "Center on my location" but
+    // keeping your zoom. Not in its first seconds, while it opens the way you left it.
+    const mountedAt = performance.now();
+    const onWindowSettled = () => {
+      if (performance.now() - mountedAt < 3000 || !data || !view || current < 0) return;
+      animateTo({ cx: data.x[current], cz: data.z[current], s: view.s });
+    };
+    window.addEventListener('hud:window-settled', onWindowSettled);
     const offs = [
       () => clearInterval(legendTimer),
+      () => window.removeEventListener('hud:window-settled', onWindowSettled),
       store.on('feed:hazards', buildHazards),
       store.on('feed:sovereignty', () => {
         buildFactions();

@@ -2,10 +2,28 @@
 ; Extra steps for the Windows installer (electron-builder includes this file: nsis.include in
 ; electron-builder.config.cjs).
 ;
+; Uninstalling (and every update, which uninstalls the old version first) removes only EVE HUD's
+; own program files, by name, and then the program folder only when it is empty: anything else in
+; that folder stays where it is. The list of files is made from the app itself when it's built
+; (scripts/uninstall-files.cjs, written to dist/uninstall-files.nsh). This replaces
+; electron-builder's default, which deletes the whole program folder.
+;
 ; Uninstalling asks whether to delete your EVE HUD settings and data too: config.json (Client ID,
 ; Secret Key), data/ (EVE login, layout, star map) and the log file, in %APPDATA%\EVE HUD.
 ; Not asked when an update replaces the app, and "No" in a silent uninstall.
 ; Files moved elsewhere with Settings → Storage stay where they are.
+
+!include "${PROJECT_DIR}/dist/uninstall-files.nsh"
+
+!macro customRemoveFiles
+  SetOutPath $TEMP ; out of the program folder, so it can be removed when empty
+  !insertmacro eveHudRemoveProgramFiles
+  Delete "$INSTDIR\${UNINSTALL_FILENAME}"
+  !ifdef UNINSTALLER_ICON
+    Delete "$INSTDIR\uninstallerIcon.ico"
+  !endif
+  RMDir "$INSTDIR" ; without /r: only when nothing else is in it
+!macroend
 
 !macro customUnInstall
   ${ifNot} ${isUpdated}

@@ -15,7 +15,7 @@ export const FEED_ROUTES = {
     '/sovereignty/campaigns',
     '/universe/system_kills',
   ],
-  sovereignty: ['/sovereignty/systems', '/fw/systems', '/universe/factions'],
+  sovereignty: ['/sovereignty/systems', '/fw/systems'],
   notifications: ['/characters/{}/notifications'],
   mail: ['/characters/{}/mail/labels'],
   clones: ['/characters/{}/clones'],

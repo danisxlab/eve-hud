@@ -20,7 +20,7 @@ export const DEBUG_DIR = dataPath('debug');
 // Raw ESI answers and feed timings, for troubleshooting. They can hold game details (industry
 // jobs, notifications), so they are only written with "debugDumps": true in config.json. Off (the
 // default): nothing is written, and files an earlier version left there are removed.
-const DUMP_NAMES = [
+export const DUMP_NAMES = [
   'feeds-status',
   'hazards',
   'industry',

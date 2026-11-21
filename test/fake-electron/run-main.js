@@ -38,6 +38,9 @@ await until(() => (f.windows[0]?.webContents.url && controlsReady()) || f.quit |
 await sleep(150);
 const win = f.windows[0];
 result.url = win?.webContents.url || null;
+// the last title bar / frame script the window sent the page (src/window.js frameScript)
+const frameScriptNow = () =>
+  (win?.webContents.scripts || []).filter((x) => x.includes("'titled'")).at(-1) ?? null;
 
 // A request as the HUD window makes it: with the headers the app's network filter adds (the API token).
 const windowHeaders = (url, headers = {}) =>
@@ -83,7 +86,42 @@ if (win && result.url) {
         { type: 'keyDown', key: 'F11' },
       );
       await sleep(100);
-      result.steps.f11 = { isFull: win.full, prevented };
+      win.emit('enter-full-screen'); // as Electron does after setFullScreen(true)
+      result.steps.f11 = { isFull: win.full, prevented, script: frameScriptNow() };
+    } else if (step === 'zoomIn') {
+      // Windows / Linux: the keys; Mac: the View menu (the window leaves the zoom keys to it)
+      const zoomBy = (step) => {
+        if (process.platform === 'darwin') {
+          const view = f.appMenu.template.find((m) => m.label === 'View');
+          const label = step === 0 ? 'Actual Size' : step > 0 ? 'Zoom In' : 'Zoom Out';
+          view.submenu.find((i) => i.label === label && i.visible !== false).click();
+        } else {
+          const k = step === 0 ? '0' : step > 0 ? '+' : '-';
+          win.webContents.emit(
+            'before-input-event',
+            { preventDefault() {} },
+            { type: 'keyDown', key: k, control: true },
+          );
+        }
+      };
+      const frame = {
+        titleBarStyle: win.options.titleBarStyle,
+        titleBarOverlay: win.options.titleBarOverlay,
+        trafficLightPosition: win.options.trafficLightPosition,
+        accentColor: win.options.accentColor,
+      };
+      win.webContents.emit('dom-ready'); // the page loaded: it gets the title bar classes
+      const atLoad = win.webContents.scripts?.at(-1) ?? null;
+      zoomBy(1);
+      zoomBy(1);
+      const zoomed = { overlay: win.titleBarOverlay ?? null, trafficLights: win.trafficLights ?? null };
+      zoomBy(0);
+      result.steps.zoomIn = {
+        frame,
+        atLoad,
+        zoomed,
+        reset: { overlay: win.titleBarOverlay ?? null, trafficLights: win.trafficLights ?? null },
+      };
     } else if (step === 'moveToPortrait') {
       const move = f.tray.menu.template.find((i) => i.label === 'Move to monitor');
       move.submenu.find((d) => d.label.startsWith('Portrait')).click();
@@ -147,16 +185,58 @@ if (win && result.url) {
           camera: await perm('media'),
           notify: await perm('notifications'),
         },
-        defaultCleared: f.sessions.default?.cleared || [],
+        defaultUsed: Boolean(f.sessions.default),
       };
     } else if (step === 'resizeThenMaximize') {
       // drag the window to another size, then maximize it (Mac: zoom); its plain size must be kept
       win.setBounds({ x: 300, y: 120, width: 1500, height: 1000 });
       win.emit('resize');
       await sleep(400); // settled
+      win.webContents.emit('dom-ready'); // the page loaded: it gets the title bar classes
+      const plainFrame = frameScriptNow();
       win.maximize();
+      const maxFrame = frameScriptNow();
       await sleep(900); // saved
-      result.steps.resizeThenMaximize = { maximized: win.isMaximized() };
+      result.steps.resizeThenMaximize = { maximized: win.isMaximized(), plainFrame, maxFrame };
+    } else if (step === 'settle') {
+      // the page hears when the window's size has settled (the star map centres on your system)
+      const settledCount = () =>
+        (win.webContents.scripts || []).filter((x) => x.includes('hud:window-settled')).length;
+      const start = settledCount();
+      // dragging an edge: nothing while the mouse is down, once when it's let go
+      for (let i = 0; i < 3; i++) {
+        win.emit('will-resize', { preventDefault() {} }, {}, {});
+        win.emit('resize');
+        await sleep(120);
+      }
+      await sleep(400);
+      const whileDragging = settledCount() - start;
+      win.emit('resized');
+      await sleep(150);
+      const afterDrag = settledCount() - start;
+      // maximize (with its resize): once, after the size settled
+      win.maximize();
+      await sleep(400);
+      const afterMaximize = settledCount() - start;
+      win.unmaximize();
+      const backFrame = frameScriptNow();
+      await sleep(400);
+      // full screen and back
+      win.setFullScreen(true);
+      await sleep(400);
+      win.setFullScreen(false);
+      await sleep(400);
+      // any other resize (Windows Snap): once it stopped changing
+      win.setBounds({ x: 0, y: 0, width: 1280, height: 1400 });
+      win.emit('resize');
+      await sleep(400);
+      result.steps.settle = {
+        whileDragging,
+        afterDrag,
+        afterMaximize,
+        backFrame,
+        total: settledCount() - start,
+      };
     } else if (step === 'appActions') {
       // the "stopped working" window's buttons go to /__app/…: handled by the app, never loaded
       const nav = (target) => {

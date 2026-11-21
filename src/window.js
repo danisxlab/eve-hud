@@ -11,6 +11,17 @@
 // very first start the first portrait monitor, if there is one), "portrait" or "primary".
 // A remembered position on a monitor that's no longer connected is ignored.
 //
+// The window has no system title bar but a slim one in the HUD's style, above the HUD's top bar
+// (frameOptions and markFrame below; #titlebar in hud/public/css/topbar.css). Drag it to move the
+// window, double-click it to maximize. Mac: the red, yellow and green buttons sit at its left.
+// Windows and Linux: the system's own minimize, maximize and close buttons sit at its right, drawn
+// see-through in the HUD's colours (Snap Layouts on Windows 11 keep working). Full screen: no bar.
+// The window's edge is a dark green line (FRAME_BORDER): the system's border on Windows 11, drawn
+// by the page on Linux. (macOS draws its own faint edge, which apps can't colour.) A maximized
+// window (not full screen) gets small accents in its corners, on Windows and Linux.
+// When the window's size has settled (a resize with the mouse ended, maximized, full screen, or
+// back), the page hears about it ("hud:window-settled"): the star map then centres on your system.
+//
 // Keys: F11 full-screen on/off · F5 / Ctrl+R reload · Ctrl + / Ctrl - / Ctrl 0 zoom (Cmd on a Mac) ·
 //       F12 / Ctrl+Shift+I developer tools, only when run from source (npm start) or with --devtools.
 //
@@ -30,6 +41,50 @@ import { SESSION_PARTITION, guardSession } from './privacy.js';
 const PORTRAIT = { width: 1200, height: 1920 };
 const LANDSCAPE = { width: 1600, height: 900 };
 const LANDSCAPE_MAX = 0.9;
+
+// ---------- the title bar ----------
+// The window buttons are as tall as the HUD's title bar (--titlebar-h in hud/public/css/base.css)
+// and stay so when you zoom (Ctrl + / Ctrl -).
+export const TITLEBAR_HEIGHT = 28;
+const TRAFFIC_LIGHTS_HEIGHT = 14; // the Mac's red, yellow and green buttons
+const OVERLAY_COLOURS = { color: 'rgba(0, 0, 0, 0)', symbolColor: '#d4d9db' }; // see-through; the HUD's text colour
+// the window's edge: dark green, close to black (also --frame-border in hud/public/css/base.css)
+export const FRAME_BORDER = '#0e231c';
+
+// BrowserWindow options for the title bar, per platform. Mac: a see-through window (the HUD itself
+// paints every pixel), because macOS draws a light line along the top edge of an opaque one.
+// Windows: accentColor colours the system's 1 px border (Windows 11), also when the window isn't
+// the active one, instead of the default grey.
+export function frameOptions(platform = process.platform, zoom = 1) {
+  const height = Math.round(TITLEBAR_HEIGHT * zoom);
+  if (platform === 'darwin')
+    return {
+      titleBarStyle: 'hidden',
+      trafficLightPosition: trafficLights(height),
+      transparent: true,
+      backgroundColor: '#00000000',
+    };
+  const options = { titleBarStyle: 'hidden', titleBarOverlay: { ...OVERLAY_COLOURS, height } };
+  if (platform === 'win32') options.accentColor = FRAME_BORDER;
+  return options;
+}
+// How round the window's corners are, so the corner accents can follow them: Windows 11 rounds
+// them by 8 pixels, Windows 10 and Linux not. (The Mac has no corner accents.)
+// version: process.getSystemVersion(), e.g. "10.0.22631" (Windows 11).
+export function cornerRadius(platform, version = '') {
+  const build = Number(String(version).split('.')[2]) || 0;
+  return platform === 'win32' && build >= 22000 ? 8 : 0;
+}
+// The page's part (classes on <html>): titled (the title bar is there: not in full screen),
+// corner-accents (maximized, on Windows and Linux), buttons-right (Windows and Linux: the buttons
+// fill the top-right corner), frame-line (Linux, a plain window: the page draws the window's edge);
+// and --window-radius, the corners' roundness
+export const frameScript = ({ titled, accents, buttonsRight, line = false, radius = 0 }) =>
+  `(() => { const r = document.documentElement; const c = r.classList; c.toggle('titled', ${Boolean(titled)}); c.toggle('corner-accents', ${Boolean(accents)}); c.toggle('buttons-right', ${Boolean(buttonsRight)}); c.toggle('frame-line', ${Boolean(line)}); r.style.setProperty('--window-radius', '${Number(radius) || 0}px'); })()`;
+// tells the page that the window's size has settled (the star map listens)
+export const SETTLED_SCRIPT = "window.dispatchEvent(new Event('hud:window-settled'))";
+// the Mac's buttons, centred on a title bar of this height
+const trafficLights = (height) => ({ x: 13, y: Math.round((height - TRAFFIC_LIGHTS_HEIGHT) / 2) });
 
 // ---------- placement (plain functions, so they can be tested without Electron) ----------
 
@@ -158,6 +213,7 @@ export function createHudWindow({
     backgroundColor: '#000000', // no white flash before the HUD paints
     icon,
     autoHideMenuBar: true,
+    ...frameOptions(),
     // partition without "persist:": cookies, storage and cache stay in memory and are gone on quit
     webPreferences: {
       contextIsolation: true,
@@ -175,17 +231,70 @@ export function createHudWindow({
     if (currentMode === 'fullscreen') win.setFullScreen(true);
   });
   win.on('page-title-updated', (e) => e.preventDefault()); // keep "EVE HUD" as the title
+  const RADIUS = cornerRadius(process.platform, process.getSystemVersion?.() || '');
+
+  // The HUD's title bar (gone in full screen), the corner accents (a maximized window, on Windows
+  // and Linux) and Linux's window edge (a plain window): the page draws them
+  function markFrame() {
+    if (win.isDestroyed()) return;
+    const full = win.isFullScreen();
+    const maxed = win.isMaximized() && !full;
+    const script = frameScript({
+      titled: !full,
+      accents: process.platform !== 'darwin' && maxed,
+      buttonsRight: process.platform !== 'darwin',
+      line: process.platform === 'linux' && !full && !maxed,
+      radius: full || maxed ? 0 : RADIUS,
+    });
+    win.webContents.executeJavaScript(script).catch(() => {}); // e.g. while a page is loading
+  }
+  win.webContents.on('dom-ready', markFrame);
+  win.on('maximize', markFrame); // a maximized window has square corners on Windows
+  win.on('unmaximize', markFrame);
 
   // Full-screen can also change outside our menu (the green button on a Mac): keep the mode in step.
-  win.on('enter-full-screen', () => setModeState('fullscreen'));
+  win.on('enter-full-screen', () => {
+    setModeState('fullscreen');
+    markFrame();
+  });
   win.on('leave-full-screen', () => {
     if (!moving) setModeState('normal');
+    markFrame();
   });
   function setModeState(m) {
     if (m === currentMode) return;
     currentMode = m;
     onModeChange(m);
   }
+
+  // ---------- the size has settled: tell the page ----------
+  // Dragging an edge (Mac and Windows: will-resize while you drag, resized when you let go) counts
+  // once you let go; maximize, full screen, back, and other resizes (Windows Snap; everything on
+  // Linux, which has no resized) once the size has stopped changing for a moment.
+  let dragging = false;
+  let dragTimer = null;
+  let settledTimer = null;
+  const settled = (delay = 250) => {
+    clearTimeout(settledTimer);
+    settledTimer = setTimeout(() => {
+      if (!win.isDestroyed()) win.webContents.executeJavaScript(SETTLED_SCRIPT).catch(() => {});
+    }, delay);
+  };
+  win.on('will-resize', () => {
+    dragging = true;
+    clearTimeout(dragTimer);
+    dragTimer = setTimeout(() => (dragging = false), 2000); // in case "resized" never comes
+  });
+  win.on('resized', () => {
+    dragging = false;
+    clearTimeout(dragTimer);
+    settled(50);
+  });
+  win.on('resize', () => {
+    if (!dragging) settled(process.platform === 'linux' ? 500 : 250);
+  });
+  for (const ev of ['maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen'])
+    win.on(ev, () => settled());
 
   // ---------- remember size, position, monitor and maximized ----------
   // The size of the window when it's neither maximized nor full-screen, kept up to date here:
@@ -237,6 +346,7 @@ export function createHudWindow({
   win.on('closed', onClosed);
 
   // ---------- keys ----------
+  const mac = process.platform === 'darwin';
   win.webContents.on('before-input-event', (event, input) => {
     if (input.type !== 'keyDown') return;
     const mod = input.control || input.meta;
@@ -246,12 +356,27 @@ export function createHudWindow({
     else if (key === 'F5' || (mod && !input.shift && key.toLowerCase() === 'r')) reload();
     else if (devTools && (key === 'F12' || (mod && input.shift && key.toLowerCase() === 'i')))
       wc.toggleDevTools();
-    else if (mod && (key === '+' || key === '=')) wc.setZoomLevel(Math.min(wc.getZoomLevel() + 0.5, 5));
-    else if (mod && key === '-') wc.setZoomLevel(Math.max(wc.getZoomLevel() - 0.5, -5));
-    else if (mod && key === '0') wc.setZoomLevel(0);
+    // zoom keys (on a Mac they're the View menu's: tray.js setMacMenu)
+    else if (mac) return;
+    else if (mod && (key === '+' || key === '=')) zoomStep(1);
+    else if (mod && key === '-') zoomStep(-1);
+    else if (mod && key === '0') zoomStep(0);
     else return;
     event.preventDefault();
   });
+  // Zooming makes the title bar taller or shorter: the window buttons follow it. (Chromium's zoom
+  // factor is 1.2 to the power of the zoom level.)
+  // step: 1 bigger, -1 smaller, 0 back to 100%
+  function zoomStep(step) {
+    const now = win.webContents.getZoomLevel();
+    zoom(step === 0 ? 0 : Math.max(-5, Math.min(5, now + 0.5 * Math.sign(step))));
+  }
+  function zoom(level) {
+    win.webContents.setZoomLevel(level);
+    const height = Math.round(TITLEBAR_HEIGHT * 1.2 ** level);
+    if (process.platform === 'darwin') win.setWindowButtonPosition?.(trafficLights(height));
+    else win.setTitleBarOverlay?.({ ...OVERLAY_COLOURS, height });
+  }
 
   // ---------- links, login, network ----------
   guardSession(win.webContents.session, {
@@ -354,6 +479,7 @@ export function createHudWindow({
     win,
     show,
     reload,
+    zoom: zoomStep,
     setMode,
     toggleMode,
     moveToDisplay,

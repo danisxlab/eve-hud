@@ -7,7 +7,7 @@
 import { FACTIONS, dumpDebug, pick, idNamed, progressOf, dateOf, human, systemIdsIn } from './shapes.js';
 import { feedHealth } from './health.js';
 
-export function publicFeeds({ esi, auth, characterId, hazardCfg, log }) {
+export function publicFeeds({ esi, auth, universe, characterId, hazardCfg, log }) {
   return {
     status: {
       uses: ['topbar'],
@@ -180,7 +180,7 @@ export function publicFeeds({ esi, auth, characterId, hazardCfg, log }) {
     //   /sovereignty/systems -> per system a `claim`: an empire or NPC faction, or a player alliance.
     //                           (It replaced /sovereignty/map at compatibility date 2026-05-19.)
     //   /fw/systems          -> Faction Warfare: the original owner and the current occupier
-    //   /universe/factions + /universe/names -> display names
+    //   faction names from the static data (statics.js), alliance names from /universe/names
     // The exact fields inside `claim` aren't documented where we could check, so the IDs are looked
     // up by name wherever they sit. A sample of the raw answer goes to data/debug/sovereignty.json.
     sovereignty: {
@@ -231,13 +231,7 @@ export function publicFeeds({ esi, auth, characterId, hazardCfg, log }) {
         } catch (err) {
           log.warn?.(`[sovereignty] FW systems: ${err.message}`);
         }
-        const names = {};
-        try {
-          const f = await esi.request('/universe/factions');
-          for (const x of f.data) names[x.faction_id] = x.name;
-        } catch {
-          Object.assign(names, FACTIONS);
-        }
+        const names = { ...FACTIONS, ...(universe.statics?.factionNames() || {}) };
         const nameOf = await esi.resolveNames([...alliances]);
         for (const id of alliances) names[id] = nameOf(id);
         return { data: { owners, fw, names }, expires: r.expires };

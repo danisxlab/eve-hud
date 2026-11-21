@@ -76,8 +76,9 @@ export function aboutModal() {
           {},
           'EVE HUD © 2026 danisxlab. Free software: you can share and change it under the ',
           ext('https://www.gnu.org/licenses/gpl-3.0.html', 'GNU General Public License'),
-          ', version 3 or (at your option) any later version. It comes with absolutely no warranty. The full text is in the LICENSE file that comes with it.',
+          ', version 3 or (at your option) any later version. It comes with absolutely no warranty and no liability. The full text is in the LICENSE file that comes with it.',
         ),
+        h('p', {}, h('strong', {}, 'EVE HUD is a hobby project. Use it at your own risk.')),
         h('h3', {}, 'EVE Online'),
         h(
           'p',

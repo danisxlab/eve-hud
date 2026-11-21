@@ -28,7 +28,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { pathToFileURL } from 'node:url';
-import { app, dialog, shell, Menu, screen, session, safeStorage, BrowserWindow } from 'electron';
+import { app, dialog, shell, Menu, screen, safeStorage, BrowserWindow } from 'electron';
 
 import { createLogger } from './log.js';
 import { hudSourceDir, hudHomeDir } from './paths.js';
@@ -38,7 +38,14 @@ import { createControls, setMacMenu } from './tray.js';
 import { createAutostart } from './autostart.js';
 import { buildCommit } from './build-info.js';
 import { setWindowMode } from './config-edit.js';
-import { resolveLocations, checkMove, requestMove, takePendingMove, moveStorage } from './storage.js';
+import {
+  resolveLocations,
+  checkMove,
+  requestMove,
+  takePendingMove,
+  moveStorage,
+  programFolder,
+} from './storage.js';
 import { readUseGpu, writeUseGpu } from './gpu.js';
 import { configFiles, findDamaged, resetConfig, recoveryPage, RESET_TITLE } from './recovery.js';
 
@@ -87,7 +94,6 @@ async function start() {
   process.on('uncaughtException', (err) => log.error('Unexpected error:', err));
   process.on('unhandledRejection', (err) => log.error('Unexpected error:', err));
   setAppMenu();
-  forgetOldSiteData();
 
   const appDir = app.getAppPath();
   const assetsDir = path.join(appDir, 'assets');
@@ -99,11 +105,13 @@ async function start() {
   const userData = app.getPath('userData');
   const override = hudHomeDir({ argv, userData: null }); // --data-dir / EVE_HUD_HOME, or null
   let where = resolveLocations({ userData, home: override });
+  // the installed app's own folder, updated with every new version: Storage never moves files into it
+  const installDir = app.isPackaged ? programFolder(process.platform, app.getPath('exe')) : null;
   // A move asked for in Settings → Storage happens now, before anything reads or writes the files.
   const pending = where.fixed ? null : takePendingMove(userData);
   if (pending) {
     try {
-      const moved = moveStorage({ userData, from: where, to: pending });
+      const moved = moveStorage({ userData, from: where, to: pending, installDir });
       log.info(
         `Storage: moved ${moved.join(' and ') || 'nothing'} (config.json now in ${pending.configDir}, data in ${pending.dataDir})`,
       );
@@ -142,7 +150,7 @@ async function start() {
 
   // Secrets on disk are encrypted with the operating system's key for this user (lib/secrets.js).
   const secrets = await import(pathToFileURL(path.join(hudDir, 'lib', 'secrets.js')).href);
-  secrets.useSecretBox(secretBox());
+  secrets.useSecretBox(await secretBox());
 
   const server = await import(pathToFileURL(path.join(hudDir, 'server.js')).href);
   const store = await import(pathToFileURL(path.join(hudDir, 'lib', 'store.js')).href);
@@ -150,7 +158,7 @@ async function start() {
 
   let config;
   try {
-    config = store.loadConfig();
+    config = await store.loadConfig();
   } catch (err) {
     // checked above already; this catches a file that went bad in between
     log.error(`config.json: ${err.message}`);
@@ -217,7 +225,7 @@ async function start() {
               throw new Error(
                 'The app was started with --data-dir (or EVE_HUD_HOME), which sets these folders.',
               );
-            checkMove({ from: where, to }); // a readable error now, instead of after the restart
+            checkMove({ from: where, to, installDir }); // a readable error now, instead of after the restart
             requestMove(userData, to);
             log.info(`Storage: moving to ${to.configDir} / ${to.dataDir} at the restart`);
             setTimeout(restart, 400); // after the reply has gone out
@@ -291,6 +299,7 @@ async function start() {
     actions: {
       show: () => hud.show(),
       reload: () => hud.reload(),
+      zoom: (step) => hud.zoom(step),
       about: showAbout,
       setMode: (m) => hud.setMode(m),
       moveToDisplay: async (id) => {
@@ -549,27 +558,19 @@ function fatal(err) {
   app.exit(1);
 }
 
-// Encryption with Electron's safeStorage: DPAPI on Windows, the Keychain on a Mac ("EVE HUD Safe
-// Storage"). null when the system offers none (some Linux desktops): secrets then stay plain text.
-function secretBox() {
+// Encryption with Electron's safeStorage (its asynchronous functions; values saved with the older
+// synchronous ones read the same): DPAPI on Windows, the Keychain on a Mac ("EVE HUD Safe Storage").
+// null when the system offers none (a Linux desktop without a keyring): secrets then stay plain text.
+async function secretBox() {
   const weak = process.platform === 'linux' && safeStorage.getSelectedStorageBackend?.() === 'basic_text';
-  if (!safeStorage.isEncryptionAvailable() || weak) {
+  if (weak || !(await safeStorage.isAsyncEncryptionAvailable())) {
     log.warn('No system encryption available: config.json and tokens.json stay readable on disk');
     return null;
   }
   return {
-    encrypt: (text) => safeStorage.encryptString(text).toString('base64'),
-    decrypt: (b64) => safeStorage.decryptString(Buffer.from(b64, 'base64')),
+    encrypt: async (text) => (await safeStorage.encryptStringAsync(text)).toString('base64'),
+    decrypt: async (b64) => (await safeStorage.decryptStringAsync(Buffer.from(b64, 'base64'))).result,
   };
-}
-
-// Earlier versions logged in inside the window, which kept EVE's login cookies in the app's own
-// (persistent) default session. The window now uses an in-memory session, so clear that old one.
-function forgetOldSiteData() {
-  session.defaultSession
-    .clearStorageData()
-    .then(() => session.defaultSession.clearCache())
-    .catch((err) => log.warn(`Could not clear old site data: ${err.message}`));
 }
 
 // ---------- quitting ----------
@@ -666,6 +667,7 @@ function showAbout() {
 // cover everything. On Linux the tray menu also becomes the window's menu bar once the HUD runs,
 // hidden until Alt (tray.js), for desktops without status icons.
 function setAppMenu() {
-  if (process.platform === 'darwin') setMacMenu({ reload: () => hud?.reload(), about: showAbout });
+  if (process.platform === 'darwin')
+    setMacMenu({ reload: () => hud?.reload(), zoom: (step) => hud?.zoom(step), about: showAbout });
   else Menu.setApplicationMenu(null);
 }

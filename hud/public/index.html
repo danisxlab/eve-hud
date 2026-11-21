@@ -19,11 +19,15 @@
   <body>
     <canvas id="backdrop" aria-hidden="true"></canvas>
     <canvas id="plexus" aria-hidden="true"></canvas>
+    <div id="titlebar" aria-hidden="true">EVE HUD</div>
     <header id="topbar"></header>
     <main id="grid" aria-label="HUD modules"></main>
     <aside id="drawer" aria-label="HUD settings" hidden></aside>
     <div id="overlay" hidden></div>
     <div id="toast" role="status" aria-live="polite"></div>
+    <div id="frame-corners" aria-hidden="true">
+      <i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i>
+    </div>
     <script type="module" src="/js/app.js"></script>
   </body>
 </html>

@@ -14,6 +14,8 @@ export const DATA_FILES = [
   'tokens.json',
   'universe.json',
   'typenames.json',
+  'items.jsonl', // item data (items.jsonl + statics.json belong together)
+  'statics.json',
   'settings.json',
   'settings-demo.json',
   'names.json',

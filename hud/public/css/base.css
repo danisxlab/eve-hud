@@ -77,6 +77,8 @@
 
   --font: 'Saira Semi Condensed', 'Saira Condensed', 'Arial Narrow', 'Helvetica Neue', sans-serif;
   --topbar-h: 34px;
+  --titlebar-h: 0px; /* the app's own title bar above the top bar (topbar.css), when it's there */
+  --frame-border: #0e231c; /* the app window's edge (src/window.js FRAME_BORDER) */
   --gap: 8px;
   --head-h: 38px;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -177,6 +179,105 @@ button {
 } /* static, drawn once per window size (plexus.js) */
 
 #plexus[hidden] {
+  display: none;
+}
+
+/* The app window (src/window.js sets these classes on <html>): titled while its title bar is there
+   (not in full screen), corner-accents (a maximized window, on Windows and Linux) for the small
+   touches in its four corners, frame-line (Linux, a plain window) for the window's dark green edge,
+   which Windows draws itself. The window buttons fill the top-right corner, so that accent is left
+   out while they're there. */
+html.titled {
+  --titlebar-h: 28px;
+}
+
+#frame-corners {
+  display: none;
+}
+
+html.corner-accents #frame-corners,
+html.frame-line #frame-corners {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  pointer-events: none;
+}
+
+html:not(.corner-accents) #frame-corners i {
+  display: none;
+}
+
+html.frame-line #frame-corners {
+  box-shadow: inset 0 0 0 1px var(--frame-border);
+  border-radius: var(--window-radius, 0px);
+}
+
+#frame-corners i {
+  position: absolute;
+  /* A small touch in each corner: a short 1 px line, 3 px in from the edge, that fades out both
+     ways. Where the window's corners are round (--window-radius, set by src/window.js:
+     Windows 11) it's a piece of the curve, following it; on square corners a tiny corner tick. */
+  --r: max(0px, calc(var(--window-radius, 0px) - 3px));
+  --mid: calc(var(--r) * 0.2929); /* the middle of the curve (1 - cos 45°), from the corner */
+  width: max(8px, var(--r));
+  height: max(8px, var(--r));
+  border: 0 solid var(--gal-hi);
+  opacity: 0.75;
+}
+
+#frame-corners .tl {
+  left: 3px;
+  top: 3px;
+  border-left-width: 1px;
+  border-top-width: 1px;
+  border-top-left-radius: var(--r);
+  mask-image: radial-gradient(circle at var(--mid) var(--mid), #000 0, #000 1px, transparent 6px);
+}
+
+#frame-corners .tr {
+  right: 3px;
+  top: 3px;
+  border-right-width: 1px;
+  border-top-width: 1px;
+  border-top-right-radius: var(--r);
+  mask-image: radial-gradient(
+    circle at calc(100% - var(--mid)) var(--mid),
+    #000 0,
+    #000 1px,
+    transparent 6px
+  );
+}
+
+#frame-corners .bl {
+  left: 3px;
+  bottom: 3px;
+  border-left-width: 1px;
+  border-bottom-width: 1px;
+  border-bottom-left-radius: var(--r);
+  mask-image: radial-gradient(
+    circle at var(--mid) calc(100% - var(--mid)),
+    #000 0,
+    #000 1px,
+    transparent 6px
+  );
+}
+
+#frame-corners .br {
+  right: 3px;
+  bottom: 3px;
+  border-right-width: 1px;
+  border-bottom-width: 1px;
+  border-bottom-right-radius: var(--r);
+  mask-image: radial-gradient(
+    circle at calc(100% - var(--mid)) calc(100% - var(--mid)),
+    #000 0,
+    #000 1px,
+    transparent 6px
+  );
+}
+
+html.titled.buttons-right #frame-corners .tr {
   display: none;
 }
 
