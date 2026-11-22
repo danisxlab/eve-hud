@@ -8,7 +8,8 @@
 //
 // _site/ has the same folder layout as the repository, so the relative links in the pages work
 // unchanged: documentation/, demo/, hud/public/ (the HUD page), hud/lib/ (only the files the demo
-// imports), assets/icon.png, LICENSE, and index.html, which forwards to the documentation.
+// imports), assets/icon.png, LICENSE, and index.html, which forwards to the project's GitHub page
+// (package.json "homepage"): https://danisxlab.github.io/eve-hud/ goes to the repository.
 import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
@@ -62,11 +63,15 @@ export function buildSite(out) {
     throw new Error('demo/index.html still has a path from the server root');
   fs.writeFileSync(path.join(out, 'demo/index.html'), page);
 
+  // the front page forwards to the project's GitHub page
+  const { homepage } = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  if (!/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/.test(homepage || ''))
+    throw new Error('package.json needs "homepage": the GitHub page the website forwards to');
   fs.writeFileSync(
     path.join(out, 'index.html'),
     '<!doctype html><meta charset="utf-8"><title>EVE HUD</title>\n' +
-      '<meta http-equiv="refresh" content="0; url=documentation/">\n' +
-      '<a href="documentation/">EVE HUD documentation</a>\n',
+      `<meta http-equiv="refresh" content="0; url=${homepage}">\n` +
+      `<a href="${homepage}">EVE HUD on GitHub</a>\n`,
   );
   fs.writeFileSync(path.join(out, MARKER), '');
   return out;

@@ -558,6 +558,11 @@ test('website: the documentation and the demo, with only browser code in the dem
     'LICENSE',
   ])
     assert.ok(fs.existsSync(path.join(out, f)), f);
+  // the front page forwards to the project's GitHub page
+  assert.match(
+    fs.readFileSync(path.join(out, 'index.html'), 'utf8'),
+    /<meta http-equiv="refresh" content="0; url=https:\/\/github\.com\/danisxlab\/eve-hud">/,
+  );
   const page = fs.readFileSync(path.join(out, 'demo/index.html'), 'utf8');
   // the demo server first, then the HUD; nothing from the server's root
   assert.ok(page.indexOf('src="fake-server.js"') < page.indexOf('src="../hud/public/js/app.js"'));
