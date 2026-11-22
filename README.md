@@ -9,8 +9,6 @@ A live EVE Online HUD for a second screen, as a desktop app for Windows, macOS a
 **📖 Documentation: [danisxlab.github.io/eve-hud/documentation](https://danisxlab.github.io/eve-hud/documentation/)**.
 It covers installing, every module and setting, `config.json`, privacy, building and troubleshooting.
 
-EVE HUD is a hobby project. [Use it at your own risk](#use-at-your-own-risk).
-
 ## Features
 
 - **Modules you arrange yourself** on a grid: Character and wallet, Training Queue, Star Map, Chat, Industry, Market Orders, Warfare, and optional Activity & Income, Mining Ledger, Ships & Assets, Standings, and Kills & Losses.
