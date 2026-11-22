@@ -3924,7 +3924,7 @@
                     <tr>
                       <td>
                         <code>npm run dist:win</code> / <code>dist:win-zip</code> / <code>dist:mac</code> /
-                        <code>dist:mac-dev</code>
+                        <code>dist:mac-dev</code> / <code>dist:linux</code> / <code>dist:all</code>
                       </td>
                       <td>Builds the app (see <a href="#build-the-installer">Build the installer</a>).</td>
                     </tr>
@@ -4177,6 +4177,14 @@ demo/fake-server.js    the demo website: answers the EVE HUD page in the browser
                         <code>dist/eve-hud_&lt;version&gt;_amd64.deb</code> (Ubuntu, Debian, Mint…), x64
                       </td>
                       <td>Linux or a Mac</td>
+                    </tr>
+                    <tr>
+                      <td><code>npm run dist:all</code></td>
+                      <td>
+                        all of the above in one go: <code>dist:win</code>, <code>dist:win-zip</code>,
+                        <code>dist:mac</code>, <code>dist:linux</code>, then <code>npm run checksums</code>
+                      </td>
+                      <td>a Mac</td>
                     </tr>
                   </tbody>
                 </table>

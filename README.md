@@ -55,6 +55,7 @@ npm run dist:mac       # macOS (Apple silicon + Intel): dist/EVE HUD-<version>-u
 npm run dist:mac-dev   # the same, signed with your own Apple Development certificate
 npm run dist:linux     # Linux: dist/EVE HUD-<version>-x86_64.AppImage and dist/eve-hud_<version>_amd64.deb
 npm run checksums      # dist/SHA256SUMS.txt: SHA-256 of the files above, for the release
+npm run dist:all       # all of it in one go (on a Mac): dist:win, dist:win-zip, dist:mac, dist:linux, checksums
 ```
 
 ## Use at your own risk

@@ -35,7 +35,8 @@
     "dist:win-zip": "electron-builder --win zip --x64 --config electron-builder.config.cjs",
     "dist:mac": "electron-builder --mac --config electron-builder.config.cjs",
     "dist:mac-dev": "MAC_SIGN=development electron-builder --mac --config electron-builder.config.cjs",
-    "dist:linux": "electron-builder --linux --config electron-builder.config.cjs"
+    "dist:linux": "electron-builder --linux --config electron-builder.config.cjs",
+    "dist:all": "npm run dist:win && npm run dist:win-zip && npm run dist:mac && npm run dist:linux && npm run checksums"
   },
   "devDependencies": {
     "electron": "^45.4.1",
